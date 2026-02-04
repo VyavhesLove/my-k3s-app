@@ -6,6 +6,7 @@ import InventoryList from './components/InventoryList';
 import ItemCreate from './components/ItemCreate';
 import ItemTransfer from './components/ItemTransfer';
 import Analytics from './components/Analytics';
+import QuickActions from './components/QuickActions';
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -34,6 +35,7 @@ function App() {
             <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
           </Routes>
         </main>
+        <QuickActions isDarkMode={isDarkMode} />
       </div>
     </Router>
   );

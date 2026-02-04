@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { 
   PlusCircle, Copy, Edit, Send, Hammer, 
   Truck, RotateCcw, BarChart3, Trash2, 
-  User, Moon, Sun, LogOut, ChevronLeft, ChevronRight 
+  User, Moon, Sun, LogOut, ChevronLeft, ChevronRight, Home
 } from 'lucide-react';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selectedItem }) => {
@@ -33,15 +34,28 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
       navigate('/create');
     } 
     else if (label === 'Создать по аналогии') {
-      if (!selectedItem) return alert("Выберите ТМЦ!");
+      if (!selectedItem) {
+        return toast.error("Выберите ТМЦ в списке для копирования", {
+          id: 'selection-error'
+        });
+      }
       navigate('/create', { state: { duplicateFrom: selectedItem } });
     }
     else if (label === 'Редактировать ТМЦ') {
-      if (!selectedItem) return alert("Выберите ТМЦ!");
+      if (!selectedItem) {
+        return toast.error("Выберите ТМЦ для редактирования", {
+          id: 'selection-error'
+        });
+      }
       navigate('/create', { state: { editItem: selectedItem } });
     }
     else if (label === 'Передать ТМЦ') {
-      if (!selectedItem) return alert("Выберите ТМЦ для передачи!");
+      if (!selectedItem) {
+        return toast.warning("Сначала выберите ТМЦ для передачи", {
+          id: 'selection-error',
+          description: "Кликните на строку в таблице списка"
+        });
+      }
       navigate('/transfer', { state: { selectedItem: selectedItem } });
     }
     else if (label === 'Аналитика') {
@@ -80,7 +94,20 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
     >
       {/* Шапка меню */}
       <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-        {!isCollapsed && <span className="font-bold text-xl tracking-wide uppercase">Учёт ТМЦ</span>}
+        <Link 
+          to="/" 
+          className={`flex items-center gap-3 hover:opacity-80 transition-opacity ${isCollapsed ? 'justify-center' : ''}`}
+        >
+          <Home 
+            size={24} 
+            className={`${isDarkMode ? 'text-blue-400' : 'text-blue-600'} flex-shrink-0`} 
+          />
+          {!isCollapsed && (
+            <span className={`font-bold text-xl tracking-wide uppercase hover:text-blue-500 transition-colors duration-200`}>
+              Учёт ТМЦ
+            </span>
+          )}
+        </Link>
         <button 
           onClick={() => setIsCollapsed && setIsCollapsed(!isCollapsed)}
           className="p-1 hover:bg-slate-700 rounded-md transition-colors"
