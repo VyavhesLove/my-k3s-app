@@ -7,4 +7,5 @@ urlpatterns = [
     path('locations', views.location_list, name='location_list'),
     path('hello', views.hello, name='hello'),
     path('analytics-data', views.get_analytics, name='get_analytics'),
+    path('status-counters', views.get_status_counters, name='get_status_counters'),
 ]

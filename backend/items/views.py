@@ -68,7 +68,20 @@ def item_list(request):
     """GET: список items, POST: создать item"""
     if request.method == 'GET':
         init_db()
-        items = list(Item.objects.all().values())
+        
+        search_query = request.GET.get('search', '')
+        
+        queryset = Item.objects.all().order_by('-id')
+        
+        if search_query:
+            # Django проверит: если search_query совпадает с ключом в choices статуса, 
+            # он отфильтрует по нему. Если нет — поищет в названии.
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) | 
+                Q(status=search_query)  # Точное совпадение для ключа статуса
+            )
+        
+        items = list(queryset.values())
         return JsonResponse({"items": items})
     
     if request.method == 'POST':
@@ -129,6 +142,24 @@ def item_detail(request, item_id):
             return JsonResponse({"status": "success"})
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
+    
+    return JsonResponse({"error": "Method not allowed"}, status=405)
+
+
+@csrf_exempt
+def get_status_counters(request):
+    from django.db.models import Count
+    counts = Item.objects.values('status').annotate(total=Count('id'))
+    
+    # Создаем словарь из того, что реально пришло из БД
+    raw_data = {item['status']: item['total'] for item in counts}
+    
+    # Мапим английские статусы на категории фронтенда
+    return JsonResponse({
+        "to_receive": raw_data.get('confirm', 0), 
+        "to_repair": raw_data.get('confirm_repair', 0),
+        "issued": raw_data.get('issued', 0) + raw_data.get('at_work', 0)
+    })
     
     return JsonResponse({"error": "Method not allowed"}, status=405)
 

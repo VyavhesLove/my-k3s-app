@@ -20,7 +20,14 @@ spec:
         - containerPort: 8000
         command: ["/bin/sh", "-c"]
         args:
-          - mkdir -p /data && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 inventory.wsgi:application
+          - mkdir -p /data &&
+            python manage.py makemigrations &&
+            python manage.py migrate --noinput &&
+            python manage.py collectstatic --noinput &&
+            gunicorn --bind 0.0.0.0:8000 inventory.wsgi:application
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
         volumeMounts:
         - name: sqlite-storage
           mountPath: /data
