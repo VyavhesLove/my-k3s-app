@@ -71,7 +71,7 @@ def item_list(request):
         
         search_query = request.GET.get('search', '')
         
-        queryset = Item.objects.all()
+        queryset = Item.objects.all().order_by('-id')
         
         if search_query:
             # Django проверит: если search_query совпадает с ключом в choices статуса, 

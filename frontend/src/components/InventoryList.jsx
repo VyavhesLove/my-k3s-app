@@ -147,19 +147,33 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
       .then(res => res.json())
       .then(data => {
         setItems(data.items || []);
-        // Сбрасываем выбор и фильтры при обновлении
+        // Сбрасываем выбор при обновлении
         if (onItemSelect) onItemSelect(null);
-        setFilters({});
         setSortConfig([]);
         setCurrentPage(1);
       })
       .catch(err => console.error('Ошибка загрузки:', err));
   };
 
+  // Функция полного сброса фильтров
+  const resetAllFilters = () => {
+    setFilters({});
+    fetchItems('');
+  };
+
   // Загружаем данные при монтировании и при каждом возврате на страницу
   useEffect(() => {
     fetchItems();
   }, [location.pathname]);
+
+  // Обработка навигации - сброс фильтров при переходе на главную
+  useEffect(() => {
+    if (location.pathname === '/') {
+      if (location.state?.resetFilters || !location.state) {
+        resetAllFilters();
+      }
+    }
+  }, [location.pathname, location.state]);
 
   const handleFilterChange = (key, value) => {
     // Для статуса храним английский ключ без lowerCase
@@ -270,7 +284,7 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Список ТМЦ</h1>
         <button 
-          onClick={fetchItems}
+          onClick={resetAllFilters}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg"
         >
           Обновить

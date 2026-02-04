@@ -96,6 +96,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
       <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
         <Link 
           to="/" 
+          state={{ resetFilters: true }}
           className={`flex items-center gap-3 hover:opacity-80 transition-opacity ${isCollapsed ? 'justify-center' : ''}`}
         >
           <Home 
