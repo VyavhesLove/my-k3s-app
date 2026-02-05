@@ -1,24 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Filter, FileText, Download } from 'lucide-react';
+import api from '../api/axios';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const Analytics = ({ isDarkMode }) => {
   const [data, setData] = useState(null);
   const [filters, setFilters] = useState({ name: '', brand: '', location: '' });
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    const query = new URLSearchParams(filters).toString();
-    // Убедитесь, что путь совпадает с urls.py!
-    fetch(`/api/analytics-data?${query}`)
-      .then(res => res.json())
-      .then(data => {
-        console.log("Данные аналитики:", data);
-        setData(data);
-      })
-      .catch(err => console.error("Ошибка аналитики:", err));
+    const fetchAnalytics = async () => {
+      try {
+        const query = new URLSearchParams(filters).toString();
+        const response = await api.get(`/analytics-data?${query}`);
+        console.log("Данные аналитики:", response.data);
+        setData(response.data);
+      } catch (err) {
+        console.error("Ошибка аналитики:", err);
+      }
+    };
+    fetchAnalytics();
   }, [filters]);
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const response = await api.post('export/', filters, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'analytics_report.xlsx');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error('Ошибка экспорта:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const Card = ({ title, children, hasData }) => (
     <div className={`p-6 rounded-xl border shadow-sm ${isDarkMode ? 'bg-[#1e293b] border-slate-700' : 'bg-white border-gray-200'}`}>
@@ -35,8 +59,12 @@ const Analytics = ({ isDarkMode }) => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Аналитика ТМЦ</h1>
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm transition">
-          <Download size={16} /> Экспорт отчета
+        <button 
+          onClick={handleExport}
+          disabled={isExporting}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg text-sm transition"
+        >
+          <Download size={16} /> {isExporting ? 'Экспорт...' : 'Экспорт отчета'}
         </button>
       </div>
 

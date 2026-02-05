@@ -1,222 +1,163 @@
-from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Q
-import json
-import sqlite3
-import os
+from drf_spectacular.utils import extend_schema
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
 
-from .models import Item, Location
-
-# Путь для работы в контейнере K3s (монтируется через PVC)
-DB_PATH = "/data/inventory.db"
-
-
-def init_db():
-    """Инициализация БД - создание таблиц и миграция колонок"""
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    
-    # 1. Создаем таблицу items
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            serial TEXT,
-            brand TEXT,
-            status TEXT DEFAULT 'available',
-            responsible TEXT,
-            location TEXT,
-            qty INTEGER DEFAULT 1
-        )
-    ''')
-
-    # 2. Создаем таблицу locations
-    # conn.execute('''
-    #     CREATE TABLE IF NOT EXISTS items_location (
-    #         id INTEGER PRIMARY KEY AUTOINCREMENT,
-    #         name TEXT NOT NULL UNIQUE
-    #     )
-    # ''')
-
-    # 3. Список локаций для заполнения (теперь через Django миграции)
-    # default_locations = [...]
-
-    # Заполняем локации - только через Django миграции/модели!
-
-    # 4. Миграция колонок для items
-    new_columns = [
-        ('serial', 'TEXT'),
-        ('brand', 'TEXT'),
-        ('status', "TEXT DEFAULT 'available'"),
-        ('responsible', 'TEXT'),
-        ('location', 'TEXT')
-    ]
-    
-    for col_name, col_type in new_columns:
-        try:
-            conn.execute(f'ALTER TABLE items ADD COLUMN {col_name} {col_type}')
-        except sqlite3.OperationalError:
-            pass
-            
-    conn.commit()
-    conn.close()
+from .models import Item, Location, Brigade
+from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer
 
 
-@csrf_exempt
+# --- ПРЕДСТАВЛЕНИЯ (VIEWS) ---
+@extend_schema(
+    methods=['GET'],
+    description="Получить список ТМЦ с поиском",
+    responses={200: ItemSerializer(many=True)}
+)
+@extend_schema(
+    methods=['POST'],
+    description="Создать новый предмет",
+    request=ItemSerializer,
+    responses={201: ItemSerializer}
+)
+@api_view(['GET', 'POST'])
 def item_list(request):
     """GET: список items, POST: создать item"""
     if request.method == 'GET':
-        init_db()
-        
         search_query = request.GET.get('search', '')
-        
         queryset = Item.objects.all().order_by('-id')
         
         if search_query:
-            # Django проверит: если search_query совпадает с ключом в choices статуса, 
-            # он отфильтрует по нему. Если нет — поищет в названии.
+            # Поиск по названию или точному английскому ключу статуса
             queryset = queryset.filter(
                 Q(name__icontains=search_query) | 
-                Q(status=search_query)  # Точное совпадение для ключа статуса
+                Q(status=search_query)
             )
         
-        items = list(queryset.values())
-        return JsonResponse({"items": items})
+        serializer = ItemSerializer(queryset, many=True)
+        return Response({"items": serializer.data})
     
     if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            item = Item.objects.create(
-                name=data.get('name'),
-                serial=data.get('serial'),
-                brand=data.get('brand'),
-                status=data.get('status', 'available'),
-                responsible=data.get('responsible'),
-                location=data.get('location'),
-                qty=data.get('qty', 1),
-            )
-            return JsonResponse({"status": "success", "id": item.id}, status=201)
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-    
-    return JsonResponse({"error": "Method not allowed"}, status=405)
+        serializer = ItemSerializer(data=request.data)
+        if serializer.is_valid():
+            item = serializer.save()
+            return Response(ItemSerializer(item).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-@csrf_exempt
-@require_http_methods(["DELETE"])
-def delete_item(request, item_id):
-    """Удалить item по ID"""
-    try:
-        item = Item.objects.get(id=item_id)
-        item.delete()
-        return JsonResponse({"status": "success"})
-    except Item.DoesNotExist:
-        return JsonResponse({"error": "Item not found"}, status=404)
-
-
-@csrf_exempt
+@extend_schema(
+    methods=['PUT'],
+    description="Обновить ТМЦ",
+    request=ItemSerializer,
+    responses={200: ItemSerializer}
+)
+@extend_schema(methods=['DELETE'], description="Удалить ТМЦ")
+@api_view(['PUT', 'DELETE'])
 def item_detail(request, item_id):
-    """PUT: обновить item, DELETE: удалить item"""
+    """PUT: обновить, DELETE: удалить"""
     try:
         item = Item.objects.get(id=item_id)
     except Item.DoesNotExist:
-        return JsonResponse({"error": "Not found"}, status=404)
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'PUT':
-        try:
-            data = json.loads(request.body)
-            item.name = data.get('name', item.name)
-            item.serial = data.get('serial', item.serial)
-            item.brand = data.get('brand', item.brand)
-            item.location = data.get('location', item.location)
-            item.responsible = data.get('responsible', item.responsible)
-            item.save()
-            return JsonResponse({"status": "success"})
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
+        # partial=True позволяет обновлять только присланные поля
+        serializer = ItemSerializer(item, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             
     if request.method == 'DELETE':
-        try:
-            item.delete()
-            return JsonResponse({"status": "success"})
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-    
-    return JsonResponse({"error": "Method not allowed"}, status=405)
+        item.delete()
+        return Response({"status": "success"}, status=status.HTTP_200_OK)
 
-
-@csrf_exempt
+@extend_schema(
+    methods=['GET'],
+    description="Счетчики статусов для уведомлений",
+    responses={200: StatusCounterSerializer}
+)
+@api_view(['GET'])
 def get_status_counters(request):
-    from django.db.models import Count
-    counts = Item.objects.values('status').annotate(total=Count('id'))
+    """Получить счетчики статусов для виджета уведомлений"""
+    counts_query = Item.objects.values('status').annotate(total=Count('id'))
+    raw_data = {item['status']: item['total'] for item in counts_query}
     
-    # Создаем словарь из того, что реально пришло из БД
-    raw_data = {item['status']: item['total'] for item in counts}
-    
-    # Мапим английские статусы на категории фронтенда
-    return JsonResponse({
+    return Response({
         "to_receive": raw_data.get('confirm', 0), 
         "to_repair": raw_data.get('confirm_repair', 0),
         "issued": raw_data.get('issued', 0) + raw_data.get('at_work', 0)
     })
-    
-    return JsonResponse({"error": "Method not allowed"}, status=405)
 
-
-def hello(request):
-    """Health check endpoint для Liveness Probe"""
-    return JsonResponse({"status": "ok"})
-
-
-@csrf_exempt
+@extend_schema(responses={200: LocationSerializer(many=True)})
+@api_view(['GET'])
 def location_list(request):
-    """GET: список всех локаций для выпадающих списков через Django ORM"""
+    """Список локаций для выпадающих списков"""
+    locations = Location.objects.all().order_by('name')
+    serializer = LocationSerializer(locations, many=True)
+    return Response({"locations": serializer.data})
+
+@extend_schema(methods=['GET'], responses=BrigadeSerializer(many=True))
+@extend_schema(methods=['POST'], request=BrigadeSerializer, responses=BrigadeSerializer)
+@api_view(['GET', 'POST'])
+def brigade_list(request):
     if request.method == 'GET':
-        locations = list(Location.objects.values('id', 'name').order_by('name'))
-        return JsonResponse({"locations": locations})
+        brigades = Brigade.objects.all().order_by('name')
+        return Response({"brigades": BrigadeSerializer(brigades, many=True).data})
     
-    return JsonResponse({"error": "Method not allowed"}, status=405)
+    if request.method == 'POST':
+        serializer = BrigadeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# АНАЛИТИКА
 
-@csrf_exempt
+@extend_schema(
+    description="Аналитика: группировка по брендам, локациям и статусам",
+    responses={200: dict} # Можно детализировать при необходимости
+)
+@api_view(['GET'])
 def get_analytics(request):
-    """Аналитика: группировка по брендам, локациям и статусам через Django ORM"""
-    # 1. Получаем фильтры из URL
+    """Аналитика через Django ORM"""
     name_f = request.GET.get('name', '')
     brand_f = request.GET.get('brand', '')
     loc_f = request.GET.get('location', '')
 
-    # 2. Базовый запрос с фильтрацией через ORM
-    queryset = Item.objects.filter(
-        Q(name__icontains=name_f),
-        Q(brand__icontains=brand_f),
-        Q(location__icontains=loc_f)
-    )
+    # Применяем фильтры только если параметры не пустые
+    filters = Q()
+    if name_f:
+        filters &= Q(name__icontains=name_f)
+    if brand_f:
+        filters &= Q(brand__icontains=brand_f)
+    if loc_f:
+        filters &= Q(location__icontains=loc_f)
+    
+    queryset = Item.objects.filter(filters)
 
-    # 3. Группировки (Django сам сделает правильный SQL)
     by_brand = list(queryset.values('brand').annotate(value=Count('id')).order_by('-value'))
     by_location = list(queryset.values('location').annotate(value=Count('id')).order_by('-value'))
     by_status = list(queryset.values('status').annotate(value=Count('id')).order_by('-value'))
+    
+    # Для графиков заменяем пустые значения
+    for item in by_brand: item['brand'] = item['brand'] or 'Не указан'
+    for item in by_location: item['location'] = item['location'] or 'Не указана'
 
-    # 4. Детализация
-    details = list(queryset.values('id', 'name', 'brand', 'location', 'status').order_by('-id'))
+    # Детализация (используем существующий сериализатор)
+    details = ItemSerializer(queryset.order_by('-id'), many=True).data
 
-    # Для графиков Recharts нужно, чтобы ключи назывались как в модели
-    # Если в базе NULL, заменим на текст для графиков
-    for item in by_brand:
-        item['brand'] = item['brand'] or 'Не указан'
-    for item in by_location:
-        item['location'] = item['location'] or 'Не указана'
-
-    # Отладочная печать
-    print(f"Analytics query result: {len(details)} items found")
-
-    return JsonResponse({
+    return Response({
         "by_brand": by_brand,
         "by_location": by_location,
         "by_status": by_status,
         "details": details
     })
 
+@api_view(['GET'])
+@permission_classes([AllowAny]) # Это перекрывает глобальную настройку "IsAuthenticated"
+def hello(request):
+    """Health check для Kubernetes"""
+    return Response({"status": "ok"})
 

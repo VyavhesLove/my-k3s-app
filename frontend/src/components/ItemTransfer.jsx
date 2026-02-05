@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Send, ArrowLeft, MapPin, User as UserIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '../api/axios';
 
-const ItemTransfer = ({ isDarkMode, onTransferComplete }) => {
+const ItemTransfer = ({ isDarkMode, onTransferComplete, selectedItem: propSelectedItem }) => {
   const navigate = useNavigate();
   const locationState = useLocation();
-  const selectedItem = locationState.state?.selectedItem;
+  // Сначала проверяем пропсы, потом location.state
+  const selectedItem = propSelectedItem ?? locationState.state?.selectedItem;
 
   const [locations, setLocations] = useState([]);
   const [locationWarning, setLocationWarning] = useState(false);
@@ -18,21 +20,21 @@ const ItemTransfer = ({ isDarkMode, onTransferComplete }) => {
 
   // 1. Загружаем список локаций из API
   useEffect(() => {
-    setLoading(true);
-    fetch('/api/locations')
-      .then(res => res.json())
-      .then(data => {
-        setLocations(data.locations || []);
-        // Если массив пустой и это не ошибка - показываем предупреждение
-        if (!data.locations || data.locations.length === 0) {
+    const fetchLocations = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get('/locations');
+        setLocations(response.data.locations || []);
+        if (!response.data.locations || response.data.locations.length === 0) {
           setLocationWarning(true);
         }
-        setLoading(false);
-      })
-      .catch(() => {
+      } catch (err) {
         toast.error('Не удалось загрузить список локаций');
+      } finally {
         setLoading(false);
-      });
+      }
+    };
+    fetchLocations();
 
     // Если ТМЦ передан, предзаполняем ответственного
     if (selectedItem) {
@@ -44,26 +46,22 @@ const ItemTransfer = ({ isDarkMode, onTransferComplete }) => {
     e.preventDefault();
     if (!selectedItem) return;
 
-    const promise = fetch(`/api/items/${selectedItem.id}/`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    toast.promise(
+      api.put(`/items/${selectedItem.id}/`, {
         location: formData.targetLocation,
         responsible: formData.responsible,
         status: 'issued'
       }),
-    });
-
-    toast.promise(promise, {
-      loading: 'Обновление данных о местоположении...',
-      success: (res) => {
-        if (!res.ok) throw new Error();
-        if (onTransferComplete) onTransferComplete();
-        navigate('/');
-        return `ТМЦ "${selectedItem.name}" успешно передано в "${formData.targetLocation}"`;
-      },
-      error: 'Ошибка при передаче. Попробуйте еще раз.',
-    });
+      {
+        loading: 'Обновление данных о местоположении...',
+        success: () => {
+          if (onTransferComplete) onTransferComplete();
+          navigate('/');
+          return `ТМЦ "${selectedItem.name}" успешно передано в "${formData.targetLocation}"`;
+        },
+        error: 'Ошибка при передаче. Попробуйте еще раз.',
+      }
+    );
   };
 
   if (!selectedItem) {

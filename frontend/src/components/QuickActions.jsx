@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, ChevronDown, ChevronUp, PackageCheck, Wrench, Send } from 'lucide-react';
+import api from '../api/axios';
 
 const QuickActions = ({ isDarkMode }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -9,15 +10,12 @@ const QuickActions = ({ isDarkMode }) => {
     // Загружаем реальные данные из API
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/status-counters');
-        if (response.ok) {
-          const data = await response.json();
-          setStats({
-            to_receive: data.to_receive || 0,
-            to_repair: data.to_repair || 0,
-            issued: data.issued || 0
-          });
-        }
+        const response = await api.get('/status-counters');
+        setStats({
+          to_receive: response.data.to_receive || 0,
+          to_repair: response.data.to_repair || 0,
+          issued: response.data.issued || 0
+        });
       } catch (error) {
         console.error('Ошибка загрузки счетчиков:', error);
       }

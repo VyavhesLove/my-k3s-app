@@ -1,15 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X, ChevronDown } from 'lucide-react';
-
-const statusMap = {
-  at_work: 'В работе',
-  in_repair: 'В ремонте',
-  issued: 'Выдано',
-  available: 'Доступно',
-  confirm: 'Подтвердить ТМЦ',
-  confirm_repair: 'Подтвердить ремонт'
-};
+import api from '../api/axios';
+import { statusMap, getStatusStyles } from '../constants/statusConfig';
 
 // Компонент для фильтрации по статусу (select)
 const StatusFilter = ({ isDarkMode, filterValue, onFilterChange }) => {
@@ -137,22 +130,25 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
   const [currentPage, setCurrentPage] = useState(1);
 
   const fetchItems = (searchQuery = '') => {
-    const params = new URLSearchParams();
-    if (searchQuery) {
-      params.append('search', searchQuery);
-    }
-    const queryString = params.toString();
-    
-    fetch(`/api/items${queryString ? '?' + queryString : ''}`)
-      .then(res => res.json())
-      .then(data => {
-        setItems(data.items || []);
+    const fetchItemsAsync = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery) {
+          params.append('search', searchQuery);
+        }
+        const queryString = params.toString();
+        
+        const response = await api.get(`/items${queryString ? '?' + queryString : ''}`);
+        setItems(response.data.items || []);
         // Сбрасываем выбор при обновлении
         if (onItemSelect) onItemSelect(null);
         setSortConfig([]);
         setCurrentPage(1);
-      })
-      .catch(err => console.error('Ошибка загрузки:', err));
+      } catch (err) {
+        console.error('Ошибка загрузки:', err);
+      }
+    };
+    fetchItemsAsync();
   };
 
   // Функция полного сброса фильтров
@@ -243,164 +239,132 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
     return config ? config.direction : null;
   };
 
-  // Функция для получения стилей статуса
-  const getStatusStyles = (status) => {
-    const styles = {
-      'Доступно': isDarkMode 
-        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-        : 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-      
-      'В ремонте': isDarkMode 
-        ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' 
-        : 'bg-rose-100 text-rose-700 border border-rose-200',
-      
-      'Подтвердить ТМЦ': isDarkMode 
-        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
-        : 'bg-amber-100 text-amber-700 border border-amber-200',
-      
-      'Подтвердить ремонт': isDarkMode 
-        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' 
-        : 'bg-amber-100 text-amber-700 border border-amber-200',
-      
-      'В работе': isDarkMode 
-        ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' 
-        : 'bg-sky-100 text-sky-700 border border-sky-200',
-      
-      'Выдано': isDarkMode 
-        ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30' 
-        : 'bg-sky-100 text-sky-700 border border-sky-200',
-
-      'Списано': isDarkMode 
-        ? 'bg-slate-500/20 text-slate-400 border border-slate-500/30' 
-        : 'bg-gray-100 text-gray-600 border border-gray-200',
-    };
-
-    // Возвращаем стиль по статусу или дефолтный серый, если статус не найден
-    return styles[status] || (isDarkMode ? 'bg-slate-700 text-slate-300' : 'bg-gray-100 text-gray-600');
-  };
-
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Список ТМЦ</h1>
-        <button 
-          onClick={resetAllFilters}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg"
-        >
-          Обновить
-        </button>
-      </div>
-
-      <div className={`rounded-xl shadow-2xl overflow-hidden border ${isDarkMode ? 'bg-[#1e293b] border-slate-700' : 'bg-white border-gray-200'}`}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className={isDarkMode ? 'bg-slate-800/50' : 'bg-gray-100'}>
-                <th className="px-4 py-3 text-left text-xs font-bold border-b border-slate-700 w-12">№</th>
-                <TableHeader
-                  label="Наименование"
-                  sortKey="name"
-                  isDarkMode={isDarkMode}
-                  sortConfig={sortConfig}
-                  handleSortClick={handleSortClick}
-                  filters={filters}
-                  handleFilterChange={handleFilterChange}
-                />
-                <TableHeader
-                  label="Серийный номер"
-                  sortKey="serial"
-                  isDarkMode={isDarkMode}
-                  sortConfig={sortConfig}
-                  handleSortClick={handleSortClick}
-                  filters={filters}
-                  handleFilterChange={handleFilterChange}
-                />
-                <TableHeader
-                  label="Бренд"
-                  sortKey="brand"
-                  isDarkMode={isDarkMode}
-                  sortConfig={sortConfig}
-                  handleSortClick={handleSortClick}
-                  filters={filters}
-                  handleFilterChange={handleFilterChange}
-                />
-                <TableHeader
-                  label="Статус"
-                  sortKey="status"
-                  isDarkMode={isDarkMode}
-                  sortConfig={sortConfig}
-                  handleSortClick={handleSortClick}
-                  filters={filters}
-                  handleFilterChange={handleFilterChange}
-                />
-                <TableHeader
-                  label="Ответственный"
-                  sortKey="responsible"
-                  isDarkMode={isDarkMode}
-                  sortConfig={sortConfig}
-                  handleSortClick={handleSortClick}
-                  filters={filters}
-                  handleFilterChange={handleFilterChange}
-                />
-                <TableHeader
-                  label="Локация"
-                  sortKey="location"
-                  isDarkMode={isDarkMode}
-                  sortConfig={sortConfig}
-                  handleSortClick={handleSortClick}
-                  filters={filters}
-                  handleFilterChange={handleFilterChange}
-                />
-              </tr>
-            </thead>
-<tbody className="divide-y divide-slate-700/50">
-              {paginatedItems.map((item, index) => (
-                <tr 
-                  key={item.id} 
-                  onClick={() => onItemSelect && onItemSelect(item)}
-                  className={`cursor-pointer transition-colors ${
-                    selectedItem?.id === item.id 
-                      ? 'bg-blue-600/30 ring-1 ring-blue-500' 
-                      : 'hover:bg-blue-500/5'
-                  }`}
-                >
-                  <td className="px-4 py-4">{(currentPage - 1) * pageSize + index + 1}</td>
-                  <td className="px-4 py-4 font-medium">{item.name}</td>
-                  <td className="px-4 py-4 text-slate-400">{item.serial}</td>
-                  <td className="px-4 py-4">{item.brand}</td>
-                  <td className="px-4 py-4">
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${getStatusStyles(statusMap[item.status] || item.status)}`}>
-                      {statusMap[item.status] || item.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-4 italic">{item.responsible}</td>
-                  <td className="px-4 py-4">{item.location}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Пагинация */}
-        <div className={`px-6 py-4 flex items-center justify-between border-t border-slate-700/50 ${isDarkMode ? 'bg-slate-800/30' : 'bg-gray-50'}`}>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">Кол-во на странице:</span>
-            <select 
-              value={pageSize} 
-              onChange={(e) => setPageSize(Number(e.target.value))}
-              className="bg-transparent border border-slate-600 rounded px-2 py-1 text-xs focus:outline-none"
+    <div className="flex">
+      <div className="flex-1">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl font-bold">Список ТМЦ</h1>
+            <button 
+              onClick={resetAllFilters}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg"
             >
-              {[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}
-            </select>
+              Обновить
+            </button>
           </div>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 hover:bg-blue-500/20 rounded-lg disabled:opacity-30" disabled={currentPage === 1}>
-              <ChevronLeft size={20} />
-            </button>
-            <span className="text-sm font-medium text-blue-500">Страница {currentPage} из {totalPages || 1}</span>
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-2 hover:bg-blue-500/20 rounded-lg disabled:opacity-30" disabled={currentPage === totalPages}>
-              <ChevronRight size={20} />
-            </button>
+
+          <div className={`rounded-xl shadow-2xl overflow-hidden border ${isDarkMode ? 'bg-[#1e293b] border-slate-700' : 'bg-white border-gray-200'}`}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={isDarkMode ? 'bg-slate-800/50' : 'bg-gray-100'}>
+                    <th className="px-4 py-3 text-left text-xs font-bold border-b border-slate-700 w-12">№</th>
+                    <TableHeader
+                      label="Наименование"
+                      sortKey="name"
+                      isDarkMode={isDarkMode}
+                      sortConfig={sortConfig}
+                      handleSortClick={handleSortClick}
+                      filters={filters}
+                      handleFilterChange={handleFilterChange}
+                    />
+                    <TableHeader
+                      label="Серийный номер"
+                      sortKey="serial"
+                      isDarkMode={isDarkMode}
+                      sortConfig={sortConfig}
+                      handleSortClick={handleSortClick}
+                      filters={filters}
+                      handleFilterChange={handleFilterChange}
+                    />
+                    <TableHeader
+                      label="Бренд"
+                      sortKey="brand"
+                      isDarkMode={isDarkMode}
+                      sortConfig={sortConfig}
+                      handleSortClick={handleSortClick}
+                      filters={filters}
+                      handleFilterChange={handleFilterChange}
+                    />
+                    <TableHeader
+                      label="Статус"
+                      sortKey="status"
+                      isDarkMode={isDarkMode}
+                      sortConfig={sortConfig}
+                      handleSortClick={handleSortClick}
+                      filters={filters}
+                      handleFilterChange={handleFilterChange}
+                    />
+                    <TableHeader
+                      label="Ответственный"
+                      sortKey="responsible"
+                      isDarkMode={isDarkMode}
+                      sortConfig={sortConfig}
+                      handleSortClick={handleSortClick}
+                      filters={filters}
+                      handleFilterChange={handleFilterChange}
+                    />
+                    <TableHeader
+                      label="Локация"
+                      sortKey="location"
+                      isDarkMode={isDarkMode}
+                      sortConfig={sortConfig}
+                      handleSortClick={handleSortClick}
+                      filters={filters}
+                      handleFilterChange={handleFilterChange}
+                    />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50">
+                  {paginatedItems.map((item, index) => (
+                    <tr 
+                      key={item.id} 
+                      onClick={() => onItemSelect && onItemSelect(item)}
+                      className={`cursor-pointer transition-colors ${
+                        selectedItem?.id === item.id 
+                          ? 'bg-blue-600/30 ring-1 ring-blue-500' 
+                          : 'hover:bg-blue-500/5'
+                      }`}
+                    >
+                      <td className="px-4 py-4">{(currentPage - 1) * pageSize + index + 1}</td>
+                      <td className="px-4 py-4 font-medium">{item.name}</td>
+                      <td className="px-4 py-4 text-slate-400">{item.serial}</td>
+                      <td className="px-4 py-4">{item.brand}</td>
+                      <td className="px-4 py-4">
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${getStatusStyles(item.status, isDarkMode)}`}>
+                          {statusMap[item.status] || item.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 italic">{item.responsible}</td>
+                      <td className="px-4 py-4">{item.location}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Пагинация */}
+            <div className={`px-6 py-4 flex items-center justify-between border-t border-slate-700/50 ${isDarkMode ? 'bg-slate-800/30' : 'bg-gray-50'}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Кол-во на странице:</span>
+                <select 
+                  value={pageSize} 
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="bg-transparent border border-slate-600 rounded px-2 py-1 text-xs focus:outline-none"
+                >
+                  {[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-4">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 hover:bg-blue-500/20 rounded-lg disabled:opacity-30" disabled={currentPage === 1}>
+                  <ChevronLeft size={20} />
+                </button>
+                <span className="text-sm font-medium text-blue-500">Страница {currentPage} из {totalPages || 1}</span>
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-2 hover:bg-blue-500/20 rounded-lg disabled:opacity-30" disabled={currentPage === totalPages}>
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

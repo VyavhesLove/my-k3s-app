@@ -21,7 +21,6 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
           - mkdir -p /data &&
-            python manage.py makemigrations &&
             python manage.py migrate --noinput &&
             python manage.py collectstatic --noinput &&
             gunicorn --bind 0.0.0.0:8000 inventory.wsgi:application
@@ -46,7 +45,7 @@ spec:
           periodSeconds: 15
         readinessProbe:
           httpGet:
-            path: /api/items
+            path: /api/hello
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 10

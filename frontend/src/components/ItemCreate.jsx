@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Save } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '../api/axios';
 
 const ItemCreate = ({ isDarkMode }) => {
   const navigate = useNavigate();
@@ -35,8 +36,7 @@ const ItemCreate = ({ isDarkMode }) => {
     e.preventDefault();
     
     const isEdit = !!editItem;
-    const url = isEdit ? `/api/items/${editItem.id}/` : '/api/items';
-    const method = isEdit ? 'PUT' : 'POST';
+    const url = isEdit ? `/items/${editItem.id}/` : '/items';
 
     const payload = {
       name: formData.name,
@@ -44,36 +44,27 @@ const ItemCreate = ({ isDarkMode }) => {
       brand: formData.brand,
     };
 
-    // Создаем обещание для запроса
-    const promise = fetch(url, {
-      method: method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
     // Используем toast.promise для автоматической смены состояний (загрузка -> успех/ошибка)
-    toast.promise(promise, {
-      loading: isEdit ? 'Сохранение изменений...' : 'Создание ТМЦ...',
-      success: (response) => {
-        if (!response.ok) throw new Error();
-        
-        // Очищаем форму при успехе
-        setFormData({
-          name: '',
-          serial: '',
-          brand: '',
-          noSerial: false
-        });
-        
-        const actionText = isEdit ? 'сохранено' : 'создано';
-        return `ТМЦ "${payload.name}" успешно ${actionText}!`;
-      },
-      error: isEdit ? 'Не удалось сохранить изменения.' : 'Не удалось создать ТМЦ.',
-    });
-
-    // После успешного выполнения переходим на главную
-    promise.then(response => {
-      if (response.ok) navigate('/');
+    toast.promise(
+      isEdit ? api.put(url, payload) : api.post(url, payload),
+      {
+        loading: isEdit ? 'Сохранение изменений...' : 'Создание ТМЦ...',
+        success: (response) => {
+          // Очищаем форму при успехе
+          setFormData({
+            name: '',
+            serial: '',
+            brand: '',
+            noSerial: false
+          });
+          
+          const actionText = isEdit ? 'сохранено' : 'создано';
+          return `ТМЦ "${payload.name}" успешно ${actionText}!`;
+        },
+        error: isEdit ? 'Не удалось сохранить изменения.' : 'Не удалось создать ТМЦ.',
+      }
+    ).then(() => {
+      navigate('/');
     });
   };
 
