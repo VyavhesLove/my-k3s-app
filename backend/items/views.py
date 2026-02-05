@@ -11,7 +11,6 @@ from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerial
 
 
 # --- ПРЕДСТАВЛЕНИЯ (VIEWS) ---
-@csrf_exempt
 @extend_schema(
     methods=['GET'],
     description="Получить список ТМЦ с поиском",
@@ -47,7 +46,6 @@ def item_list(request):
             return Response(ItemSerializer(item).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@csrf_exempt
 @extend_schema(
     methods=['PUT'],
     description="Обновить ТМЦ",
@@ -75,7 +73,6 @@ def item_detail(request, item_id):
         item.delete()
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
-@csrf_exempt
 @extend_schema(
     methods=['GET'],
     description="Счетчики статусов для уведомлений",
@@ -93,7 +90,6 @@ def get_status_counters(request):
         "issued": raw_data.get('issued', 0) + raw_data.get('at_work', 0)
     })
 
-@csrf_exempt
 @extend_schema(responses={200: LocationSerializer(many=True)})
 @api_view(['GET'])
 def location_list(request):
@@ -102,12 +98,9 @@ def location_list(request):
     serializer = LocationSerializer(locations, many=True)
     return Response({"locations": serializer.data})
 
-@csrf_exempt
 @extend_schema(methods=['GET'], responses=BrigadeSerializer(many=True))
 @extend_schema(methods=['POST'], request=BrigadeSerializer, responses=BrigadeSerializer)
 @api_view(['GET', 'POST'])
-@authentication_classes([]) # Отключаем проверку сессий (и CSRF вместе с ней)
-@permission_classes([AllowAny]) # Разрешаем доступ всем
 def brigade_list(request):
     if request.method == 'GET':
         brigades = Brigade.objects.all().order_by('name')
@@ -122,7 +115,6 @@ def brigade_list(request):
 
 # АНАЛИТИКА
 
-@csrf_exempt
 @extend_schema(
     description="Аналитика: группировка по брендам, локациям и статусам",
     responses={200: dict} # Можно детализировать при необходимости
@@ -163,9 +155,9 @@ def get_analytics(request):
         "details": details
     })
 
-@csrf_exempt
 @api_view(['GET'])
+@permission_classes([AllowAny]) # Это перекрывает глобальную настройку "IsAuthenticated"
 def hello(request):
-    """Health check"""
+    """Health check для Kubernetes"""
     return Response({"status": "ok"})
 

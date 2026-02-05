@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, PlusCircle } from 'lucide-react';
 import BrigadeModal from './BrigadeModal';
+import api from '../api/axios';
 
 const AtWorkPage = ({ isDarkMode }) => {
   const [brigades, setBrigades] = useState([]);
@@ -9,29 +10,23 @@ const AtWorkPage = ({ isDarkMode }) => {
 
   // Загружаем список бригад при открытии страницы
   useEffect(() => {
-    fetch('/api/brigades/')
-      .then(res => res.json())
-      .then(data => setBrigades(data.brigades || []));
+    const fetchBrigades = async () => {
+      try {
+        const response = await api.get('/brigades/');
+        setBrigades(response.data.brigades || []);
+      } catch (err) {
+        console.error('Ошибка загрузки бригад:', err);
+      }
+    };
+    fetchBrigades();
   }, []);
 
   const handleSaveBrigade = async (newBrigade) => {
     try {
-      const response = await fetch('/api/brigades/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newBrigade)
-      });
-
-      if (response.ok) {
-        const savedBrigade = await response.json();
-        setBrigades(prev => [...prev, savedBrigade]);
-      } else {
-        console.error('Ошибка сервера:', response.status);
-      }
-    } catch (error) {
-      console.error('Ошибка сети:', error);
+      const response = await api.post('/brigades/', newBrigade);
+      setBrigades(prev => [...prev, response.data]);
+    } catch (err) {
+      console.error('Ошибка сохранения бригады:', err);
     }
   };
 

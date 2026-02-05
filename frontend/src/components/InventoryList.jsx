@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X, ChevronDown } from 'lucide-react';
+import api from '../api/axios';
 
 const statusMap = {
   at_work: 'В работе',
@@ -137,22 +138,25 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
   const [currentPage, setCurrentPage] = useState(1);
 
   const fetchItems = (searchQuery = '') => {
-    const params = new URLSearchParams();
-    if (searchQuery) {
-      params.append('search', searchQuery);
-    }
-    const queryString = params.toString();
-    
-    fetch(`/api/items${queryString ? '?' + queryString : ''}`)
-      .then(res => res.json())
-      .then(data => {
-        setItems(data.items || []);
+    const fetchItemsAsync = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery) {
+          params.append('search', searchQuery);
+        }
+        const queryString = params.toString();
+        
+        const response = await api.get(`/items${queryString ? '?' + queryString : ''}`);
+        setItems(response.data.items || []);
         // Сбрасываем выбор при обновлении
         if (onItemSelect) onItemSelect(null);
         setSortConfig([]);
         setCurrentPage(1);
-      })
-      .catch(err => console.error('Ошибка загрузки:', err));
+      } catch (err) {
+        console.error('Ошибка загрузки:', err);
+      }
+    };
+    fetchItemsAsync();
   };
 
   // Функция полного сброса фильтров

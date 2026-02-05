@@ -94,6 +94,12 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
     return false;
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    window.location.href = '/login';
+  };
+
   return (
     <div className={`flex flex-col h-screen transition-all duration-300 shadow-xl fixed left-0 top-0 z-50
       ${isDarkMode ? 'bg-[#1e293b] text-white border-r border-slate-700' : 'bg-white text-slate-800 border-r border-gray-200'}
@@ -152,7 +158,10 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
         </button>
 
         {/* Кнопка Выйти */}
-        <button className="w-full flex items-center px-2 py-2 text-slate-400 hover:text-red-400 transition-colors group">
+        <button 
+          onClick={handleLogout}
+          className="w-full flex items-center px-2 py-2 text-slate-400 hover:text-red-400 transition-colors group"
+        >
           <LogOut size={20} />
           {!isCollapsed && <span className="ml-4 text-sm font-medium">Выйти</span>}
         </button>
