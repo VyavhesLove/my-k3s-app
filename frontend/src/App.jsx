@@ -52,9 +52,9 @@ function App() {
                   <Routes>
                     <Route path="/" element={<InventoryList isDarkMode={isDarkMode} selectedItem={selectedItem} onItemSelect={setSelectedItem} />} />
                     <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
-                    <Route path="/transfer" element={<ItemTransfer isDarkMode={isDarkMode} onTransferComplete={() => setSelectedItem(null)} />} />
+<Route path="/transfer" element={<ItemTransfer isDarkMode={isDarkMode} selectedItem={selectedItem} onTransferComplete={() => setSelectedItem(null)} />} />
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
-                    <Route path="/at-work" element={<AtWorkPage isDarkMode={isDarkMode} />} />
+<Route path="/at-work" element={<AtWorkPage isDarkMode={isDarkMode} selectedItem={selectedItem} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </main>

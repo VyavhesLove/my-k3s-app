@@ -4,10 +4,11 @@ import { Send, ArrowLeft, MapPin, User as UserIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../api/axios';
 
-const ItemTransfer = ({ isDarkMode, onTransferComplete }) => {
+const ItemTransfer = ({ isDarkMode, onTransferComplete, selectedItem: propSelectedItem }) => {
   const navigate = useNavigate();
   const locationState = useLocation();
-  const selectedItem = locationState.state?.selectedItem;
+  // Сначала проверяем пропсы, потом location.state
+  const selectedItem = propSelectedItem ?? locationState.state?.selectedItem;
 
   const [locations, setLocations] = useState([]);
   const [locationWarning, setLocationWarning] = useState(false);

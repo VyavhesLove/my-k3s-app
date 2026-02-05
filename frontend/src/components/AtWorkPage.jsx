@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Users, PlusCircle } from 'lucide-react';
 import BrigadeModal from './BrigadeModal';
 import api from '../api/axios';
+import { toast } from 'sonner';
 
-const AtWorkPage = ({ isDarkMode }) => {
+const AtWorkPage = ({ isDarkMode, selectedItem }) => {
   const [brigades, setBrigades] = useState([]);
   const [selectedBrigade, setSelectedBrigade] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [items, setItems] = useState([]);
 
   // Загружаем список бригад при открытии страницы
   useEffect(() => {
@@ -27,6 +30,34 @@ const AtWorkPage = ({ isDarkMode }) => {
       setBrigades(prev => [...prev, response.data]);
     } catch (err) {
       console.error('Ошибка сохранения бригады:', err);
+    }
+  };
+
+  const handleIssueItem = async (itemId) => {
+    if (!selectedBrigade) {
+      toast.error("Сначала выберите бригаду!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Отправляем PUT запрос на обновление статуса и привязку бригады
+      await api.put(`items/${selectedItem.id}/`, {
+        status: 'at_work',
+        brigade: selectedBrigade
+      });
+
+      toast.success("ТМЦ успешно передано в работу", {
+        description: `Закреплено за бригадой ID: ${selectedBrigade}`,
+      });
+      
+      // Обновляем локальный стейт, чтобы предмет исчез из списка "доступных"
+      setItems(prev => prev.filter(item => item.id !== itemId));
+    } catch (error) {
+      toast.error("Ошибка при передаче");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -60,6 +91,14 @@ const AtWorkPage = ({ isDarkMode }) => {
             <span>Создать</span>
           </button>
         </div>
+
+        <button 
+          onClick={() => handleIssueItem(items[0]?.id)}
+          disabled={isSubmitting}
+          className="mt-4 w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+        >
+          {isSubmitting ? "Передача..." : "Передать в работу"}
+        </button>
       </div>
 
       {/* Модалка */}

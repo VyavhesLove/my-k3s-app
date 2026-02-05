@@ -5,6 +5,17 @@ const api = axios.create({
     baseURL: 'http://k8s.local/api/',
 });
 
+// Автоматическое добавление слеша в конец URL
+api.interceptors.request.use((config) => {
+    // Проверяем, что в конце URL нет слеша и это не запрос с параметрами (типа ?search=...)
+    if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
+        config.url += '/';
+    }
+    return config;
+}, (error) => {
+    return Promise.reject(error);
+});
+
 // 1. Перехватчик ЗАПРОСОВ: подкладываем токен в каждый запрос
 api.interceptors.request.use(
     (config) => {
