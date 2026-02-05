@@ -58,3 +58,13 @@ class Item(models.Model):
     def __str__(self):
         return f"{self.name} ({self.serial})"
 
+class ItemHistory(models.Model):
+    item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='history')
+    action = models.CharField(max_length=255) # Например: "ТМЦ передано. Объект - Университет"
+    user = models.CharField(max_length=255)   # Кто совершил действие
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = 'История ТМЦ'
+        verbose_name_plural = 'История ТМЦ'

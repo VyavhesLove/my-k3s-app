@@ -9,6 +9,7 @@ import Analytics from './components/Analytics';
 import AtWorkPage from './components/AtWorkPage';
 import QuickActions from './components/QuickActions';
 import LoginPage from './components/LoginPage';
+import ItemDetailPanel from './components/ItemDetailPanel';
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -50,7 +51,16 @@ function App() {
                 {/* Основной контент */}
                 <main className={`flex-1 transition-all duration-300 p-8 ${isCollapsed ? 'ml-20' : 'ml-72'}`}>
                   <Routes>
-                    <Route path="/" element={<InventoryList isDarkMode={isDarkMode} selectedItem={selectedItem} onItemSelect={setSelectedItem} />} />
+                    <Route path="/" element={
+                      <>
+                        <InventoryList isDarkMode={isDarkMode} selectedItem={selectedItem} onItemSelect={setSelectedItem} />
+                        <ItemDetailPanel 
+                          item={selectedItem} 
+                          onClose={() => setSelectedItem(null)} 
+                          isDarkMode={isDarkMode} 
+                        />
+                      </>
+                    } />
                     <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
 <Route path="/transfer" element={<ItemTransfer isDarkMode={isDarkMode} selectedItem={selectedItem} onTransferComplete={() => setSelectedItem(null)} />} />
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
