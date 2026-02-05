@@ -11,6 +11,17 @@ class Location(models.Model):
         verbose_name = 'Локация'
         verbose_name_plural = 'Локации'
 
+class Brigade(models.Model):
+    name = models.CharField(max_length=255, unique=True, verbose_name="Название бригады")
+    brigadier = models.CharField(max_length=255, verbose_name="Бригадир")
+    responsible = models.CharField(max_length=255, verbose_name="Ответственный")
+
+    class Meta:
+        verbose_name = 'Бригада'
+        verbose_name_plural = 'Бригады'
+
+    def __str__(self):
+        return self.name
 
 class Item(models.Model):
     # Статусы из твоего ТЗ
@@ -30,6 +41,15 @@ class Item(models.Model):
     responsible = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ответственный")
     location = models.CharField(max_length=255, blank=True, null=True, verbose_name="Локация")
     qty = models.IntegerField(default=1, verbose_name="Количество")
+
+    brigade = models.ForeignKey(
+        'Brigade', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='items',
+        verbose_name="Закрепленная бригада"
+    )
 
     class Meta:
         verbose_name = 'ТМЦ'

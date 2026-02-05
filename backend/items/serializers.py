@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Item, Location
+from .models import Item, Location, Brigade
 
 
 class ItemSerializer(serializers.ModelSerializer):
@@ -21,4 +21,14 @@ class StatusCounterSerializer(serializers.Serializer):
     to_receive = serializers.IntegerField()
     to_repair = serializers.IntegerField()
     issued = serializers.IntegerField()
+
+
+class BrigadeSerializer(serializers.ModelSerializer):
+    """Сериализатор для бригад"""
+    
+    items = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+
+    class Meta:
+        model = Brigade
+        fields = ['id', 'name', 'brigadier', 'responsible', 'items']
 

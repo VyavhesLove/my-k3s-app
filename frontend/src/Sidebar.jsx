@@ -7,6 +7,8 @@ import {
   User, Moon, Sun, LogOut, ChevronLeft, ChevronRight, Home
 } from 'lucide-react';
 
+const APP_VERSION = import.meta.env.PACKAGE_VERSION || '1.0.0';
+
 const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selectedItem }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -64,12 +66,16 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
     else if (label === 'Списание/затраты') {
       navigate('/scraps');
     }
+    else if (label === 'В работу') {
+      navigate('/at-work');
+    }
   };
 
   const getMenuPath = (label) => {
     if (label === 'Создать ТМЦ') return '/create';
     if (label === 'Передать ТМЦ') return '/transfer';
     if (label === 'Аналитика') return '/analytics';
+    if (label === 'В работе') return '/at-work';
     return '/';
   };
 
@@ -77,6 +83,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
   const isActive = (label) => {
     if (label === 'Создать ТМЦ') return location.pathname === '/create' && !location.state;
     if (label === 'Аналитика') return location.pathname === '/analytics';
+    if (label === 'В работе') return location.pathname === '/at-work';
     if (label === 'Передать ТМЦ') return location.pathname === '/transfer';
     if (label === 'Создать по аналогии') return location.pathname === '/create' && location.state?.duplicateFrom;
     if (label === 'Редактировать ТМЦ') return location.pathname === '/create' && location.state?.editItem;
@@ -149,6 +156,11 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
           <LogOut size={20} />
           {!isCollapsed && <span className="ml-4 text-sm font-medium">Выйти</span>}
         </button>
+
+        {/* Версия приложения */}
+        <div className="mt-auto p-4 text-xs opacity-50 font-mono">
+          v{APP_VERSION}
+        </div>
       </div>
     </div>
   );

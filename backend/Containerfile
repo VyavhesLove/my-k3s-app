@@ -2,5 +2,7 @@ FROM python:3.11-slim
 RUN pip install --no-cache-dir django django-cors-headers gunicorn whitenoise drf-spectacular
 WORKDIR /app
 COPY . .
-RUN mkdir -p /data && python manage.py migrate --run-syncdb && python manage.py collectstatic --noinput
-CMD ["sh", "-c", "mkdir -p /data && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 inventory.wsgi:application"]
+#RUN mkdir -p /data && python manage.py migrate --run-syncdb && python manage.py collectstatic --noinput
+RUN python manage.py collectstatic --noinput
+#CMD ["sh", "-c", "mkdir -p /data && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 inventory.wsgi:application"]
+CMD ["sh", "-c", "mkdir -p /data && python manage.py migrate --noinput && gunicorn --bind 0.0.0.0:8000 inventory.wsgi:application"]

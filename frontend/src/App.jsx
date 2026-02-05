@@ -6,6 +6,7 @@ import InventoryList from './components/InventoryList';
 import ItemCreate from './components/ItemCreate';
 import ItemTransfer from './components/ItemTransfer';
 import Analytics from './components/Analytics';
+import AtWorkPage from './components/AtWorkPage';
 import QuickActions from './components/QuickActions';
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
             <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
             <Route path="/transfer" element={<ItemTransfer isDarkMode={isDarkMode} onTransferComplete={() => setSelectedItem(null)} />} />
             <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
+            <Route path="/at-work" element={<AtWorkPage isDarkMode={isDarkMode} />} />
           </Routes>
         </main>
         <QuickActions isDarkMode={isDarkMode} />

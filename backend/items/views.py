@@ -1,15 +1,17 @@
+from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, Q
 from drf_spectacular.utils import extend_schema
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import Item, Location
-from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer
+from .models import Item, Location, Brigade
+from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer
 
 
 # --- ПРЕДСТАВЛЕНИЯ (VIEWS) ---
-
+@csrf_exempt
 @extend_schema(
     methods=['GET'],
     description="Получить список ТМЦ с поиском",
@@ -45,6 +47,7 @@ def item_list(request):
             return Response(ItemSerializer(item).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@csrf_exempt
 @extend_schema(
     methods=['PUT'],
     description="Обновить ТМЦ",
@@ -72,6 +75,7 @@ def item_detail(request, item_id):
         item.delete()
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
+@csrf_exempt
 @extend_schema(
     methods=['GET'],
     description="Счетчики статусов для уведомлений",
@@ -89,6 +93,7 @@ def get_status_counters(request):
         "issued": raw_data.get('issued', 0) + raw_data.get('at_work', 0)
     })
 
+@csrf_exempt
 @extend_schema(responses={200: LocationSerializer(many=True)})
 @api_view(['GET'])
 def location_list(request):
@@ -97,6 +102,27 @@ def location_list(request):
     serializer = LocationSerializer(locations, many=True)
     return Response({"locations": serializer.data})
 
+@csrf_exempt
+@extend_schema(methods=['GET'], responses=BrigadeSerializer(many=True))
+@extend_schema(methods=['POST'], request=BrigadeSerializer, responses=BrigadeSerializer)
+@api_view(['GET', 'POST'])
+@authentication_classes([]) # Отключаем проверку сессий (и CSRF вместе с ней)
+@permission_classes([AllowAny]) # Разрешаем доступ всем
+def brigade_list(request):
+    if request.method == 'GET':
+        brigades = Brigade.objects.all().order_by('name')
+        return Response({"brigades": BrigadeSerializer(brigades, many=True).data})
+    
+    if request.method == 'POST':
+        serializer = BrigadeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# АНАЛИТИКА
+
+@csrf_exempt
 @extend_schema(
     description="Аналитика: группировка по брендам, локациям и статусам",
     responses={200: dict} # Можно детализировать при необходимости
@@ -108,11 +134,16 @@ def get_analytics(request):
     brand_f = request.GET.get('brand', '')
     loc_f = request.GET.get('location', '')
 
-    queryset = Item.objects.filter(
-        Q(name__icontains=name_f),
-        Q(brand__icontains=brand_f),
-        Q(location__icontains=loc_f)
-    )
+    # Применяем фильтры только если параметры не пустые
+    filters = Q()
+    if name_f:
+        filters &= Q(name__icontains=name_f)
+    if brand_f:
+        filters &= Q(brand__icontains=brand_f)
+    if loc_f:
+        filters &= Q(location__icontains=loc_f)
+    
+    queryset = Item.objects.filter(filters)
 
     by_brand = list(queryset.values('brand').annotate(value=Count('id')).order_by('-value'))
     by_location = list(queryset.values('location').annotate(value=Count('id')).order_by('-value'))
@@ -132,6 +163,7 @@ def get_analytics(request):
         "details": details
     })
 
+@csrf_exempt
 @api_view(['GET'])
 def hello(request):
     """Health check"""
