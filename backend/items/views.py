@@ -1,7 +1,6 @@
-from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Count, Q
 from drf_spectacular.utils import extend_schema
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
@@ -46,6 +45,7 @@ def item_list(request):
             return Response(ItemSerializer(item).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @extend_schema(
     methods=['PUT'],
     description="Обновить ТМЦ",
@@ -73,6 +73,7 @@ def item_detail(request, item_id):
         item.delete()
         return Response({"status": "success"}, status=status.HTTP_200_OK)
 
+
 @extend_schema(
     methods=['GET'],
     description="Счетчики статусов для уведомлений",
@@ -90,6 +91,7 @@ def get_status_counters(request):
         "issued": raw_data.get('issued', 0) + raw_data.get('at_work', 0)
     })
 
+
 @extend_schema(responses={200: LocationSerializer(many=True)})
 @api_view(['GET'])
 def location_list(request):
@@ -97,6 +99,7 @@ def location_list(request):
     locations = Location.objects.all().order_by('name')
     serializer = LocationSerializer(locations, many=True)
     return Response({"locations": serializer.data})
+
 
 @extend_schema(methods=['GET'], responses=BrigadeSerializer(many=True))
 @extend_schema(methods=['POST'], request=BrigadeSerializer, responses=BrigadeSerializer)
@@ -113,11 +116,12 @@ def brigade_list(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 # АНАЛИТИКА
 
 @extend_schema(
     description="Аналитика: группировка по брендам, локациям и статусам",
-    responses={200: dict} # Можно детализировать при необходимости
+    responses={200: dict}
 )
 @api_view(['GET'])
 def get_analytics(request):
@@ -142,10 +146,12 @@ def get_analytics(request):
     by_status = list(queryset.values('status').annotate(value=Count('id')).order_by('-value'))
     
     # Для графиков заменяем пустые значения
-    for item in by_brand: item['brand'] = item['brand'] or 'Не указан'
-    for item in by_location: item['location'] = item['location'] or 'Не указана'
+    for item in by_brand:
+        item['brand'] = item['brand'] or 'Не указан'
+    for item in by_location:
+        item['location'] = item['location'] or 'Не указана'
 
-    # Детализация (используем существующий сериализатор)
+    # Детализация
     details = ItemSerializer(queryset.order_by('-id'), many=True).data
 
     return Response({
@@ -155,9 +161,61 @@ def get_analytics(request):
         "details": details
     })
 
+
 @api_view(['GET'])
-@permission_classes([AllowAny]) # Это перекрывает глобальную настройку "IsAuthenticated"
+@permission_classes([AllowAny])
 def hello(request):
     """Health check для Kubernetes"""
     return Response({"status": "ok"})
+
+
+# --- СЕРВИС ---
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
+def send_to_service(request, item_id):
+    from django.shortcuts import get_object_or_404
+    from .models import ItemHistory
+    
+    item = get_object_or_404(Item, id=item_id)
+    reason = request.data.get('reason', '')
+
+    # Если предмет у бригады, сбрасываем привязку (возврат на склад)
+    if item.brigade:
+        item.brigade = None
+    
+    # Меняем статус на "Подтвердить ремонт" (confirm_repair)
+    item.status = 'confirm_repair'
+    item.save()
+
+    # Создаем запись в истории
+    ItemHistory.objects.create(
+        item=item,
+        action=f"Отправлено в сервис. Причина: {reason}. Ожидание подтверждения.",
+        user=request.user.username or "Система"
+    )
+
+    return Response(ItemSerializer(item).data)
+
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
+def return_from_service(request, item_id):
+    from django.shortcuts import get_object_or_404
+    from .models import ItemHistory
+    
+    item = get_object_or_404(Item, id=item_id)
+    comment = request.data.get('comment', '')
+
+    # Меняем статус на "Доступно" (available)
+    item.status = 'available'
+    item.save()
+
+    ItemHistory.objects.create(
+        item=item,
+        action=f"Возвращено из сервиса. Комментарий: {comment}",
+        user=request.user.username or "Система"
+    )
+
+    return Response(ItemSerializer(item).data)
 

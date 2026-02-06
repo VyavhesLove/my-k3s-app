@@ -80,3 +80,4 @@ const BrigadeModal = ({ isOpen, onClose, onSave, isDarkMode }) => {
 };
 
 export default BrigadeModal;
+

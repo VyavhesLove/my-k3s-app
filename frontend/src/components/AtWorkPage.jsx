@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, PlusCircle } from 'lucide-react';
-import BrigadeModal from './BrigadeModal';
+import BrigadeModal from './modals/BrigadeModal';
 import api from '../api/axios';
 import { toast } from 'sonner';
 

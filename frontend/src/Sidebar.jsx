@@ -69,6 +69,12 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selec
     else if (label === 'В работу') {
       navigate('/at-work');
     }
+    else if (label === 'Отправить в сервис') {
+      navigate('/', { state: { mode: 'send_to_service' } });
+    }
+    else if (label === 'Вернуть из сервиса') {
+      navigate('/', { state: { mode: 'return_from_service' } });
+    }
   };
 
   const getMenuPath = (label) => {

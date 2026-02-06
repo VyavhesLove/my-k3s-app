@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import Sidebar from './Sidebar';
 import InventoryList from './components/InventoryList';
 import ItemCreate from './components/ItemCreate';
@@ -10,12 +10,38 @@ import AtWorkPage from './components/AtWorkPage';
 import QuickActions from './components/QuickActions';
 import LoginPage from './components/LoginPage';
 import ItemDetailPanel from './components/ItemDetailPanel';
+import ServiceModal from './components/modals/ServiceModal';
+import api from './api/axios';
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
+  const [isServiceModalOpen, setServiceModalOpen] = useState(false);
+  const [serviceMode, setServiceMode] = useState('send');
+
+  // Функция для открытия сервисной модалки
+  const handleOpenServiceModal = (item, mode) => {
+    setServiceMode(mode);
+    setServiceModalOpen(true);
+  };
+
+  // Обработчик отправки формы сервиса
+  const handleServiceSubmit = async (itemId, text) => {
+    try {
+      const endpoint = serviceMode === 'send' ? 'send_to_service' : 'return_from_service';
+      const payload = serviceMode === 'send' ? { reason: text } : { comment: text };
+      
+      await api.post(`/items/${itemId}/${endpoint}/`, payload);
+      
+      toast.success(serviceMode === 'send' ? "Отправлено в сервис" : "Принято из сервиса");
+      setServiceModalOpen(false);
+      // Здесь можно добавить вызов функции обновления списка ТМЦ
+    } catch (error) {
+      toast.error("Ошибка при выполнении операции");
+    }
+  };
 
   // Обновляем состояние token при изменении localStorage
   useEffect(() => {
@@ -57,7 +83,16 @@ function App() {
                         <ItemDetailPanel 
                           item={selectedItem} 
                           onClose={() => setSelectedItem(null)} 
-                          isDarkMode={isDarkMode} 
+                          isDarkMode={isDarkMode}
+                          onActionClick={handleOpenServiceModal}
+                        />
+                        <ServiceModal 
+                          isOpen={isServiceModalOpen}
+                          onClose={() => setServiceModalOpen(false)}
+                          onSubmit={handleServiceSubmit}
+                          item={selectedItem}
+                          mode={serviceMode}
+                          isDarkMode={isDarkMode}
                         />
                       </>
                     } />

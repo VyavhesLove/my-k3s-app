@@ -1,9 +1,12 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { X, History, Box, Tag } from 'lucide-react';
 import { statusMap, getStatusStyles } from '../constants/statusConfig';
 
-const ItemDetailPanel = ({ item, onClose, isDarkMode }) => {
+const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
+  const location = useLocation();
   const isOpen = !!item;
+  const mode = location.state?.mode;
 
   return (
     <div className={`fixed right-0 top-0 h-full w-[400px] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
@@ -28,7 +31,7 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode }) => {
 
       {/* Контент — рендерим только если есть данные, чтобы не ловить ошибки */}
       {item && (
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto pb-6 px-6 space-y-8">
           <section>
             <div className="text-sm text-gray-500 uppercase font-semibold mb-4">Текущий статус</div>
             {/* Добавляем ? к item.status */}
@@ -68,6 +71,29 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode }) => {
               </table>
             </div>
           </section>
+        </div>
+      )}
+
+      {/* Кнопка действия в футере панели */}
+      {isOpen && (mode === 'send_to_service' || mode === 'return_from_service') && (
+        <div className={`p-6 border-t ${isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-gray-100 bg-gray-50/50'}`}>
+          <button
+            onClick={() => onActionClick(item, mode === 'return_from_service' ? 'return' : 'send')}
+            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
+              mode === 'return_from_service' 
+                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20' 
+                : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
+            }`}
+          >
+            {mode === 'return_from_service' ? (
+              <>Принять из ремонта</>
+            ) : (
+              <>Оформить отправку в сервис</>
+            )}
+          </button>
+          <p className="text-[10px] text-center mt-3 text-gray-500 uppercase font-medium tracking-widest">
+            Нажмите для открытия формы
+          </p>
         </div>
       )}
     </div>
