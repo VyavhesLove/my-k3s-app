@@ -12,19 +12,17 @@ import LoginPage from './components/LoginPage';
 import ItemDetailPanel from './components/ItemDetailPanel';
 import ServiceModal from './components/modals/ServiceModal';
 import api from './api/axios';
+import { useItemStore } from './store/useItemStore';
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [selectedItem, setSelectedItem] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
-  const [isServiceModalOpen, setServiceModalOpen] = useState(false);
-  const [serviceMode, setServiceMode] = useState('send');
+  const { selectedItem, serviceMode, isServiceModalOpen } = useItemStore();
 
   // Функция для открытия сервисной модалки
   const handleOpenServiceModal = (item, mode) => {
-    setServiceMode(mode);
-    setServiceModalOpen(true);
+    useItemStore.getState().openServiceModal(mode);
   };
 
   // Обработчик отправки формы сервиса
@@ -36,7 +34,7 @@ function App() {
       await api.post(`/items/${itemId}/${endpoint}/`, payload);
       
       toast.success(serviceMode === 'send' ? "Отправлено в сервис" : "Принято из сервиса");
-      setServiceModalOpen(false);
+      useItemStore.getState().closeServiceModal();
       // Здесь можно добавить вызов функции обновления списка ТМЦ
     } catch (error) {
       toast.error("Ошибка при выполнении операции");
@@ -79,16 +77,16 @@ function App() {
                   <Routes>
                     <Route path="/" element={
                       <>
-                        <InventoryList isDarkMode={isDarkMode} selectedItem={selectedItem} onItemSelect={setSelectedItem} />
+                        <InventoryList isDarkMode={isDarkMode} />
                         <ItemDetailPanel 
                           item={selectedItem} 
-                          onClose={() => setSelectedItem(null)} 
+                          onClose={() => useItemStore.getState().setSelectedItem(null)} 
                           isDarkMode={isDarkMode}
                           onActionClick={handleOpenServiceModal}
                         />
                         <ServiceModal 
                           isOpen={isServiceModalOpen}
-                          onClose={() => setServiceModalOpen(false)}
+                          onClose={() => useItemStore.getState().closeServiceModal()}
                           onSubmit={handleServiceSubmit}
                           item={selectedItem}
                           mode={serviceMode}
@@ -97,9 +95,9 @@ function App() {
                       </>
                     } />
                     <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
-<Route path="/transfer" element={<ItemTransfer isDarkMode={isDarkMode} selectedItem={selectedItem} onTransferComplete={() => setSelectedItem(null)} />} />
+                    <Route path="/transfer" element={<ItemTransfer isDarkMode={isDarkMode} selectedItem={selectedItem} onTransferComplete={() => useItemStore.getState().setSelectedItem(null)} />} />
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
-<Route path="/at-work" element={<AtWorkPage isDarkMode={isDarkMode} selectedItem={selectedItem} />} />
+                    <Route path="/at-work" element={<AtWorkPage isDarkMode={isDarkMode} selectedItem={selectedItem} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </main>

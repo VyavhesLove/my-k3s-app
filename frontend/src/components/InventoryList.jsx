@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X, ChevronDown } from 'lucide-react';
 import api from '../api/axios';
 import { statusMap, getStatusStyles } from '../constants/statusConfig';
+import { useItemStore } from '../store/useItemStore';
 
 // Компонент для фильтрации по статусу (select)
 const StatusFilter = ({ isDarkMode, filterValue, onFilterChange }) => {
@@ -120,8 +121,9 @@ const TableHeader = ({
   );
 };
 
-function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
+function InventoryList({ isDarkMode }) {
   const location = useLocation();
+  const { setSelectedItem, selectedItem } = useItemStore();
   const [items, setItems] = useState([]);
   const [filters, setFilters] = useState({});
   // Массив критериев сортировки: [{ key, direction }]
@@ -141,7 +143,7 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
         const response = await api.get(`/items${queryString ? '?' + queryString : ''}`);
         setItems(response.data.items || []);
         // Сбрасываем выбор при обновлении
-        if (onItemSelect) onItemSelect(null);
+        setSelectedItem(null);
         setSortConfig([]);
         setCurrentPage(1);
       } catch (err) {
@@ -319,7 +321,7 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
                   {paginatedItems.map((item, index) => (
                     <tr 
                       key={item.id} 
-                      onClick={() => onItemSelect && onItemSelect(item)}
+                      onClick={() => setSelectedItem(item)}
                       className={`cursor-pointer transition-colors ${
                         selectedItem?.id === item.id 
                           ? 'bg-blue-600/30 ring-1 ring-blue-500' 

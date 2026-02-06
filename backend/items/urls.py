@@ -12,4 +12,3 @@ urlpatterns = [
     path('status-counters/', views.get_status_counters, name='get_status_counters'),
     path('brigades/', views.brigade_list, name='brigade_list'),
 ]
-

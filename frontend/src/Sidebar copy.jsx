@@ -1,150 +1,22 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { 
-  X, History, Box, Tag, PlusCircle, Copy, Edit, Send, Hammer, 
+  PlusCircle, Copy, Edit, Send, Hammer, 
   Truck, RotateCcw, BarChart3, Trash2, 
   User, Moon, Sun, LogOut, ChevronLeft, ChevronRight, Home
 } from 'lucide-react';
-import { statusMap, getStatusStyles } from '../constants/statusConfig';
-import ServiceModal from './modals/ServiceModal';
-import { useItemStore } from '../store/useItemStore';
+import ServiceModal from './components/modals/ServiceModal';
 
-const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
-  const location = useLocation();
-  const isOpen = !!item;
-  const mode = location.state?.mode;
+const APP_VERSION = import.meta.env.PACKAGE_VERSION || '1.0.0';
 
-  return (
-    <div className={`fixed right-0 top-0 h-full w-[400px] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
-      isOpen ? 'translate-x-0' : 'translate-x-full'
-    } ${
-      isDarkMode ? 'bg-slate-900 border-l border-slate-800 text-white' : 'bg-white border-l border-gray-200 text-slate-900'
-    }`}>
-      {/* Шапка панели — она видна всегда, но кнопки/текст внутри защитим */}
-      <div className="p-6 border-b border-gray-200 flex justify-between items-center relative z-10">
-        <h2 className="text-xl font-bold uppercase tracking-tight">Детали ТМЦ</h2>
-        <button 
-          type="button"
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            onClose(); 
-          }} 
-          className="p-2 hover:bg-gray-500/10 rounded-full transition-colors"
-        >
-          <X size={24} />
-        </button>
-      </div>
-
-      {/* Контент — рендерим только если есть данные, чтобы не ловить ошибки */}
-      {item && (
-        // ---- Новая обёртка контента ----
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-32">
-          {/* Текущий статус */}
-          <section>
-            <div className="text-sm text-gray-500 uppercase font-semibold mb-4">Текущий статус</div>
-            <div className={`p-4 rounded-2xl font-bold text-center uppercase tracking-wider ${getStatusStyles(item?.status, isDarkMode)}`}>
-              {statusMap[item?.status] || item?.status}
-            </div>
-          </section>
-
-          {/* Детали */}
-          <div className="grid grid-cols-1 gap-4">
-            <DetailRow label="Наименование" value={item?.name} />
-            <DetailRow label="Серийный номер" value={item?.serial || '—'} />
-            <DetailRow label="Бригада" value={item?.brigade_details?.name || 'Не закреплено'} />
-          </div>
-
-          {/* История операций */}
-          <section>
-            <div className="flex items-center gap-2 text-sm text-gray-500 uppercase font-semibold mb-4">
-              <History size={16} /> Последние операции
-            </div>
-            <div className="overflow-hidden rounded-xl border border-gray-500/20">
-              <table className="w-full text-xs text-left">
-                <thead className={isDarkMode ? 'bg-slate-800' : 'bg-gray-50'}>
-                  <tr>
-                    <th className="p-2">Дата</th>
-                    <th className="p-2">Операция</th>
-                    <th className="p-2">Отв.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-500/10">
-                  {item?.history?.map((h, i) => (
-                    <tr key={i}>
-                      <td className="p-2 whitespace-nowrap">{h.date}</td>
-                      <td className="p-2">{h.action}</td>
-                      <td className="p-2">{h.user}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* ---- Кнопка действия внутри скролл‑контейнера ---- */}
-          {(mode === 'send_to_service' || mode === 'return_from_service') && (
-            <section className="pt-4">
-              <button
-                onClick={() => onActionClick(item, mode === 'return_from_service' ? 'return' : 'send')}
-                className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
-                  mode === 'return_from_service'
-                    ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
-                    : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
-                }`}
-              >
-                {mode === 'return_from_service' ? (
-                  <>Принять из ремонта</>
-                ) : (
-                  <>Оформить отправку в сервис</>
-                )}
-              </button>
-              <p className="text-[10px] text-center mt-2 opacity-50 uppercase">
-                Нажмите для завершения
-              </p>
-            </section>
-          )}
-        </div>
-      )}
-
-      {/* Кнопка действия в футере панели */}
-      {isOpen && (mode === 'send_to_service' || mode === 'return_from_service') && (
-        <div className={`p-6 border-t ${isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-gray-100 bg-gray-50/50'}`}>
-          <button
-            onClick={() => onActionClick(item, mode === 'return_from_service' ? 'return' : 'send')}
-            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
-              mode === 'return_from_service' 
-                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20' 
-                : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
-            }`}
-          >
-            {mode === 'return_from_service' ? (
-              <>Принять из ремонта</>
-            ) : (
-              <>Оформить отправку в сервис</>
-            )}
-          </button>
-          <p className="text-[10px] text-center mt-3 text-gray-500 uppercase font-medium tracking-widest">
-            Нажмите для открытия формы
-          </p>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const DetailRow = ({ label, value }) => (
-  <div className="space-y-1">
-    <div className="text-[10px] uppercase text-gray-500 font-bold">{label}</div>
-    <div className="text-sm font-medium">{value}</div>
-  </div>
-);
-
-export const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selectedItem }) => {
+const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode, selectedItem }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { serviceMode, isServiceModalOpen, openServiceModal, closeServiceModal } = useItemStore();
+
+  // Состояния для модального окна сервиса
+  const [isServiceModalOpen, setIsServiceModalOpen] = React.useState(false);
+  const [serviceMode, setServiceMode] = React.useState('send'); // 'send' или 'return'
 
   // Список пунктов меню согласно ТЗ
   const menuItems = [
@@ -152,7 +24,7 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode
     { icon: <Copy size={20} />, label: 'Создать по аналогии' },
     { icon: <Edit size={20} />, label: 'Редактировать ТМЦ' },
     { icon: <Send size={20} />, label: 'Передать ТМЦ' },
-    { icon: <Hammer size={20} />, label: 'В работу' },
+    { icon: <Hammer size={20} />, label: 'В работа' },
     { icon: <Truck size={20} />, label: 'Отправить в сервис' },
     { icon: <RotateCcw size={20} />, label: 'Вернуть из сервиса' },
     { icon: <BarChart3 size={20} />, label: 'Аналитика' },
@@ -209,14 +81,16 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode
       if (!selectedItem) {
         return toast.error("Выберите ТМЦ для отправки в сервис");
       }
-      openServiceModal('send');
+      setServiceMode('send');
+      setIsServiceModalOpen(true);
     }
     else if (label === 'Вернуть из сервиса') {
       if (!selectedItem) {
         return toast.error("Выберите ТМЦ для возврата");
       }
       // При необходимости можно добавить проверку статуса "В сервисе"
-      openServiceModal('return');
+      setServiceMode('return');
+      setIsServiceModalOpen(true);
     }
   };
 
@@ -324,10 +198,10 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode
       </div>
 
       {/* Модалка сервиса */}
-      {isServiceModalOpen && selectedItem && (
+      {isServiceModalOpen && (
         <ServiceModal 
           isOpen={isServiceModalOpen}
-          onClose={closeServiceModal}
+          onClose={() => setIsServiceModalOpen(false)}
           item={selectedItem}
           mode={serviceMode}
           isDarkMode={isDarkMode}
@@ -337,4 +211,4 @@ export const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode
   );
 };
 
-export default ItemDetailPanel;
+export default Sidebar;

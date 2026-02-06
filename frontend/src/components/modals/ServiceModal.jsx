@@ -1,95 +1,136 @@
-import React, { useState, useEffect } from 'react';
-import { X, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { X } from 'lucide-react';
+import api from '../../api/axios'; // Убедись, что путь к axios верный
+import { toast } from 'sonner';
+import { useItemStore } from '../../store/useItemStore';
 
-const ServiceModal = ({ isOpen, onClose, onSubmit, item, mode, isDarkMode }) => {
-  const [text, setText] = useState('');
-  
-  // Сбрасываем текст при открытии/закрытии
-  useEffect(() => { if (!isOpen) setText(''); }, [isOpen]);
+const ServiceModal = ({ isDarkMode }) => {
+  // Достаем всё необходимое из Zustand
+  const { 
+    selectedItem, 
+    serviceMode, 
+    isServiceModalOpen, 
+    closeServiceModal 
+  } = useItemStore();
 
-  if (!isOpen || !item) return null;
+  const [comment, setComment] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const isReturn = mode === 'return';
+  // Если модалка закрыта или предмет не выбран — ничего не рендерим
+  if (!isServiceModalOpen || !selectedItem) return null;
+
+  const isSend = serviceMode === 'send';
+  const title = isSend ? 'Отправить в сервис' : 'Вернуть из сервиса';
+  const label = isSend ? 'Причина ремонта' : 'Комментарии';
+  const buttonText = isSend ? 'Отправить' : 'Вернуть';
+
+  const handleSubmit = async () => {
+    if (isSend && !comment.trim()) {
+      return toast.error("Пожалуйста, укажите причину ремонта");
+    }
+
+    setLoading(true);
+    try {
+      const newStatus = isSend ? 'in_service' : 'active';
+      
+      // Отправляем запрос на бэкенд
+      await api.patch(`/items/${selectedItem.id}/`, {
+        status: newStatus,
+        service_comment: comment
+      });
+
+      toast.success(isSend ? "ТМЦ отправлено в сервис" : "ТМЦ возвращено из сервиса");
+      
+      // Закрываем модалку через Zustand
+      closeServiceModal();
+      
+      // Очищаем локальное поле комментария
+      setComment('');
+
+      // Обновляем страницу для получения свежих данных (или вызови fetchItems, если пробросишь его)
+      window.location.reload(); 
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Ошибка при обновлении статуса");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    // Backdrop с accessibility (закрытие по клику на фон)
-    <div 
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      {/* Останавливаем всплытие клика, чтобы модалка не закрывалась при клике внутри неё */}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div 
-        className={`w-full max-w-lg rounded-2xl shadow-2xl transition-all border ${
-          isDarkMode ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-gray-200 text-slate-900'
+        className={`w-full max-w-2xl rounded-2xl shadow-2xl transform transition-all ${
+          isDarkMode ? 'bg-slate-900 text-white border border-slate-700' : 'bg-white text-slate-900'
         }`}
-        onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-500/10">
-          <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${isReturn ? 'bg-emerald-500/20 text-emerald-500' : 'bg-sky-500/20 text-sky-500'}`}>
-              <AlertCircle size={20} />
-            </div>
-            <h3 className="text-xl font-bold tracking-tight">
-              {isReturn ? 'Возврат из сервиса' : 'Отправка в сервис'}
-            </h3>
-          </div>
+        {/* Шапка */}
+        <div className="flex justify-between items-center p-6 border-b border-gray-500/10">
+          <h2 className="text-xl font-bold uppercase tracking-tight">{title}</h2>
           <button 
-            onClick={onClose} 
+            onClick={closeServiceModal} 
             className="p-2 hover:bg-gray-500/10 rounded-full transition-colors"
-            aria-label="Закрыть"
           >
-            <X size={20} />
+            <X size={24} />
           </button>
         </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-4">
-          <div className={`p-4 rounded-xl space-y-1 ${isDarkMode ? 'bg-slate-800/50' : 'bg-gray-50'}`}>
-            <div className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Предмет</div>
-            <div className="font-medium text-sm">{item.name}</div>
-            <div className="text-xs text-gray-400">SN: {item.serial || '—'}</div>
+        
+        {/* Контент */}
+        <div className="p-6">
+          <div className="overflow-hidden rounded-xl border border-gray-500/10 mb-6">
+            <table className="w-full text-left">
+              <thead className={isDarkMode ? 'bg-slate-800/50' : 'bg-gray-50'}>
+                <tr className="text-xs font-bold uppercase text-gray-500">
+                  <th className="px-4 py-3 w-20">Ид.</th>
+                  <th className="px-4 py-3">Наименование</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-500/10">
+                <tr>
+                  <td className="px-4 py-4 text-sm font-mono">{selectedItem.id}</td>
+                  <td className="px-4 py-4 text-sm font-medium">{selectedItem.name}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs uppercase font-bold text-gray-500 tracking-wider ml-1">
-              {isReturn ? 'Комментарий по итогам' : 'Укажите причину поломки'}
-            </label>
-            <textarea
-              autoFocus
-              className={`w-full rounded-xl border p-4 min-h-[120px] text-sm focus:ring-2 focus:ring-blue-500 outline-none transition-all ${
+            <label className="text-xs font-bold uppercase text-gray-500 ml-1">{label}</label>
+            <textarea 
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              className={`w-full p-4 rounded-xl border outline-none transition-all resize-none ${
                 isDarkMode 
-                  ? 'bg-slate-950 border-slate-700 text-white placeholder-gray-600' 
-                  : 'bg-white border-gray-200 text-slate-900 placeholder-gray-400'
+                  ? 'bg-slate-800 border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500' 
+                  : 'bg-gray-50 border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-400'
               }`}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={isReturn ? "Опишите результат ремонта..." : "Что именно не работает?"}
+              rows="4"
+              placeholder={isSend ? "Опишите неисправность..." : "Результат обслуживания..."}
             />
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-500/10 bg-gray-50/50 dark:bg-slate-900/50 rounded-b-2xl">
-          <button 
-            onClick={onClose} 
-            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-              isDarkMode ? 'hover:bg-slate-800 text-gray-400' : 'hover:bg-gray-200 text-gray-600'
-            }`}
-          >
-            Отмена
-          </button>
-          <button 
-            onClick={() => onSubmit(item.id, text)}
-            disabled={!text.trim()}
-            className={`px-8 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none ${
-              isReturn ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20' : 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20'
-            }`}
-          >
-            {isReturn ? 'Подтвердить возврат' : 'Отправить в сервис'}
-          </button>
+          {/* Действия */}
+          <div className="flex justify-end gap-3 mt-8">
+            <button 
+              onClick={closeServiceModal}
+              className={`px-6 py-2.5 rounded-xl font-semibold transition-colors ${
+                isDarkMode ? 'bg-slate-800 hover:bg-slate-700' : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+            >
+              Отмена
+            </button>
+            <button 
+              onClick={handleSubmit}
+              disabled={loading}
+              className={`px-8 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all ${
+                loading 
+                  ? 'bg-blue-600/50 cursor-not-allowed' 
+                  : 'bg-blue-600 hover:bg-blue-500 active:scale-95 shadow-blue-900/20'
+              }`}
+            >
+              {loading ? 'Обработка...' : buttonText}
+            </button>
+          </div>
         </div>
       </div>
     </div>
