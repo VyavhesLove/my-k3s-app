@@ -133,6 +133,12 @@ function InventoryList({ isDarkMode }) {
 
   const fetchItems = (searchQuery = '') => {
     const fetchItemsAsync = async () => {
+      // Проверка наличия токена перед запросом
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        return;
+      }
+
       try {
         const params = new URLSearchParams();
         if (searchQuery) {
@@ -161,7 +167,10 @@ function InventoryList({ isDarkMode }) {
 
   // Загружаем данные при монтировании и при каждом возврате на страницу
   useEffect(() => {
-    fetchItems();
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      fetchItems();
+    }
   }, [location.pathname]);
 
   // Обработка навигации - сброс фильтров при переходе на главную

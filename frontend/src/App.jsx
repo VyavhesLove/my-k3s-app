@@ -69,7 +69,6 @@ function App() {
                   setIsCollapsed={setIsCollapsed} 
                   isDarkMode={isDarkMode} 
                   setIsDarkMode={setIsDarkMode}
-                  selectedItem={selectedItem}
                 />
                 
                 {/* Основной контент */}

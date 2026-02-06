@@ -84,8 +84,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
   // ... (toggleTheme остаются прежними)
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    navigate('/login');
+    // 1. Чистим всё хранилище
+    localStorage.clear();
+    
+    toast.success("Выход выполнен");
+
+    // 2. Жёсткий редирект на страницу логина
+    window.location.href = '/login';
   };
 
   const toggleTheme = () => {
