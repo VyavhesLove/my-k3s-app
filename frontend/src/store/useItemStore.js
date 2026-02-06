@@ -7,7 +7,7 @@ export const useItemStore = create((set) => ({
 
   // Состояние модалки сервиса
   isServiceModalOpen: false,
-  serviceMode: 'send', // 'send' или 'return'
+  serviceMode: 'send', // 'send', 'confirm' или 'return'
   
   // Экшены для управления модалкой
   openServiceModal: (mode) => set({ 

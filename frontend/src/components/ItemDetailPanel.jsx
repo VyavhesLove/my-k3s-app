@@ -58,8 +58,8 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
 
           {/* 2. СТАТИЧНЫЙ БЛОК: Кнопка действия с проверкой всех состояний */}
           <section className="py-2">
-            {/* Состояние 1: ТМЦ на руках или в работе -> Отправляем в сервис */}
-            {(item.status === 'released' || item.status === 'at_work') && (
+            {/* 1. Если ТМЦ свободен или в работе -> кнопка "Отправить" */}
+            {(item.status === 'available' || item.status === 'released' || item.status === 'at_work') && (
               <button
                 onClick={() => onActionClick(item, 'send')}
                 className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95"
@@ -68,23 +68,23 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
               </button>
             )}
 
-            {/* Состояние 2: Ожидает подтверждения -> Переходим к оформлению ремонта */}
+            {/* 2. Если ждет подтверждения -> кнопка "Подтвердить" */}
             {item.status === 'confirm_repair' && (
               <button
-                onClick={() => onActionClick(item, 'confirm')} 
+                onClick={() => onActionClick(item, 'confirm')}
                 className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95"
               >
                 Подтвердить ремонт
               </button>
             )}
 
-            {/* Состояние 3: Уже в ремонте -> Принимаем обратно */}
+            {/* 3. Если уже в ремонте -> кнопка "Вернуть" */}
             {(item.status === 'repair' || item.status === 'in_service') && (
               <button
                 onClick={() => onActionClick(item, 'return')}
                 className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
               >
-                Вернуть из сервиса
+                Принять из ремонта
               </button>
             )}
 

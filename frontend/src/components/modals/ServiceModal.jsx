@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import api from '../../api/axios'; // Убедись, что путь к axios верный
+import api from '../../api/axios';
 import { toast } from 'sonner';
 import { useItemStore } from '../../store/useItemStore';
 
 const ServiceModal = ({ isDarkMode }) => {
-  // Достаем всё необходимое из Zustand
   const { 
     selectedItem, 
     serviceMode, 
@@ -14,43 +13,69 @@ const ServiceModal = ({ isDarkMode }) => {
   } = useItemStore();
 
   const [comment, setComment] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Если модалка закрыта или предмет не выбран — ничего не рендерим
   if (!isServiceModalOpen || !selectedItem) return null;
 
   const isSend = serviceMode === 'send';
-  const title = isSend ? 'Отправить в сервис' : 'Вернуть из сервиса';
-  const label = isSend ? 'Причина ремонта' : 'Комментарии';
-  const buttonText = isSend ? 'Отправить' : 'Вернуть';
+  const isConfirm = serviceMode === 'confirm';
+  const isReturn = serviceMode === 'return';
+
+  const title = isSend 
+    ? 'Отправить в сервис' 
+    : isConfirm 
+      ? 'Подтвердить ремонт' 
+      : 'Принять из ремонта';
+  
+  const buttonText = isSend 
+    ? 'Отправить' 
+    : isConfirm 
+      ? 'Подтвердить' 
+      : 'Принять';
 
   const handleSubmit = async () => {
-    if (isSend && !comment.trim()) {
-      return toast.error("Пожалуйста, укажите причину ремонта");
-    }
-
     setLoading(true);
     try {
-      const newStatus = isSend ? 'in_service' : 'active';
-      
-      // Отправляем запрос на бэкенд
-      await api.patch(`/items/${selectedItem.id}/`, {
-        status: newStatus,
-        service_comment: comment
-      });
+      if (isSend) {
+        // Отправка в сервис - используем существующий эндпоинт
+        await api.patch(`/items/${selectedItem.id}/`, {
+          status: 'confirm_repair',
+          service_comment: comment
+        });
+        toast.success("ТМЦ отправлено в сервис");
+      } 
+      else if (isConfirm) {
+        // Подтверждение ремонта - новый эндпоинт
+        if (!invoiceNumber.trim()) {
+          return toast.error("Укажите номер счета");
+        }
+        if (!location.trim()) {
+          return toast.error("Укажите локацию сервиса");
+        }
+        
+        await api.post(`/items/${selectedItem.id}/confirm-repair/`, {
+          invoice_number: invoiceNumber,
+          location: location
+        });
+        toast.success("Ремонт согласован");
+      } 
+      else if (isReturn) {
+        // Возврат из сервиса
+        await api.post(`/items/${selectedItem.id}/return-from-service/`, {
+          comment: comment
+        });
+        toast.success("ТМЦ принято из ремонта");
+      }
 
-      toast.success(isSend ? "ТМЦ отправлено в сервис" : "ТМЦ возвращено из сервиса");
-      
-      // Закрываем модалку через Zustand
       closeServiceModal();
-      
-      // Очищаем локальное поле комментария
       setComment('');
-
-      // Обновляем страницу для получения свежих данных (или вызови fetchItems, если пробросишь его)
-      window.location.reload(); 
+      setInvoiceNumber('');
+      setLocation('');
+      window.location.reload();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Ошибка при обновлении статуса");
+      toast.error(err.response?.data?.detail || "Ошибка при выполнении операции");
       console.error(err);
     } finally {
       setLoading(false);
@@ -94,20 +119,59 @@ const ServiceModal = ({ isDarkMode }) => {
             </table>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-gray-500 ml-1">{label}</label>
-            <textarea 
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              className={`w-full p-4 rounded-xl border outline-none transition-all resize-none ${
-                isDarkMode 
-                  ? 'bg-slate-800 border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500' 
-                  : 'bg-gray-50 border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-400'
-              }`}
-              rows="4"
-              placeholder={isSend ? "Опишите неисправность..." : "Результат обслуживания..."}
-            />
-          </div>
+          {/* Поля для режима подтверждения ремонта */}
+          {isConfirm && (
+            <div className="space-y-4 mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-amber-600 ml-1">Номер счета</label>
+                <input 
+                  type="text"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  className={`w-full p-4 rounded-xl border outline-none transition-all ${
+                    isDarkMode 
+                      ? 'bg-slate-800 border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500' 
+                      : 'bg-white border-gray-200 focus:border-amber-400 focus:ring-1 focus:ring-amber-400'
+                  }`}
+                  placeholder="Введите номер счета"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-amber-600 ml-1">Локация сервиса</label>
+                <input 
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className={`w-full p-4 rounded-xl border outline-none transition-all ${
+                    isDarkMode 
+                      ? 'bg-slate-800 border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500' 
+                      : 'bg-white border-gray-200 focus:border-amber-400 focus:ring-1 focus:ring-amber-400'
+                  }`}
+                  placeholder="Адрес/название сервиса"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Комментарий - для send и return */}
+          {(isSend || isReturn) && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-gray-500 ml-1">
+                {isSend ? 'Причина ремонта' : 'Комментарии'}
+              </label>
+              <textarea 
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                className={`w-full p-4 rounded-xl border outline-none transition-all resize-none ${
+                  isDarkMode 
+                    ? 'bg-slate-800 border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500' 
+                    : 'bg-gray-50 border-gray-200 focus:border-blue-400 focus:ring-1 focus:ring-blue-400'
+                }`}
+                rows="4"
+                placeholder={isSend ? "Опишите неисправность..." : "Результат обслуживания..."}
+              />
+            </div>
+          )}
 
           {/* Действия */}
           <div className="flex justify-end gap-3 mt-8">
@@ -125,7 +189,9 @@ const ServiceModal = ({ isDarkMode }) => {
               className={`px-8 py-2.5 rounded-xl font-bold text-white shadow-lg transition-all ${
                 loading 
                   ? 'bg-blue-600/50 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-500 active:scale-95 shadow-blue-900/20'
+                  : isConfirm 
+                    ? 'bg-amber-500 hover:bg-amber-400 active:scale-95 shadow-amber-900/20'
+                    : 'bg-blue-600 hover:bg-blue-500 active:scale-95 shadow-blue-900/20'
               }`}
             >
               {loading ? 'Обработка...' : buttonText}

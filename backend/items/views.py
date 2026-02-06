@@ -242,3 +242,29 @@ def return_from_service(request, item_id):
 
     return Response(ItemSerializer(item).data)
 
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
+def confirm_repair(request, item_id):
+    from django.shortcuts import get_object_or_404
+    from .models import ItemHistory
+    
+    item = get_object_or_404(Item, id=item_id)
+    
+    # Получаем данные из запроса (согласно ТЗ)
+    invoice_number = request.data.get('invoice_number', 'Не указан')
+    service_location = request.data.get('location', 'Не указана')
+    
+    # Меняем статус на "В ремонте"
+    item.status = 'in_repair' 
+    item.save()
+
+    # Записываем историю (согласно логике из md файла)
+    ItemHistory.objects.create(
+        item=item,
+        action=f"Ремонт ТМЦ согласован — № счета {invoice_number}. Локация: {service_location}",
+        user=request.user.username if request.user.is_authenticated else "Система"
+    )
+
+    return Response(ItemSerializer(item).data)
+
