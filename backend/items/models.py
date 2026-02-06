@@ -60,7 +60,8 @@ class Item(models.Model):
 
 class ItemHistory(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='history')
-    action = models.CharField(max_length=255) # Например: "ТМЦ передано. Объект - Университет"
+    action = models.CharField(max_length=255)  # Например: "ТМЦ передано. Объект - Университет"
+    comment = models.TextField(blank=True, null=True)  # Дополнительный комментарий
     user = models.CharField(max_length=255)   # Кто совершил действие
     timestamp = models.DateTimeField(auto_now_add=True)
 

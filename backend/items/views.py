@@ -47,25 +47,48 @@ def item_list(request):
 
 
 @extend_schema(
-    methods=['PUT'],
-    description="Обновить ТМЦ",
+    methods=['PUT', 'PATCH'],
+    description="Обновить ТМЦ (частичное или полное обновление)",
     request=ItemSerializer,
     responses={200: ItemSerializer}
 )
 @extend_schema(methods=['DELETE'], description="Удалить ТМЦ")
-@api_view(['PUT', 'DELETE'])
+@api_view(['PUT', 'PATCH', 'DELETE'])
 def item_detail(request, item_id):
-    """PUT: обновить, DELETE: удалить"""
+    """PUT/PATCH: обновить, DELETE: удалить"""
     try:
         item = Item.objects.get(id=item_id)
     except Item.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'PUT':
-        # partial=True позволяет обновлять только присланные поля
+    if request.method in ['PUT', 'PATCH']:
+        # partial=True позволяет обновлять только присланные поля (важно для PATCH)
+        old_status = item.status  # 1. Запоминаем старый статус
+        
         serializer = ItemSerializer(item, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
+            # 2. Сохраняем изменения (serializer.save() обновляет item)
+            item = serializer.save() 
+            
+            # 3. Логика истории
+            service_comment = request.data.get('service_comment')
+            new_status = item.status  # Теперь тут уже новый статус
+            
+            if service_comment:
+                from .models import ItemHistory
+                # Формируем текст операции
+                if old_status != new_status:
+                    action_text = f"Смена статуса: {old_status} → {new_status}"
+                else:
+                    action_text = "Обновление информации"
+                
+                ItemHistory.objects.create(
+                    item=item,
+                    action=action_text,
+                    comment=service_comment,
+                    user=request.user.username if request.user.is_authenticated else "API"
+                )
+            
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             

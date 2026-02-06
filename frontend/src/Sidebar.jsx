@@ -22,7 +22,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
       'Создать ТМЦ': '/create',
       'Аналитика': '/analytics',
       'Списание/затраты': '/scraps',
-      'В работа': '/at-work',
+      'В работе': '/at-work',
       'Передать ТМЦ': '/transfer'
     };
     return location.pathname === pathMap[label];
@@ -43,7 +43,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
     { icon: <Copy size={20} />, label: 'Создать по аналогии' },
     { icon: <Edit size={20} />, label: 'Редактировать ТМЦ' },
     { icon: <Send size={20} />, label: 'Передать ТМЦ' },
-    { icon: <Hammer size={20} />, label: 'В работа' }, // Оставил твою опечатку "В работа"
+    { icon: <Hammer size={20} />, label: 'В работе' },
     { icon: <Truck size={20} />, label: 'Отправить в сервис' },
     { icon: <RotateCcw size={20} />, label: 'Вернуть из сервиса' },
     { icon: <BarChart3 size={20} />, label: 'Аналитика' },
@@ -78,7 +78,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
     }
     else if (label === 'Аналитика') navigate('/analytics');
     else if (label === 'Списание/затраты') navigate('/scraps');
-    else if (label === 'В работа') navigate('/at-work');
+    else if (label === 'В работе') navigate('/at-work');
   };
 
   // ... (toggleTheme остаются прежними)

@@ -36,7 +36,7 @@ class HistorySerializer(serializers.ModelSerializer):
     date = serializers.DateTimeField(source='timestamp', format="%d.%m.%y")
     class Meta:
         model = ItemHistory
-        fields = ['date', 'action', 'user']
+        fields = ['date', 'action', 'comment', 'user']
 
 class ItemSerializer(serializers.ModelSerializer):
     # Для отображения истории и деталей бригады (ReadOnly)
@@ -50,11 +50,15 @@ class ItemSerializer(serializers.ModelSerializer):
         required=False, 
         allow_null=True
     )
+    
+    # Комментарий для сервисных операций (write_only, не сохраняется в модель)
+    service_comment = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Item
-        # Добавляем историю и детали в общий список полей
+        # Добавляем историю, детали и service_comment в общий список полей
         fields = [
             'id', 'name', 'serial', 'brand', 'status', 'responsible', 
-            'location', 'qty', 'brigade', 'brigade_details', 'history'
+            'location', 'qty', 'brigade', 'brigade_details', 'history', 
+            'service_comment'
         ]

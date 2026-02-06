@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Item, Location, Brigade # 1. Добавляем Brigade в импорт
+from .models import Item, Location, Brigade, ItemHistory
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
@@ -20,3 +20,8 @@ class BrigadeAdmin(admin.ModelAdmin):
     list_display = ('name', 'brigadier', 'responsible') 
     # По каким полям будет работать поиск в админке
     search_fields = ('name', 'brigadier', 'responsible')
+
+@admin.register(ItemHistory)
+class ItemHistoryAdmin(admin.ModelAdmin):
+    list_display = ('item', 'action', 'user', 'timestamp', 'comment')
+    list_filter = ('action', 'user')

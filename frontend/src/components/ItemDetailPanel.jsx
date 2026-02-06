@@ -14,7 +14,6 @@ import { useItemStore } from '../store/useItemStore';
 const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
   const location = useLocation();
   const isOpen = !!item;
-  const mode = location.state?.mode;
 
   return (
     <div className={`fixed right-0 top-0 h-full w-[400px] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
@@ -37,97 +36,97 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
         </button>
       </div>
 
-      {/* Контент — рендерим только если есть данные, чтобы не ловить ошибки */}
+      {/* Контент — общая обертка без глобального скролла */}
       {item && (
-        // ---- Новая обёртка контента ----
-        <div className="flex-1 overflow-y-auto p-6 space-y-8 pb-32">
-          {/* Текущий статус */}
-          <section>
-            <div className="text-sm text-gray-500 uppercase font-semibold mb-4">Текущий статус</div>
-            <div className={`p-4 rounded-2xl font-bold text-center uppercase tracking-wider ${getStatusStyles(item?.status, isDarkMode)}`}>
-              {statusMap[item?.status] || item?.status}
+        <div className="flex-1 flex flex-col min-h-0 p-6 space-y-6">
+          
+          {/* 1. СТАТИЧНЫЙ БЛОК: Статус и Детали */}
+          <section className="space-y-6">
+            <div>
+              <div className="text-sm text-gray-500 uppercase font-semibold mb-3">Текущий статус</div>
+              <div className={`p-4 rounded-2xl font-bold text-center uppercase tracking-wider ${getStatusStyles(item?.status, isDarkMode)}`}>
+                {statusMap[item?.status] || item?.status}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4">
+              <DetailRow label="Наименование" value={item?.name} />
+              <DetailRow label="Серийный номер" value={item?.serial || '—'} />
+              <DetailRow label="Бригада" value={item?.brigade_details?.name || 'Не закреплено'} />
             </div>
           </section>
 
-          {/* Детали */}
-          <div className="grid grid-cols-1 gap-4">
-            <DetailRow label="Наименование" value={item?.name} />
-            <DetailRow label="Серийный номер" value={item?.serial || '—'} />
-            <DetailRow label="Бригада" value={item?.brigade_details?.name || 'Не закреплено'} />
-          </div>
+          {/* 2. СТАТИЧНЫЙ БЛОК: Кнопка действия с проверкой всех состояний */}
+          <section className="py-2">
+            {/* Состояние 1: ТМЦ на руках или в работе -> Отправляем в сервис */}
+            {(item.status === 'released' || item.status === 'at_work') && (
+              <button
+                onClick={() => onActionClick(item, 'send')}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95"
+              >
+                Отправить в сервис
+              </button>
+            )}
 
-          {/* История операций */}
-          <section>
+            {/* Состояние 2: Ожидает подтверждения -> Переходим к оформлению ремонта */}
+            {item.status === 'confirm_repair' && (
+              <button
+                onClick={() => onActionClick(item, 'confirm')} 
+                className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95"
+              >
+                Подтвердить ремонт
+              </button>
+            )}
+
+            {/* Состояние 3: Уже в ремонте -> Принимаем обратно */}
+            {(item.status === 'repair' || item.status === 'in_service') && (
+              <button
+                onClick={() => onActionClick(item, 'return')}
+                className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+              >
+                Вернуть из сервиса
+              </button>
+            )}
+
+            {/* Подпись под кнопкой */}
+            <p className="text-[10px] text-center mt-2 opacity-50 uppercase font-bold text-gray-400">
+              {item.status === 'confirm_repair' ? 'Требуется заполнение данных о ремонте' : 'Нажмите для выбора действия'}
+            </p>
+          </section>
+
+          {/* 3. СКРОЛЛИРУЕМЫЙ БЛОК: Только история */}
+          <section className="flex-1 flex flex-col min-h-0 border-t border-gray-500/10 pt-4">
             <div className="flex items-center gap-2 text-sm text-gray-500 uppercase font-semibold mb-4">
               <History size={16} /> Последние операции
             </div>
-            <div className="overflow-hidden rounded-xl border border-gray-500/20">
-              <table className="w-full text-xs text-left">
-                <thead className={isDarkMode ? 'bg-slate-800' : 'bg-gray-50'}>
+            
+            {/* Вот этот контейнер будет скроллиться сам по себе */}
+            <div className="flex-1 overflow-y-auto min-h-0 rounded-xl border border-gray-500/20 custom-scrollbar">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead className={`sticky top-0 z-10 ${isDarkMode ? 'bg-slate-800' : 'bg-gray-50'}`}>
                   <tr>
-                    <th className="p-2">Дата</th>
-                    <th className="p-2">Операция</th>
-                    <th className="p-2">Отв.</th>
+                    <th className="p-3 font-bold border-b border-gray-500/10">Дата</th>
+                    <th className="p-3 font-bold border-b border-gray-500/10">Операция</th>
+                    <th className="p-3 font-bold border-b border-gray-500/10">Отв.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-500/10">
                   {item?.history?.map((h, i) => (
-                    <tr key={i}>
-                      <td className="p-2 whitespace-nowrap">{h.date}</td>
-                      <td className="p-2">{h.action}</td>
-                      <td className="p-2">{h.user}</td>
+                    <tr key={i} className={isDarkMode ? 'hover:bg-slate-800/50' : 'hover:bg-gray-50'}>
+                      <td className="p-3 whitespace-nowrap opacity-70">{h.date}</td>
+                      <td className="p-3 leading-relaxed">{h.action}</td>
+                      <td className="p-3 font-medium">{h.user}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              {(!item?.history || item.history.length === 0) && (
+                <div className="p-8 text-center text-gray-500 italic text-sm">
+                  История операций пуста
+                </div>
+              )}
             </div>
           </section>
-
-          {/* ---- Кнопка действия внутри скролл‑контейнера ---- */}
-          {(mode === 'send_to_service' || mode === 'return_from_service') && (
-            <section className="pt-4">
-              <button
-                onClick={() => onActionClick(item, mode === 'return_from_service' ? 'return' : 'send')}
-                className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
-                  mode === 'return_from_service'
-                    ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
-                    : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
-                }`}
-              >
-                {mode === 'return_from_service' ? (
-                  <>Принять из ремонта</>
-                ) : (
-                  <>Оформить отправку в сервис</>
-                )}
-              </button>
-              <p className="text-[10px] text-center mt-2 opacity-50 uppercase">
-                Нажмите для завершения
-              </p>
-            </section>
-          )}
-        </div>
-      )}
-
-      {/* Кнопка действия в футере панели */}
-      {isOpen && (mode === 'send_to_service' || mode === 'return_from_service') && (
-        <div className={`p-6 border-t ${isDarkMode ? 'border-slate-800 bg-slate-900/50' : 'border-gray-100 bg-gray-50/50'}`}>
-          <button
-            onClick={() => onActionClick(item, mode === 'return_from_service' ? 'return' : 'send')}
-            className={`w-full py-4 rounded-xl font-bold text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${
-              mode === 'return_from_service' 
-                ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20' 
-                : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
-            }`}
-          >
-            {mode === 'return_from_service' ? (
-              <>Принять из ремонта</>
-            ) : (
-              <>Оформить отправку в сервис</>
-            )}
-          </button>
-          <p className="text-[10px] text-center mt-3 text-gray-500 uppercase font-medium tracking-widest">
-            Нажмите для открытия формы
-          </p>
         </div>
       )}
     </div>
