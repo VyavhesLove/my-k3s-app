@@ -82,7 +82,7 @@ const ItemCreate = ({ isDarkMode }) => {
             <input
               type="text"
               required
-              className={`w-full h-11 px-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-[#334155] text-white' : 'bg-gray-50 text-black border border-gray-300'}`}
+              className="input-theme w-full h-11 px-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
@@ -95,8 +95,8 @@ const ItemCreate = ({ isDarkMode }) => {
               <input
                 type="text"
                 disabled={formData.noSerial}
-                className={`w-full h-11 px-4 rounded-md outline-none ${
-                  formData.noSerial ? 'bg-gray-600 cursor-not-allowed' : (isDarkMode ? 'bg-[#334155] text-white' : 'bg-gray-50 text-black border border-gray-300')
+                className={`input-theme w-full h-11 px-4 rounded-md outline-none ${
+                  formData.noSerial ? 'cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500'
                 }`}
                 value={formData.serial}
                 onChange={(e) => setFormData({ ...formData, serial: e.target.value })}
@@ -112,7 +112,7 @@ const ItemCreate = ({ isDarkMode }) => {
               <label className={`block text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-slate-600'}`}>Бренд</label>
               <input
                 type="text"
-                className={`w-full h-11 px-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-[#334155] text-white' : 'bg-gray-50 text-black border border-gray-300'}`}
+                className="input-theme w-full h-11 px-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.brand}
                 onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
               />

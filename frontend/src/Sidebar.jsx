@@ -2,50 +2,90 @@ import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { 
-  PlusCircle, Copy, Edit, Send, Hammer, 
+  PlusCircle, Copy, Edit, Send, ShieldCheck, Hammer, 
   Truck, RotateCcw, BarChart3, Trash2, 
-  User, Moon, Sun, LogOut, ChevronLeft, ChevronRight, Home
+  User, Moon, Sun, LogOut, ChevronLeft, ChevronRight, Home, Wrench
 } from 'lucide-react';
-import ServiceModal from './components/modals/ServiceModal';
 // Импортируем наше хранилище
 import { useItemStore } from './store/useItemStore';
+import api from './api/axios';
 
 const APP_VERSION = import.meta.env.PACKAGE_VERSION || '1.0.0';
 
 const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => {
+  // Состояние для счетчиков
+  const [stats, setStats] = React.useState({ to_receive: 0, to_repair: 0 /*, issued: 0 */ });
+
+  // Загрузка счетчиков с сервера
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await api.get('/status-counters/');
+        setStats({
+          to_receive: response.data.to_receive || 0,
+          to_repair: response.data.to_repair || 0,
+          // issued: response.data.issued || 0
+        });
+      } catch (error) {
+        console.error('Ошибка загрузки счетчиков:', error);
+      }
+    };
+
+    fetchStats();
+    const interval = setInterval(fetchStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
   const location = useLocation();
   const navigate = useNavigate();
 
-  // --- ДОБАВЬ ЭТУ ФУНКЦИЮ ТУТ ---
+  // --- Функция определения активного пункта меню по URL ---
   const isActive = (label) => {
     const pathMap = {
       'Создать ТМЦ': '/create',
       'Аналитика': '/analytics',
       'Списание/затраты': '/scraps',
-      'В работе': '/at-work',
-      'Передать ТМЦ': '/transfer'
     };
-    return location.pathname === pathMap[label];
+    
+    // Проверяем pathname для маршрутов
+    if (pathMap[label]) {
+      return location.pathname === pathMap[label];
+    }
+    
+    // Проверяем search для фильтров - точное совпадение
+    const filterMap = {
+      'Подтвердить ТМЦ': 'confirm',
+      'Передать ТМЦ': 'available',
+      'В работу': 'issued',
+      'Отправить в сервис': 'at_work,issued',
+      'Вернуть из сервиса': 'in_repair',
+      'Подтвердить ремонт': 'confirm_repair',
+    };
+    
+    if (filterMap[label]) {
+      const searchParams = new URLSearchParams(location.search);
+      const currentFilter = searchParams.get('filter');
+      return currentFilter === filterMap[label];
+    }
+    
+    return false;
   };
-  // ------------------------------
+  // --------------------------------
 
   // Достаем всё нужное из Zustand
   const {
-    selectedItem, 
-    isServiceModalOpen, 
-    serviceMode, 
-    openServiceModal, 
-    closeServiceModal 
+    selectedItem
   } = useItemStore();
 
   const menuItems = [
     { icon: <PlusCircle size={20} />, label: 'Создать ТМЦ' },
     { icon: <Copy size={20} />, label: 'Создать по аналогии' },
     { icon: <Edit size={20} />, label: 'Редактировать ТМЦ' },
+    { icon: <ShieldCheck size={20} />, label: 'Подтвердить ТМЦ' },
     { icon: <Send size={20} />, label: 'Передать ТМЦ' },
-    { icon: <Hammer size={20} />, label: 'В работе' },
+    { icon: <Hammer size={20} />, label: 'В работу' },
     { icon: <Truck size={20} />, label: 'Отправить в сервис' },
     { icon: <RotateCcw size={20} />, label: 'Вернуть из сервиса' },
+    { icon: <Wrench size={20} />, label: 'Подтвердить ремонт' },
     { icon: <BarChart3 size={20} />, label: 'Аналитика' },
     { icon: <Trash2 size={20} />, label: 'Списание/затраты' },
     { icon: <User size={20} />, label: 'Профиль пользователя' },
@@ -63,22 +103,34 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
       if (!selectedItem) return toast.error("Выберите ТМЦ для редактирования");
       navigate('/create', { state: { editItem: selectedItem } });
     }
-    else if (label === 'Передать ТМЦ') {
-      if (!selectedItem) return toast.warning("Сначала выберите ТМЦ для передачи");
-      navigate('/transfer', { state: { selectedItem: selectedItem } });
+    // Навигация с фильтрами
+    else if (label === 'Подтвердить ТМЦ') {
+      navigate('/?filter=confirm');
+      toast.info("Фильтр: Ожидают подтверждения");
     }
-    // Используем Zustand для открытия модалок
+    else if (label === 'Передать ТМЦ') {
+      navigate('/?filter=available');
+      toast.info("Фильтр: ТМЦ для передачи");
+    }
+    else if (label === 'В работу') {
+      navigate('/?filter=issued');
+      toast.info("Фильтр: ТМЦ выдано");
+    }
     else if (label === 'Отправить в сервис') {
-      if (!selectedItem) return toast.error("Выберите ТМЦ для отправки в сервис");
-      openServiceModal('send'); 
+      navigate('/?filter=at_work,issued');
+      toast.info("Показаны ТМЦ в работе и выданные");
     }
     else if (label === 'Вернуть из сервиса') {
-      if (!selectedItem) return toast.error("Выберите ТМЦ для возврата");
-      openServiceModal('return');
+      navigate('/?filter=in_repair');
+      toast.info("Показаны ТМЦ в ремонте");
+    }
+    else if (label === 'Подтвердить ремонт') {
+      navigate('/?filter=confirm_repair');
+      toast.info("Фильтр: Ожидание подтверждения счета");
     }
     else if (label === 'Аналитика') navigate('/analytics');
     else if (label === 'Списание/затраты') navigate('/scraps');
-    else if (label === 'В работе') navigate('/at-work');
+    // else if (label === 'Профиль пользователя') navigate('/profile');
   };
 
   // ... (toggleTheme остаются прежними)
@@ -97,68 +149,92 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
     setIsDarkMode(!isDarkMode);
   };
 
+  // Функция для отрисовки индикатора счетчика
+  const renderBadge = (label) => {
+    const countMap = {
+      'Подтвердить ТМЦ': { count: stats.to_receive, color: 'bg-amber-500', pulse: true },
+      'Подтвердить ремонт': { count: stats.to_repair, color: 'bg-amber-600', pulse: true },
+      // 'В работу': { count: stats.issued, color: 'bg-sky-500', pulse: false }
+    };
+
+    const badge = countMap[label];
+    if (!badge || badge.count === 0) return null;
+
+    if (isCollapsed) {
+      return (
+        <div className={`absolute top-1 right-1 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${badge.color} ${badge.pulse ? 'badge-pulse' : ''}`} />
+      );
+    }
+
+    return (
+      <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full text-white shadow-sm transition-all ${badge.color} ${badge.pulse ? 'ring-2 ring-amber-500/20' : ''}`}>
+        {badge.count}
+      </span>
+    );
+  };
+
   return (
     <>
-      <div className={`flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300
-        ${isDarkMode ? 'bg-[#1e293b] text-white border-r border-slate-700' : 'bg-white text-slate-800 border-r border-gray-200'}
+      <div className={`flex flex-col h-screen fixed left-0 top-0 z-50 transition-all duration-300 bg-sidebar border-r border-theme
         ${isCollapsed ? 'w-20' : 'w-72'}`}
       >
         {/* Шапка */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-          <Link to="/" className="flex items-center gap-3">
-             <Home size={24} className={isDarkMode ? 'text-blue-400' : 'text-blue-600'} />
+        <div className="flex items-center justify-between p-4 border-b border-theme">
+          <Link to="/" className="flex items-center gap-3 text-primary">
+             <Home size={24} className="text-blue-500" />
              {!isCollapsed && <span className="font-bold text-xl uppercase">Учёт ТМЦ</span>}
           </Link>
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1 hover:bg-slate-700 rounded-md">
-            {isCollapsed ? <ChevronRight /> : <ChevronLeft />}
+          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1 rounded-md transition-colors hover:bg-blue-500/10">
+            {isCollapsed ? <ChevronRight className="text-primary" /> : <ChevronLeft className="text-primary" />}
           </button>
         </div>
 
         {/* Навигация */}
-        <nav className="flex-1 overflow-y-auto py-4">
+        <nav className="flex-1 mt-4 overflow-y-auto no-scrollbar">
           {menuItems.map((item, index) => (
-            <div 
+            <div
               key={index}
               onClick={() => handleMenuClick(item.label)}
-              className={`flex items-center px-4 py-3 cursor-pointer transition-all
-                ${isActive(item.label) ? 'bg-blue-600/30 text-blue-400' : 'hover:bg-blue-600/20'}`}
+              className={`relative flex items-center px-4 py-3 cursor-pointer transition-all text-primary
+                ${isActive(item.label) 
+                  ? 'bg-blue-600/30 text-blue-400 border-r-2 border-blue-500' 
+                  : 'hover:bg-blue-500/10'
+                }`}
             >
-              <div className="min-w-[24px]">{item.icon}</div>
-              {!isCollapsed && <span className="ml-4 text-sm font-medium">{item.label}</span>}
+              <div className="relative min-w-[24px]">
+                {item.icon}
+                {isCollapsed && renderBadge(item.label)} 
+              </div>
+              
+              {!isCollapsed && (
+                <>
+                  <span className="ml-4 text-sm font-medium whitespace-nowrap">{item.label}</span>
+                  {renderBadge(item.label)}
+                </>
+              )}
             </div>
           ))}
         </nav>
 
         {/* Футер */}
-        <div className="p-4 border-t border-slate-700/50 space-y-2">
+        <div className="p-4 border-t border-theme space-y-2">
           <button
             onClick={toggleTheme}
-            className={`flex items-center w-full px-4 py-2 rounded-md hover:bg-slate-700/50 transition-all ${isDarkMode ? 'text-yellow-400' : 'text-slate-600'}`}
+            className={`flex items-center w-full px-4 py-2 rounded-md transition-all text-primary hover:bg-blue-500/10`}
           >
             {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
             {!isCollapsed && <span className="ml-4 text-sm font-medium">{isDarkMode ? 'Светлая тема' : 'Тёмная тема'}</span>}
           </button>
           <button
             onClick={handleLogout}
-            className={`flex items-center w-full px-4 py-2 rounded-md hover:bg-red-600/20 text-red-400 transition-all`}
+            className={`flex items-center w-full px-4 py-2 rounded-md transition-all text-primary hover:bg-red-500/10`}
           >
-            <LogOut size={20} />
+            <LogOut size={20} className="text-red-500" />
             {!isCollapsed && <span className="ml-4 text-sm font-medium">Выйти</span>}
           </button>
-          {!isCollapsed && <div className="text-xs text-slate-500 text-center">Версия {APP_VERSION}</div>}
+          {!isCollapsed && <div className="text-xs text-center text-primary opacity-60">Версия {APP_VERSION}</div>}
         </div>
       </div>
-
-      {/* Модалка теперь управляется через Zustand */}
-      {isServiceModalOpen && (
-        <ServiceModal 
-          isOpen={isServiceModalOpen}
-          onClose={closeServiceModal}
-          item={selectedItem}
-          mode={serviceMode}
-          isDarkMode={isDarkMode}
-        />
-      )}
     </>
   );
 };

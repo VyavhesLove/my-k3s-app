@@ -59,7 +59,7 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
           {/* 2. СТАТИЧНЫЙ БЛОК: Кнопка действия с проверкой всех состояний */}
           <section className="py-2">
             {/* 1. Если ТМЦ свободен или в работе -> кнопка "Отправить" */}
-            {(item.status === 'available' || item.status === 'released' || item.status === 'at_work') && (
+            {(item.status === 'issued' || item.status === 'at_work') && (
               <button
                 onClick={() => onActionClick(item, 'send')}
                 className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95"

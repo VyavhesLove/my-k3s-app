@@ -1,68 +1,87 @@
+/* index.css */
 :root {
+  /* ОБЩИЕ ПЕРЕМЕННЫЕ */
+  --primary-color: #3b82f6;
+  --primary-hover: #2563eb;
+  --danger-color: #ef4444;
+  --success-color: #10b981;
+  
+  /* СВЕТЛАЯ ТЕМА (по умолчанию) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-sidebar: #ffffff;
+  --bg-table: #ffffff;
+  --bg-card: #ffffff;
+  
+  --text-primary: #000000;       /* ЧЕРНЫЙ текст */
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  
+  --border-color: #e5e7eb;
+  --input-bg: #ffffff;
+  --input-border: #d1d5db;
+  --header-bg: #f3f4f6;
+  
+  --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+/* ТЕМНАЯ ТЕМА */
+.dark-theme {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-sidebar: #1e293b;
+  --bg-table: #1e293b;
+  --bg-card: #1e293b;
+  
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  
+  --border-color: #374151;
+  --input-bg: #1e293b;
+  --input-border: #4b5563;
+  --header-bg: #0f172a;
+  
+  --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* ПРИМЕНЕНИЕ К BODY */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+/* УТИЛИТНЫЕ КЛАССЫ ДЛЯ ВСЕХ КОМПОНЕНТОВ */
+.bg-primary { background-color: var(--bg-primary) !important; }
+.bg-secondary { background-color: var(--bg-secondary) !important; }
+.bg-sidebar { background-color: var(--bg-sidebar) !important; }
+.bg-table { background-color: var(--bg-table) !important; }
+.bg-card { background-color: var(--bg-card) !important; }
+.bg-header { background-color: var(--header-bg) !important; }
+
+.text-primary { color: var(--text-primary) !important; }
+.text-secondary { color: var(--text-secondary) !important; }
+.text-muted { color: var(--text-muted) !important; }
+
+.border-theme { border-color: var(--border-color) !important; }
+.input-theme { 
+  background-color: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--input-border) !important;
 }
 
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+/* Сброс непрозрачностей для чёрного текста */
+.light-theme .text-black,
+.light-theme .text-gray-800,
+.light-theme .text-gray-900,
+.light-theme .text-slate-900 {
+  color: #000000 !important;
 }

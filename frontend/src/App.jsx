@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
 import Sidebar from './Sidebar';
 import InventoryList from './components/InventoryList';
 import ItemCreate from './components/ItemCreate';
@@ -16,9 +16,23 @@ import { useItemStore } from './store/useItemStore';
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Восстанавливаем тему из localStorage или используем системную
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
   const { selectedItem, serviceMode, isServiceModalOpen } = useItemStore();
+
+  // Сохраняем тему в localStorage и применяем к body
+  useEffect(() => {
+    const theme = isDarkMode ? 'dark' : 'light';
+    localStorage.setItem('theme', theme);
+    document.body.className = theme + '-theme';
+    document.body.style.backgroundColor = isDarkMode ? '#0f172a' : '#f9fafb';
+    document.body.style.color = isDarkMode ? '#e5e7eb' : '#111827';
+  }, [isDarkMode]);
 
   // Функция для открытия сервисной модалки
   const handleOpenServiceModal = (item, mode) => {
@@ -33,11 +47,10 @@ function App() {
       
       await api.post(`/items/${itemId}/${endpoint}/`, payload);
       
-      toast.success(serviceMode === 'send' ? "Отправлено в сервис" : "Принято из сервиса");
+      Toaster.success(serviceMode === 'send' ? "Отправлено в сервис" : "Принято из сервиса");
       useItemStore.getState().closeServiceModal();
-      // Здесь можно добавить вызов функции обновления списка ТМЦ
     } catch (error) {
-      toast.error("Ошибка при выполнении операции");
+      Toaster.error("Ошибка при выполнении операции");
     }
   };
 
@@ -48,8 +61,14 @@ function App() {
   }, []);
 
   return (
-    <>
-      <Toaster richColors position="top-right" closeButton />
+    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark' : 'light'}`}>
+      <Toaster 
+        richColors 
+        position="top-right" 
+        closeButton 
+        theme={isDarkMode ? 'dark' : 'light'}
+      />
+      
       <Routes>
         {/* Маршрут логина - доступен без токена */}
         <Route 
@@ -62,17 +81,15 @@ function App() {
           path="/*" 
           element={
             token ? (
-              <div className={`flex min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-[#0f172a] text-slate-200' : 'bg-gray-50 text-slate-900'}`}>
-                {/* Боковое меню всегда на месте */}
+              <div className="flex">
                 <Sidebar 
                   isCollapsed={isCollapsed} 
                   setIsCollapsed={setIsCollapsed} 
                   isDarkMode={isDarkMode} 
                   setIsDarkMode={setIsDarkMode}
                 />
-                
-                {/* Основной контент */}
-                <main className={`flex-1 transition-all duration-300 p-8 ${isCollapsed ? 'ml-20' : 'ml-72'}`}>
+                <main className={`flex-1 p-6 transition-colors duration-300 ${isCollapsed ? 'ml-20' : 'ml-72'}`}>
+                  {/* Все страницы получают isDarkMode как проп */}
                   <Routes>
                     <Route path="/" element={
                       <>
@@ -108,7 +125,7 @@ function App() {
           } 
         />
       </Routes>
-    </>
+    </div>
   );
 }
 

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Bell, ChevronDown, ChevronUp, PackageCheck, Wrench, Send } from 'lucide-react';
 import api from '../api/axios';
 
 const QuickActions = ({ isDarkMode }) => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [stats, setStats] = useState({ to_receive: 0, to_repair: 0, issued: 0 });
 
@@ -77,7 +80,10 @@ const QuickActions = ({ isDarkMode }) => {
             label="Выдано в работу" 
             count={stats.issued} 
             colorClass="bg-sky-500 text-white border-sky-600 shadow-sky-500/20 shadow-lg"
-            onClick={() => console.log("#логика клика по выдано")}
+            onClick={() => {
+              navigate('/?filter=issued,at_work');
+              toast.info("Фильтр: Контроль ТМЦ в работе");
+            }}
           />
         </div>
       )}

@@ -128,11 +128,7 @@ const ServiceModal = ({ isDarkMode }) => {
                   type="text"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
-                  className={`w-full p-4 rounded-xl border outline-none transition-all ${
-                    isDarkMode 
-                      ? 'bg-slate-800 border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500' 
-                      : 'bg-white border-gray-200 focus:border-amber-400 focus:ring-1 focus:ring-amber-400'
-                  }`}
+                  className="input-theme w-full p-4 rounded-xl border outline-none transition-all focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                   placeholder="Введите номер счета"
                 />
               </div>
@@ -142,11 +138,7 @@ const ServiceModal = ({ isDarkMode }) => {
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  className={`w-full p-4 rounded-xl border outline-none transition-all ${
-                    isDarkMode 
-                      ? 'bg-slate-800 border-slate-700 focus:border-amber-500 focus:ring-1 focus:ring-amber-500' 
-                      : 'bg-white border-gray-200 focus:border-amber-400 focus:ring-1 focus:ring-amber-400'
-                  }`}
+                  className="input-theme w-full p-4 rounded-xl border outline-none transition-all focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
                   placeholder="Адрес/название сервиса"
                 />
               </div>

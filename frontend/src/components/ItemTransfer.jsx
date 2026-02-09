@@ -93,7 +93,7 @@ const ItemTransfer = ({ isDarkMode, onTransferComplete, selectedItem: propSelect
               <select
                 required
                 disabled={loading}
-                className={`w-full h-11 pl-10 pr-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500 appearance-none ${isDarkMode ? 'bg-[#334155] text-white' : 'bg-gray-50 text-black border border-gray-300'}`}
+                className="input-theme w-full h-11 pl-10 pr-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
                 value={formData.targetLocation}
                 onChange={(e) => setFormData({ ...formData, targetLocation: e.target.value })}
               >
@@ -120,7 +120,7 @@ const ItemTransfer = ({ isDarkMode, onTransferComplete, selectedItem: propSelect
                 type="text"
                 required
                 placeholder="ФИО сотрудника"
-                className={`w-full h-11 pl-10 pr-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-[#334155] text-white' : 'bg-gray-50 text-black border border-gray-300'}`}
+                className="input-theme w-full h-11 pl-10 pr-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500"
                 value={formData.responsible}
                 onChange={(e) => setFormData({ ...formData, responsible: e.target.value })}
               />
