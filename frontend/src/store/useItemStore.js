@@ -9,12 +9,23 @@ export const useItemStore = create((set) => ({
   isServiceModalOpen: false,
   serviceMode: 'send', // 'send', 'confirm' или 'return'
   
-  // Экшены для управления модалкой
+  // Экшены для управления модалкой сервиса
   openServiceModal: (mode) => set({ 
     isServiceModalOpen: true, 
     serviceMode: mode 
   }),
   closeServiceModal: () => set({ 
     isServiceModalOpen: false 
+  }),
+
+  // Состояние модалки передачи ТМЦ
+  isTransferModalOpen: false,
+  
+  // Экшены для управления модалкой передачи
+  openTransferModal: () => set({ 
+    isTransferModalOpen: true 
+  }),
+  closeTransferModal: () => set({ 
+    isTransferModalOpen: false 
   }),
 }));

@@ -4,7 +4,6 @@ import { Toaster } from 'sonner';
 import Sidebar from './Sidebar';
 import InventoryList from './components/InventoryList';
 import ItemCreate from './components/ItemCreate';
-import ItemTransfer from './components/ItemTransfer';
 import Analytics from './components/Analytics';
 import AtWorkPage from './components/AtWorkPage';
 import QuickActions from './components/QuickActions';
@@ -36,7 +35,11 @@ function App() {
 
   // Функция для открытия сервисной модалки
   const handleOpenServiceModal = (item, mode) => {
-    useItemStore.getState().openServiceModal(mode);
+    if (mode === 'transfer') {
+      useItemStore.getState().openTransferModal();
+    } else {
+      useItemStore.getState().openServiceModal(mode);
+    }
   };
 
   // Обработчик отправки формы сервиса
@@ -111,7 +114,6 @@ function App() {
                       </>
                     } />
                     <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
-                    <Route path="/transfer" element={<ItemTransfer isDarkMode={isDarkMode} selectedItem={selectedItem} onTransferComplete={() => useItemStore.getState().setSelectedItem(null)} />} />
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
                     <Route path="/at-work" element={<AtWorkPage isDarkMode={isDarkMode} selectedItem={selectedItem} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
