@@ -27,7 +27,7 @@ const StatusFilter = ({ isDarkMode, filterValue, onFilterChange }) => {
       <select
         value={filterValue}
         onChange={handleChange}
-        className="input-theme py-1.5 pl-7 pr-8 text-xs w-full rounded border outline-none transition-colors appearance-none cursor-pointer focus:ring-1 focus:ring-blue-500"
+        className="input-theme py-2 pl-7 pr-8 text-xs w-full rounded outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-blue-500"
       >
         <option value="">Все статусы</option>
         {Object.entries(statusMap).map(([key, label]) => (
@@ -105,7 +105,7 @@ const TableHeader = ({
               placeholder="Поиск..."
               value={filterValue}
               onChange={(e) => handleFilterChange(sortKey, e.target.value)}
-              className="input-theme pl-7 pr-2 py-1 text-xs w-full rounded border outline-none transition-colors focus:ring-1 focus:ring-blue-500"
+              className="input-theme pl-7 pr-2 py-2 text-xs w-full rounded outline-none transition-colors focus:ring-1 focus:ring-blue-500"
             />
           </div>
         )}

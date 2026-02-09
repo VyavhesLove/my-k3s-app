@@ -78,11 +78,13 @@ const ItemCreate = ({ isDarkMode }) => {
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Наименование */}
           <div>
-            <label className={`block text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-slate-600'}`}>Наименование *</label>
+            <label className={`block text-sm mb-2 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Наименование *
+            </label>
             <input
               type="text"
               required
-              className="input-theme w-full h-11 px-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-theme w-full px-4 py-3 rounded-md outline-none transition-all"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             />
@@ -91,28 +93,35 @@ const ItemCreate = ({ isDarkMode }) => {
           <div className="grid grid-cols-2 gap-6">
             {/* Серийный номер */}
             <div>
-              <label className={`block text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-slate-600'}`}>Серийный номер</label>
+              <label className={`block text-sm mb-2 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Серийный номер
+              </label>
               <input
                 type="text"
                 disabled={formData.noSerial}
-                className={`input-theme w-full h-11 px-4 rounded-md outline-none ${
-                  formData.noSerial ? 'cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500'
-                }`}
+                className="input-theme w-full px-4 py-3 rounded-md outline-none transition-all"
                 value={formData.serial}
                 onChange={(e) => setFormData({ ...formData, serial: e.target.value })}
               />
-              <label className="flex items-center gap-2 mt-3 text-sm text-gray-400 cursor-pointer">
-                <input type="checkbox" checked={formData.noSerial} onChange={(e) => setFormData({...formData, noSerial: e.target.checked, serial: ''})} className="accent-blue-500" />
+              <label className="flex items-center gap-2 mt-3 text-sm text-gray-500 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={formData.noSerial} 
+                  onChange={(e) => setFormData({...formData, noSerial: e.target.checked, serial: ''})} 
+                  className="accent-blue-500" 
+                />
                 Серийный номер отсутствует
               </label>
             </div>
 
             {/* Бренд */}
             <div>
-              <label className={`block text-sm mb-2 ${isDarkMode ? 'text-gray-300' : 'text-slate-600'}`}>Бренд</label>
+              <label className={`block text-sm mb-2 font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Бренд
+              </label>
               <input
                 type="text"
-                className="input-theme w-full h-11 px-4 rounded-md outline-none focus:ring-2 focus:ring-blue-500"
+                className="input-theme w-full px-4 py-3 rounded-md outline-none transition-all"
                 value={formData.brand}
                 onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
               />
