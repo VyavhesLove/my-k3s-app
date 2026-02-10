@@ -71,15 +71,19 @@ const ServiceModal = ({ isDarkMode }) => {
 
   const title = isSend 
     ? 'Отправить в сервис' 
-    : isConfirm 
-      ? 'Подтвердить ремонт' 
-      : 'Принять из ремонта';
+    : isConfirm && selectedItem?.status === 'confirm_repair'
+      ? 'Подтвердить ремонт'
+      : isConfirm && selectedItem?.status === 'confirm'
+        ? 'Подтвердить ТМЦ'
+        : 'Принять из ремонта';
   
   const buttonText = isSend 
     ? 'Отправить' 
-    : isConfirm 
-      ? 'Подтвердить' 
-      : 'Принять';
+    : isConfirm && selectedItem?.status === 'confirm_repair'
+      ? 'Подтвердить ремонт'
+      : isConfirm && selectedItem?.status === 'confirm'
+        ? 'Подтвердить'
+        : 'Принять';
 
   const handleSubmit = async () => {
     if (!isLocked) {
@@ -99,7 +103,7 @@ const ServiceModal = ({ isDarkMode }) => {
         });
         toast.success("ТМЦ отправлено в сервис");
       } 
-      else if (isConfirm) {
+      else if (isConfirm && selectedItem.status === 'confirm_repair') {
         // Подтверждение ремонта - новый эндпоинт
         if (!invoiceNumber.trim()) {
           return toast.error("Укажите номер счета");
@@ -113,6 +117,13 @@ const ServiceModal = ({ isDarkMode }) => {
           location: location
         });
         toast.success("Ремонт согласован");
+      }
+      else if (isConfirm && selectedItem.status === 'confirm') {
+        // Простое подтверждение ТМЦ (confirm -> available)
+        await api.post(`/items/${selectedItem.id}/confirm/`, {
+          comment: comment
+        });
+        toast.success("ТМЦ подтверждено");
       } 
       else if (isReturn) {
         // Возврат из сервиса

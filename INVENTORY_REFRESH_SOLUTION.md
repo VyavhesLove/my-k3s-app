@@ -131,3 +131,18 @@ const MyNewModal = () => {
 5. `frontend/src/components/modals/ServiceModal.jsx` - заменен window.location.reload()
 6. `frontend/src/components/ItemCreate.jsx` - вызов refreshItems после создания
 
+Архитектура блокировок:
+PUT/PATCH /items/<id>/
+    │
+    ├──► ItemLockService.lock_item(id, user)
+    │         └──► SELECT FOR UPDATE
+    │         └──► Проверка: already locked?
+    │         └──► Сохранение locked_by/locked_at
+    │
+    ├──► ItemSerializer → save()
+    │         └──► Обновление полей
+    │
+    ├──► ItemHistory.create() (если есть comment)
+    │
+    └──► ItemLockService.unlock_item(id, user)
+              └──► Очистка locked_by/locked_at

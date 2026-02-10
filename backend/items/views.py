@@ -1,12 +1,15 @@
 from django.db.models import Count, Q
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.views import APIView
 
-from .models import Item, Location, Brigade
-from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer
+from .models import Item, Location, Brigade, ItemHistory
+from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer, ConfirmTMCSerializer
+from .services import ItemLockService, ConfirmTMCService
+from .enums import ItemStatus
 
 
 # --- ПРЕДСТАВЛЕНИЯ (VIEWS) ---
@@ -62,35 +65,48 @@ def item_detail(request, item_id):
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method in ['PUT', 'PATCH']:
-        # partial=True позволяет обновлять только присланные поля (важно для PATCH)
-        old_status = item.status  # 1. Запоминаем старый статус
-        
-        serializer = ItemSerializer(item, data=request.data, partial=True)
-        if serializer.is_valid():
-            # 2. Сохраняем изменения (serializer.save() обновляет item)
-            item = serializer.save() 
+        # 🔒 НОВАЯ БЛОКИРОВКА!
+        try:
+            ItemLockService.lock_item(item_id, request.user)
             
-            # 3. Логика истории
-            service_comment = request.data.get('service_comment')
-            new_status = item.status  # Теперь тут уже новый статус
+            old_status = item.status
             
-            if service_comment:
-                from .models import ItemHistory
-                # Формируем текст операции
-                if old_status != new_status:
-                    action_text = f"Смена статуса: {old_status} → {new_status}"
-                else:
-                    action_text = "Обновление информации"
+            serializer = ItemSerializer(item, data=request.data, partial=True)
+            if serializer.is_valid():
+                item = serializer.save() 
                 
-                ItemHistory.objects.create(
-                    item=item,
-                    action=action_text,
-                    comment=service_comment,
-                    user=request.user.username if request.user.is_authenticated else "API"
-                )
+                # Логика истории
+                service_comment = request.data.get('service_comment')
+                new_status = item.status
+                
+                if service_comment:
+                    if old_status != new_status:
+                        action_text = f"Смена статуса: {old_status} → {new_status}"
+                    else:
+                        action_text = "Обновление информации"
+                    
+                    # Получаем Location объект
+                    location_obj = None
+                    if item.location:
+                        location_obj, _ = Location.objects.get_or_create(name=item.location)
+                    
+                    ItemHistory.objects.create(
+                        item=item,
+                        action=action_text,
+                        comment=service_comment,
+                        user=request.user,
+                        location=location_obj
+                    )
+                
+                ItemLockService.unlock_item(item_id, request.user)
+                return Response(serializer.data)
             
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Ошибка валидации
+            ItemLockService.unlock_item(item_id, request.user)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+        except ValueError as e:
+            return Response({"error": str(e)}, status=423)  # Locked
             
     if request.method == 'DELETE':
         item.delete()
@@ -109,9 +125,9 @@ def get_status_counters(request):
     raw_data = {item['status']: item['total'] for item in counts_query}
     
     return Response({
-        "to_receive": raw_data.get('confirm', 0), 
-        "to_repair": raw_data.get('confirm_repair', 0),
-        "issued": raw_data.get('issued', 0) + raw_data.get('at_work', 0)
+        "to_receive": raw_data.get(ItemStatus.CONFIRM, 0), 
+        "to_repair": raw_data.get(ItemStatus.CONFIRM_REPAIR, 0),
+        "issued": raw_data.get(ItemStatus.ISSUED, 0) + raw_data.get(ItemStatus.AT_WORK, 0)
     })
 
 
@@ -198,7 +214,6 @@ def hello(request):
 @api_view(['POST'])
 def send_to_service(request, item_id):
     from django.shortcuts import get_object_or_404
-    from .models import ItemHistory
     
     item = get_object_or_404(Item, id=item_id)
     reason = request.data.get('reason', '')
@@ -207,15 +222,21 @@ def send_to_service(request, item_id):
     if item.brigade:
         item.brigade = None
     
-    # Меняем статус на "Подтвердить ремонт" (confirm_repair)
-    item.status = 'confirm_repair'
+    # Меняем статус на "Подтвердить ремонт"
+    item.status = ItemStatus.CONFIRM_REPAIR
     item.save()
+
+    # Получаем Location объект
+    location_obj = None
+    if item.location:
+        location_obj, _ = Location.objects.get_or_create(name=item.location)
 
     # Создаем запись в истории
     ItemHistory.objects.create(
         item=item,
         action=f"Отправлено в сервис. Причина: {reason}. Ожидание подтверждения.",
-        user=request.user.username or "Система"
+        user=request.user,
+        location=location_obj
     )
 
     return Response(ItemSerializer(item).data)
@@ -225,19 +246,24 @@ def send_to_service(request, item_id):
 @api_view(['POST'])
 def return_from_service(request, item_id):
     from django.shortcuts import get_object_or_404
-    from .models import ItemHistory
     
     item = get_object_or_404(Item, id=item_id)
     comment = request.data.get('comment', '')
 
-    # Меняем статус на "Доступно" (available)
-    item.status = 'available'
+    # Меняем статус на "Доступно"
+    item.status = ItemStatus.AVAILABLE
     item.save()
+
+    # Получаем Location объект
+    location_obj = None
+    if item.location:
+        location_obj, _ = Location.objects.get_or_create(name=item.location)
 
     ItemHistory.objects.create(
         item=item,
         action=f"Возвращено из сервиса. Комментарий: {comment}",
-        user=request.user.username or "Система"
+        user=request.user,
+        location=location_obj
     )
 
     return Response(ItemSerializer(item).data)
@@ -247,7 +273,6 @@ def return_from_service(request, item_id):
 @api_view(['POST'])
 def confirm_repair(request, item_id):
     from django.shortcuts import get_object_or_404
-    from .models import ItemHistory
     
     item = get_object_or_404(Item, id=item_id)
     
@@ -256,14 +281,56 @@ def confirm_repair(request, item_id):
     service_location = request.data.get('location', 'Не указана')
     
     # Меняем статус на "В ремонте"
-    item.status = 'in_repair' 
+    item.status = ItemStatus.IN_REPAIR
     item.save()
+
+    # Получаем Location объект
+    location_obj = None
+    if service_location and service_location != 'Не указана':
+        location_obj, _ = Location.objects.get_or_create(name=service_location)
 
     # Записываем историю (согласно логике из md файла)
     ItemHistory.objects.create(
         item=item,
         action=f"Ремонт ТМЦ согласован — № счета {invoice_number}. Локация: {service_location}",
-        user=request.user.username if request.user.is_authenticated else "Система"
+        user=request.user,
+        location=location_obj
+    )
+
+    return Response(ItemSerializer(item).data)
+
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
+def confirm_item(request, item_id):
+    """
+    Подтвердить ТМЦ (статус confirm -> available).
+    Используется для приёмки ТМЦ от поставщика или после передачи.
+    """
+    from django.shortcuts import get_object_or_404
+    
+    item = get_object_or_404(Item, id=item_id)
+    comment = request.data.get('comment', '')
+    
+    # Меняем статус на "Доступно"
+    item.status = ItemStatus.AVAILABLE
+    item.save()
+
+    # Получаем Location объект
+    location_obj = None
+    if item.location:
+        location_obj, _ = Location.objects.get_or_create(name=item.location)
+
+    # Записываем историю
+    action_text = "ТМЦ подтверждено и принято на склад"
+    if comment:
+        action_text += f". Комментарий: {comment}"
+    
+    ItemHistory.objects.create(
+        item=item,
+        action=action_text,
+        user=request.user,
+        location=location_obj
     )
 
     return Response(ItemSerializer(item).data)
@@ -325,4 +392,54 @@ def unlock_item(request, item_id):
     item.save()
     
     return Response({'status': 'unlocked'})
+
+
+# --- ОБНОВЛЕНИЕ ТМЦ С БЛОКИРОВКОЙ ---
+# --- НЕ ИСПОЛЬЗУЕТСЯ ---
+
+@extend_schema(request=ItemSerializer, responses=ItemSerializer)
+@api_view(['PATCH'])
+def update_item(request, item_id):
+    """Редактирование ТМЦ с блокировкой"""
+    try:
+        # 1️⃣ Блокировка
+        item = ItemLockService.lock_item(item_id, request.user)
+        
+        # 2️⃣ Валидация и сохранение
+        serializer = ItemSerializer(item, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            ItemLockService.unlock_item(item_id, request.user)
+            return Response(serializer.data, status=200)
+        
+        # Ошибка валидации → разблокировка
+        ItemLockService.unlock_item(item_id, request.user)
+        return Response(serializer.errors, status=400)
+        
+    except ValueError as e:
+        return Response({"error": str(e)}, status=423)
+    except Exception:
+        return Response({"error": "Внутренняя ошибка"}, status=500)
+
+
+# --- ПОДТВЕРЖДЕНИЕ ТМЦ ---
+
+class ConfirmTMCAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        """
+        Подтвердить или отклонить ТМЦ.
+        Транзакция и блокировка — внутри ConfirmTMCService.process().
+        """
+        serializer = ConfirmTMCSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        ConfirmTMCService.process(
+            item_id=pk,
+            action=serializer.validated_data["action"],
+            user=request.user
+        )
+
+        return Response({"success": True})
 

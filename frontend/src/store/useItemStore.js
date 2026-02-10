@@ -158,4 +158,16 @@ export const useItemStore = create((set, get) => ({
   closeTransferModal: () => set({ 
     isTransferModalOpen: false 
   }),
+
+  // === МОДАЛКА ПОДТВЕРЖДЕНИЯ ТМЦ ===
+  // Состояние модалки подтверждения ТМЦ
+  isConfirmTMCModalOpen: false,
+
+  // Экшены для управления модалкой подтверждения ТМЦ
+  openConfirmTMCModal: () => set({ 
+    isConfirmTMCModalOpen: true 
+  }),
+  closeConfirmTMCModal: () => set({ 
+    isConfirmTMCModalOpen: false 
+  }),
 }));

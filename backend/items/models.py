@@ -1,4 +1,5 @@
 from django.db import models
+from .enums import ItemStatus
 
 
 class Location(models.Model):
@@ -24,20 +25,10 @@ class Brigade(models.Model):
         return self.name
 
 class Item(models.Model):
-    # Статусы из твоего ТЗ
-    STATUS_CHOICES = [
-        ('at_work', 'В работе'),
-        ('in_repair', 'В ремонте'),
-        ('issued', 'Выдано'),
-        ('available', 'Доступно'),
-        ('confirm', 'Подтвердить ТМЦ'),
-        ('confirm_repair', 'Подтвердить ремонт'),
-    ]
-
     name = models.CharField(max_length=255, verbose_name="Наименование")
     serial = models.CharField(max_length=100, blank=True, null=True, verbose_name="Серийный номер")
     brand = models.CharField(max_length=100, blank=True, null=True, verbose_name="Бренд")
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available', verbose_name="Статус")
+    status = models.CharField(max_length=20, choices=ItemStatus.choices, default=ItemStatus.AVAILABLE, verbose_name="Статус")
     responsible = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ответственный")
     location = models.CharField(max_length=255, blank=True, null=True, verbose_name="Локация")
     qty = models.IntegerField(default=1, verbose_name="Количество")
@@ -70,9 +61,25 @@ class Item(models.Model):
 
 class ItemHistory(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='history')
-    action = models.CharField(max_length=255)  # Например: "ТМЦ передано. Объект - Университет"
+    action = models.CharField(max_length=255)  # Текст для человека
     comment = models.TextField(blank=True, null=True)  # Дополнительный комментарий
-    user = models.CharField(max_length=255)   # Кто совершил действие
+    
+    # Структурированные данные для системы
+    user = models.ForeignKey(
+        'auth.User',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="Пользователь"
+    )
+    location = models.ForeignKey(
+        'Location',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="Локация"
+    )
+    
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:

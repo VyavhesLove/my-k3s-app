@@ -6,6 +6,7 @@ from rest_framework import status
 from django.contrib.auth.models import User
 from rest_framework.permissions import AllowAny
 from .models import Brigade, Item, Location
+from .enums import ItemStatus
 import datetime
 
 class BrigadeAPITests(APITestCase):
@@ -139,7 +140,7 @@ class ItemAPITests(APITestCase):
             name='Ноутбук Dell',
             serial='SN12345',
             brand='Dell',
-            status='available',
+            status=ItemStatus.AVAILABLE,
             location='Склад №1',
             qty=2
         )
@@ -147,7 +148,7 @@ class ItemAPITests(APITestCase):
             name='Монитор Samsung',
             serial='SN67890',
             brand='Samsung',
-            status='issued',
+            status=ItemStatus.ISSUED,
             responsible='Иванов И.И.',
             location='Склад №2',
             qty=1
@@ -156,7 +157,7 @@ class ItemAPITests(APITestCase):
             name='Клавиатура Logitech',
             serial='SN11111',
             brand='Logitech',
-            status='at_work',
+            status=ItemStatus.AT_WORK,
             responsible='Петров П.П.',
             location='Офис',
             qty=5
@@ -208,12 +209,12 @@ class ItemAPITests(APITestCase):
     def test_get_items_search_by_status(self):
         """Проверка поиска items по статусу"""
         self.client.force_authenticate(user=self.user)
-        response = self.client.get(f'{self.list_url}?search=at_work', format='json')
+        response = self.client.get(f'{self.list_url}?search={ItemStatus.AT_WORK}', format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['items']), 1)
         self.assertEqual(response.data['items'][0]['name'], 'Клавиатура Logitech')
-        self.assertEqual(response.data['items'][0]['status'], 'at_work')
+        self.assertEqual(response.data['items'][0]['status'], ItemStatus.AT_WORK)
 
     def test_get_items_search_no_results(self):
         """Проверка поиска items когда ничего не найдено"""
@@ -253,7 +254,7 @@ class ItemAPITests(APITestCase):
             'name': 'Новый ноутбук HP',
             'serial': 'SN99999',
             'brand': 'HP',
-            'status': 'available',
+            'status': ItemStatus.AVAILABLE,
             'location': 'Склад №1',
             'qty': 3
         }
@@ -265,7 +266,7 @@ class ItemAPITests(APITestCase):
         self.assertEqual(Item.objects.last().name, 'Новый ноутбук HP')
         self.assertEqual(response.data['name'], 'Новый ноутбук HP')
         self.assertEqual(response.data['brand'], 'HP')
-        self.assertEqual(response.data['status'], 'available')
+        self.assertEqual(response.data['status'], ItemStatus.AVAILABLE)
 
     def test_create_item_minimal_data(self):
         """Проверка создания item с минимальными данными"""
@@ -283,7 +284,7 @@ class ItemAPITests(APITestCase):
         self.assertEqual(Item.objects.last().name, 'Просто товар')
         self.assertEqual(Item.objects.last().qty, 1)
         # Проверяем дефолтные значения
-        self.assertEqual(Item.objects.last().status, 'available')
+        self.assertEqual(Item.objects.last().status, ItemStatus.AVAILABLE)
 
     def test_create_item_with_brigade(self):
         """Проверка создания item с привязкой к бригаде"""
@@ -300,7 +301,7 @@ class ItemAPITests(APITestCase):
             'name': 'Инструмент',
             'serial': 'SN111',
             'brand': 'Bosch',
-            'status': 'at_work',
+            'status': ItemStatus.AT_WORK,
             'brigade': brigade.id
         }
         
@@ -367,14 +368,14 @@ class ItemAPITests(APITestCase):
         item = Item.objects.get(name='Ноутбук Dell')
         detail_url = f'{self.list_url}/{item.id}/'
         
-        response = self.client.put(detail_url, {'status': 'issued'}, format='json')
+        response = self.client.put(detail_url, {'status': ItemStatus.ISSUED}, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'issued')
+        self.assertEqual(response.data['status'], ItemStatus.ISSUED)
         
         # Проверяем в базе
         item.refresh_from_db()
-        self.assertEqual(item.status, 'issued')
+        self.assertEqual(item.status, ItemStatus.ISSUED)
 
     def test_update_item_all_fields(self):
         """Проверка обновления всех полей"""
@@ -387,7 +388,7 @@ class ItemAPITests(APITestCase):
             'name': 'Полностью обновленный товар',
             'serial': 'SN_NEW_123',
             'brand': 'Apple',
-            'status': 'in_repair',
+            'status': ItemStatus.IN_REPAIR,
             'responsible': 'Сидоров С.С.',
             'location': 'Ремонтный цех',
             'qty': 10
@@ -399,7 +400,7 @@ class ItemAPITests(APITestCase):
         self.assertEqual(response.data['name'], 'Полностью обновленный товар')
         self.assertEqual(response.data['serial'], 'SN_NEW_123')
         self.assertEqual(response.data['brand'], 'Apple')
-        self.assertEqual(response.data['status'], 'in_repair')
+        self.assertEqual(response.data['status'], ItemStatus.IN_REPAIR)
         self.assertEqual(response.data['responsible'], 'Сидоров С.С.')
         self.assertEqual(response.data['location'], 'Ремонтный цех')
         self.assertEqual(response.data['qty'], 10)
@@ -571,7 +572,7 @@ class ItemLockTests(APITestCase):
         # ТМЦ
         self.item = Item.objects.create(
             name='Ноутбук Dell',
-            status='available',
+            status=ItemStatus.AVAILABLE,
             qty=1
         )
         
@@ -686,13 +687,13 @@ class ItemServiceTests(APITestCase):
         
         self.item_free = Item.objects.create(
             name='Ноутбук Dell (свободный)',
-            status='available',
+            status=ItemStatus.AVAILABLE,
             qty=1
         )
         
         self.item_brigade = Item.objects.create(
             name='Монитор LG (в бригаде)',
-            status='at_work',
+            status=ItemStatus.AT_WORK,
             brigade=self.brigade,
             qty=1
         )
@@ -709,11 +710,11 @@ class ItemServiceTests(APITestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'confirm_repair')
+        self.assertEqual(response.data['status'], ItemStatus.CONFIRM_REPAIR)
         
         # Проверяем БД
         item = Item.objects.get(id=self.item_free.id)
-        self.assertEqual(item.status, 'confirm_repair')
+        self.assertEqual(item.status, ItemStatus.CONFIRM_REPAIR)
         self.assertIsNone(item.brigade)
         
         # История
@@ -731,12 +732,12 @@ class ItemServiceTests(APITestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'confirm_repair')
+        self.assertEqual(response.data['status'], ItemStatus.CONFIRM_REPAIR)
         self.assertIsNone(response.data.get('brigade'))
         
         # БД проверки
         item = Item.objects.get(id=self.item_brigade.id)
-        self.assertEqual(item.status, 'confirm_repair')
+        self.assertEqual(item.status, ItemStatus.CONFIRM_REPAIR)
         self.assertIsNone(item.brigade)  # ✅ Сброшена привязка!
     
     def test_send_to_service_no_reason(self):
@@ -783,7 +784,7 @@ class ItemServiceTests(APITestCase):
         self.assertIn('id', response.data)
         self.assertIn('name', response.data)
         self.assertIn('status', response.data)
-        self.assertEqual(response.data['status'], 'confirm_repair')
+        self.assertEqual(response.data['status'], ItemStatus.CONFIRM_REPAIR)
     
     def test_history_ordering(self):
         """✅ История сортируется по времени (новые сверху)"""
@@ -812,14 +813,14 @@ class ItemReturnFromServiceTests(APITestCase):
         # ТМЦ в сервисе (confirm_repair)
         self.item_in_service = Item.objects.create(
             name='Ноутбук Dell (из сервиса)',
-            status='confirm_repair',
+            status=ItemStatus.CONFIRM_REPAIR,
             qty=1
         )
         
         # Другой ТМЦ для тестов
         self.item_available = Item.objects.create(
             name='Монитор LG (доступный)',
-            status='available',
+            status=ItemStatus.AVAILABLE,
             qty=1
         )
     
@@ -835,11 +836,11 @@ class ItemReturnFromServiceTests(APITestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'available')
+        self.assertEqual(response.data['status'], ItemStatus.AVAILABLE)
         
         # БД проверки
         item = Item.objects.get(id=self.item_in_service.id)
-        self.assertEqual(item.status, 'available')
+        self.assertEqual(item.status, ItemStatus.AVAILABLE)
         
         # История
         history = ItemHistory.objects.filter(item=self.item_in_service).last()
@@ -870,10 +871,10 @@ class ItemReturnFromServiceTests(APITestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'available')
+        self.assertEqual(response.data['status'], ItemStatus.AVAILABLE)
         
         item = Item.objects.get(id=self.item_available.id)
-        self.assertEqual(item.status, 'available')
+        self.assertEqual(item.status, ItemStatus.AVAILABLE)
     
     def test_return_from_service_unauthenticated(self):
         """❌ Без авторизации"""
@@ -904,7 +905,7 @@ class ItemReturnFromServiceTests(APITestCase):
         self.assertIn('id', response.data)
         self.assertIn('name', response.data)
         self.assertIn('status', response.data)
-        self.assertEqual(response.data['status'], 'available')
+        self.assertEqual(response.data['status'], ItemStatus.AVAILABLE)
     
     def test_history_user_fallback(self):
         """✅ Username записывается в историю"""
@@ -954,14 +955,14 @@ class ItemConfirmRepairTests(APITestCase):
         # ТМЦ в статусе confirm_repair (типично перед подтверждением)
         self.item_confirm_repair = Item.objects.create(
             name='Ноутбук Dell (подтверждение ремонта)',
-            status='confirm_repair',
+            status=ItemStatus.CONFIRM_REPAIR,
             qty=1
         )
         
         # Другой ТМЦ для тестов
         self.item_available = Item.objects.create(
             name='Монитор LG (доступный)',
-            status='available',
+            status=ItemStatus.AVAILABLE,
             qty=1
         )
     
@@ -980,11 +981,11 @@ class ItemConfirmRepairTests(APITestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'in_repair')
+        self.assertEqual(response.data['status'], ItemStatus.IN_REPAIR)
         
         # БД проверки
         item = Item.objects.get(id=self.item_confirm_repair.id)
-        self.assertEqual(item.status, 'in_repair')
+        self.assertEqual(item.status, ItemStatus.IN_REPAIR)
         
         # История
         history = ItemHistory.objects.filter(item=self.item_confirm_repair).last()
@@ -1002,7 +1003,7 @@ class ItemConfirmRepairTests(APITestCase):
         response = self.client.post(url, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'in_repair')
+        self.assertEqual(response.data['status'], ItemStatus.IN_REPAIR)
         
         history = ItemHistory.objects.filter(item=self.item_confirm_repair).last()
         expected_action = "Ремонт ТМЦ согласован — № счета Не указан. Локация: Не указана"
@@ -1018,10 +1019,10 @@ class ItemConfirmRepairTests(APITestCase):
         response = self.client.post(url, data, format='json')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data['status'], 'in_repair')
+        self.assertEqual(response.data['status'], ItemStatus.IN_REPAIR)
         
         item = Item.objects.get(id=self.item_available.id)
-        self.assertEqual(item.status, 'in_repair')
+        self.assertEqual(item.status, ItemStatus.IN_REPAIR)
     
     def test_confirm_repair_unauthenticated(self):
         """❌ Без авторизации"""
@@ -1052,7 +1053,7 @@ class ItemConfirmRepairTests(APITestCase):
         self.assertIn('id', response.data)
         self.assertIn('name', response.data)
         self.assertIn('status', response.data)
-        self.assertEqual(response.data['status'], 'in_repair')
+        self.assertEqual(response.data['status'], ItemStatus.IN_REPAIR)
     
     def test_history_user_records_username(self):
         """✅ Username записывается в историю"""

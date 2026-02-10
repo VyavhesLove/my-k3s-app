@@ -10,6 +10,7 @@ import LoginPage from './components/LoginPage';
 import ItemDetailPanel from './components/ItemDetailPanel';
 import ServiceModal from './components/modals/ServiceModal';
 import AtWorkModal from './components/modals/AtWorkModal';
+import ConfirmTMCModal from './components/modals/ConfirmTMCModal';
 import api from './api/axios';
 import { useItemStore } from './store/useItemStore';
 
@@ -40,6 +41,8 @@ function App() {
   const handleOpenServiceModal = (item, mode) => {
     if (mode === 'transfer') {
       useItemStore.getState().openTransferModal();
+    } else if (mode === 'confirm') {
+      useItemStore.getState().openConfirmTMCModal();
     } else {
       useItemStore.getState().openServiceModal(mode);
     }
@@ -119,6 +122,9 @@ function App() {
                           isOpen={isAtWorkModalOpen}
                           onClose={() => setIsAtWorkModalOpen(false)}
                           selectedItem={selectedItem}
+                          isDarkMode={isDarkMode}
+                        />
+                        <ConfirmTMCModal
                           isDarkMode={isDarkMode}
                         />
                       </>

@@ -123,3 +123,9 @@ LOGGING = {
         },
     },
 }
+
+# timezone поддержка
+USE_TZ = True
+
+# часовой пояс (Екатеринбург +5)
+TIME_ZONE = 'Asia/Yekaterinburg'

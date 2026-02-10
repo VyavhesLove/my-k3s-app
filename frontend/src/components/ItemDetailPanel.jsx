@@ -2,11 +2,20 @@ import React from 'react';
 import { X, History, Lock } from 'lucide-react';
 import { statusMap, getStatusStyles } from '../constants/statusConfig';
 import TransferModal from './modals/TransferModal';
+import ConfirmTMCModal from './modals/ConfirmTMCModal';
 import { useItemStore } from '../store/useItemStore';
 import { toast } from 'sonner';
 
 const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkClick }) => {
-  const { isTransferModalOpen, closeTransferModal, lockedItems } = useItemStore();
+  const { 
+    isTransferModalOpen, 
+    closeTransferModal,
+    isConfirmTMCModalOpen,
+    openConfirmTMCModal,
+    closeConfirmTMCModal,
+    setSelectedItem,
+    lockedItems 
+  } = useItemStore();
   const isOpen = !!item;
 
   // Проверка, заблокирован ли ТМЦ
@@ -20,6 +29,13 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
       });
       return;
     }
+    
+    if (actionType === 'confirm') {
+      setSelectedItem(item);
+      openConfirmTMCModal();
+      return;
+    }
+    
     onActionClick(item, actionType);
   };
 
@@ -119,6 +135,19 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
               )}
 
               {/* Ждет подтверждения -> Подтвердить */}
+              {item.status === 'confirm' && (
+                <button
+                  onClick={() => handleActionClick('confirm')}
+                  disabled={isItemLocked}
+                  className={`w-full py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95 ${
+                    isItemLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  Подтвердить ТМЦ
+                </button>
+              )}
+
+              {/* Ждет подтверждения ремонта -> Подтвердить */}
               {item.status === 'confirm_repair' && (
                 <button
                   onClick={() => handleActionClick('confirm')}
@@ -132,7 +161,7 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
               )}
 
               {/* В ремонте -> Вернуть */}
-              {(item.status === 'repair' || item.status === 'in_service') && (
+              {(item.status === 'in_repair' /*|| item.status === 'in_service'*/) && (
                 <button
                   onClick={() => handleActionClick('return')}
                   disabled={isItemLocked}
@@ -169,7 +198,7 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
                       <tr key={i} className={isDarkMode ? 'hover:bg-slate-800/50' : 'hover:bg-gray-50'}>
                         <td className="p-3 whitespace-nowrap opacity-70">{h.date}</td>
                         <td className="p-3 leading-relaxed">{h.action}</td>
-                        <td className="p-3 font-medium">{h.user}</td>
+                        <td className="p-3 font-medium">{h.user_username || h.user || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -193,6 +222,11 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
           item={item}
           isDarkMode={isDarkMode}
         />
+      )}
+
+      {/* Модалка подтверждения ТМЦ */}
+      {isConfirmTMCModalOpen && item && (
+        <ConfirmTMCModal isDarkMode={isDarkMode} />
       )}
     </>
   );

@@ -12,7 +12,29 @@ import api from './api/axios';
 
 const APP_VERSION = import.meta.env.PACKAGE_VERSION || '1.0.0';
 
+// Функция для получения текущего времени в Екатеринбурге (+5)
+const getYekaterinburgTime = () => {
+  return new Date().toLocaleString('ru-RU', {
+    timeZone: 'Asia/Yekaterinburg',
+    hour: '2-digit',
+    minute: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  });
+};
+
 const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => {
+  // Состояние для отображения времени
+  const [currentTime, setCurrentTime] = React.useState(getYekaterinburgTime());
+
+  // Обновление времени каждую минуту
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(getYekaterinburgTime());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
   // Состояние для счетчиков
   const [stats, setStats] = React.useState({ to_receive: 0, to_repair: 0 /*, issued: 0 */ });
 
@@ -232,7 +254,12 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
             <LogOut size={20} className="text-red-500" />
             {!isCollapsed && <span className="ml-4 text-sm font-medium">Выйти</span>}
           </button>
-          {!isCollapsed && <div className="text-xs text-center text-primary opacity-60">Версия {APP_VERSION}</div>}
+          {!isCollapsed && (
+            <div className="flex flex-col items-center gap-1 text-xs text-primary opacity-60">
+              <div>Версия {APP_VERSION}</div>
+              <div className="text-[10px]">{currentTime}</div>
+            </div>
+          )}
         </div>
       </div>
     </>
