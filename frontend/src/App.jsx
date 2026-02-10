@@ -5,11 +5,11 @@ import Sidebar from './Sidebar';
 import InventoryList from './components/InventoryList';
 import ItemCreate from './components/ItemCreate';
 import Analytics from './components/Analytics';
-import AtWorkPage from './components/AtWorkPage';
 import QuickActions from './components/QuickActions';
 import LoginPage from './components/LoginPage';
 import ItemDetailPanel from './components/ItemDetailPanel';
 import ServiceModal from './components/modals/ServiceModal';
+import AtWorkModal from './components/modals/AtWorkModal';
 import api from './api/axios';
 import { useItemStore } from './store/useItemStore';
 
@@ -23,6 +23,9 @@ function App() {
   });
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
   const { selectedItem, serviceMode, isServiceModalOpen } = useItemStore();
+  
+  // ✅ Состояние для AtWorkModal
+  const [isAtWorkModalOpen, setIsAtWorkModalOpen] = useState(false);
 
   // Сохраняем тему в localStorage и применяем к body
   useEffect(() => {
@@ -96,13 +99,14 @@ function App() {
                   <Routes>
                     <Route path="/" element={
                       <>
-                        <InventoryList isDarkMode={isDarkMode} />
-                        <ItemDetailPanel 
-                          item={selectedItem} 
-                          onClose={() => useItemStore.getState().setSelectedItem(null)} 
-                          isDarkMode={isDarkMode}
-                          onActionClick={handleOpenServiceModal}
-                        />
+                      <InventoryList isDarkMode={isDarkMode} />
+                      <ItemDetailPanel 
+                        item={selectedItem} 
+                        onClose={() => useItemStore.getState().setSelectedItem(null)} 
+                        isDarkMode={isDarkMode}
+                        onActionClick={handleOpenServiceModal}
+                        onAtWorkClick={() => setIsAtWorkModalOpen(true)}
+                      />
                         <ServiceModal 
                           isOpen={isServiceModalOpen}
                           onClose={() => useItemStore.getState().closeServiceModal()}
@@ -111,11 +115,16 @@ function App() {
                           mode={serviceMode}
                           isDarkMode={isDarkMode}
                         />
+                        <AtWorkModal 
+                          isOpen={isAtWorkModalOpen}
+                          onClose={() => setIsAtWorkModalOpen(false)}
+                          selectedItem={selectedItem}
+                          isDarkMode={isDarkMode}
+                        />
                       </>
                     } />
                     <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
-                    <Route path="/at-work" element={<AtWorkPage isDarkMode={isDarkMode} selectedItem={selectedItem} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </main>

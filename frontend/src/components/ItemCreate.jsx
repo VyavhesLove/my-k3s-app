@@ -4,10 +4,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Save } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../api/axios';
+import { useItemStore } from '../store/useItemStore';
 
 const ItemCreate = ({ isDarkMode }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { refreshItems } = useItemStore();
   
   const editItem = location.state?.editItem;
   const duplicateData = location.state?.duplicateFrom;
@@ -59,6 +61,10 @@ const ItemCreate = ({ isDarkMode }) => {
           });
           
           const actionText = isEdit ? 'сохранено' : 'создано';
+          
+          // ✅ Обновляем список через Zustand перед переходом
+          refreshItems();
+          
           return `ТМЦ "${payload.name}" успешно ${actionText}!`;
         },
         error: isEdit ? 'Не удалось сохранить изменения.' : 'Не удалось создать ТМЦ.',

@@ -4,7 +4,7 @@ import { statusMap, getStatusStyles } from '../constants/statusConfig';
 import TransferModal from './modals/TransferModal';
 import { useItemStore } from '../store/useItemStore';
 
-const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
+const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkClick }) => {
   const { isTransferModalOpen, closeTransferModal } = useItemStore();
   const isOpen = !!item;
 
@@ -52,11 +52,21 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick }) => {
 
             {/* Блок кнопок действий */}
             <section className="py-2">
+              {/* Кнопка "В работу" - только для issued */}
+              {item.status === 'issued' && (
+                <button
+                  onClick={onAtWorkClick}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95 mb-3"
+                >
+                  В работу
+                </button>
+              )}
+
               {/* ТМЦ свободен или в работе -> Отправить в сервис */}
               {(item.status === 'issued' || item.status === 'at_work') && (
                 <button
                   onClick={() => onActionClick(item, 'send')}
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95"
+                  className={`w-full py-4 ${isDarkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-200'} rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95`}
                 >
                   Отправить в сервис
                 </button>
@@ -154,4 +164,5 @@ const DetailRow = ({ label, value }) => (
 );
 
 export default ItemDetailPanel;
+
 

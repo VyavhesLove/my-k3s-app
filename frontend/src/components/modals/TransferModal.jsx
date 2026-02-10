@@ -1,16 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Send, MapPin, User as UserIcon } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'sonner';
 import { useItemStore } from '../../store/useItemStore';
 
-const TransferModal = ({ isDarkMode }) => {
-  const { 
-    selectedItem, 
-    isTransferModalOpen, 
-    closeTransferModal,
-    setSelectedItem 
-  } = useItemStore();
+const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
+  const { selectedItem, setSelectedItem } = useItemStore();
 
   const [locations, setLocations] = useState([]);
   const [locationWarning, setLocationWarning] = useState(false);
@@ -20,40 +15,46 @@ const TransferModal = ({ isDarkMode }) => {
     responsible: '',
   });
 
-  // Загружаем список локаций при открытии модалки
-  useEffect(() => {
-    if (isTransferModalOpen) {
-      const fetchLocations = async () => {
-        setLoading(true);
-        try {
-          const response = await api.get('/locations');
-          setLocations(response.data.locations || []);
-          if (!response.data.locations || response.data.locations.length === 0) {
-            setLocationWarning(true);
-          } else {
-            setLocationWarning(false);
-          }
-        } catch (err) {
-          toast.error('Не удалось загрузить список локаций');
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchLocations();
-
-      // Предзаполняем ответственного из выбранного ТМЦ
-      if (selectedItem) {
-        setFormData(prev => ({ ...prev, responsible: selectedItem.responsible || '' }));
+  // ✅ useCallback для стабильной ссылки
+  const fetchLocations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/locations');
+      setLocations(response.data.locations || []);
+      if (!response.data.locations || response.data.locations.length === 0) {
+        setLocationWarning(true);
+      } else {
+        setLocationWarning(false);
       }
+    } catch (err) {
+      toast.error('Не удалось загрузить список локаций');
+    } finally {
+      setLoading(false);
     }
-  }, [isTransferModalOpen, selectedItem]);
+  }, []);
+
+  useEffect(() => {
+    // ✅ Загружаем только когда модалка открыта и есть item
+    if (isOpen && item) {
+      fetchLocations();
+      setFormData(prev => ({ 
+        ...prev, 
+        responsible: item.responsible || '' 
+      }));
+    } else {
+      // Сбрасываем состояние при закрытии
+      setFormData({ targetLocation: '', responsible: '' });
+      setLocations([]);
+      setLocationWarning(false);
+    }
+  }, [isOpen, item, fetchLocations]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedItem) return;
+    if (!item) return;
 
     toast.promise(
-      api.put(`/items/${selectedItem.id}/`, {
+      api.put(`/items/${item.id}/`, {
         location: formData.targetLocation,
         responsible: formData.responsible,
         status: 'issued'
@@ -61,18 +62,24 @@ const TransferModal = ({ isDarkMode }) => {
       {
         loading: 'Обновление данных о местоположении...',
         success: () => {
-          closeTransferModal();
-          setFormData({ targetLocation: '', responsible: '' });
+          // ✅ Обновляем список через Zustand
+          const { refreshItems, setSelectedItem } = useItemStore.getState();
+          refreshItems();
           setSelectedItem(null);
-          window.location.reload();
-          return `ТМЦ "${selectedItem.name}" успешно передано в "${formData.targetLocation}"`;
+          
+          onClose();
+          setFormData({ targetLocation: '', responsible: '' });
+          return `ТМЦ "${item.name}" успешно передано в "${formData.targetLocation}"`;
         },
         error: 'Ошибка при передаче. Попробуйте еще раз.',
       }
     );
   };
 
-  if (!isTransferModalOpen || !selectedItem) return null;
+  // ✅ Рендерим только если isOpen и item существуют
+  if (!isOpen || !item) {
+    return null;
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -85,7 +92,7 @@ const TransferModal = ({ isDarkMode }) => {
         <div className="flex justify-between items-center p-6 border-b border-gray-500/10">
           <h2 className="text-xl font-bold uppercase tracking-tight">Передать ТМЦ</h2>
           <button 
-            onClick={closeTransferModal}
+            onClick={onClose}
             className="p-2 hover:bg-gray-500/10 rounded-full transition-colors"
           >
             <X size={24} />
@@ -106,9 +113,9 @@ const TransferModal = ({ isDarkMode }) => {
               </thead>
               <tbody className="divide-y divide-gray-500/10">
                 <tr>
-                  <td className="px-4 py-4 text-sm font-mono">{selectedItem.id}</td>
-                  <td className="px-4 py-4 text-sm font-medium">{selectedItem.name}</td>
-                  <td className="px-4 py-4 text-sm text-gray-500">{selectedItem.location || 'Не указана'}</td>
+                  <td className="px-4 py-4 text-sm font-mono">{item.id}</td>
+                  <td className="px-4 py-4 text-sm font-medium">{item.name}</td>
+                  <td className="px-4 py-4 text-sm text-gray-500">{item.location || 'Не указана'}</td>
                 </tr>
               </tbody>
             </table>
@@ -173,7 +180,7 @@ const TransferModal = ({ isDarkMode }) => {
             <div className="flex justify-end gap-3 mt-8">
               <button 
                 type="button"
-                onClick={closeTransferModal}
+                onClick={onClose}
                 className={`px-6 py-2.5 rounded-xl font-semibold transition-colors ${
                   isDarkMode ? 'bg-slate-800 hover:bg-slate-700' : 'bg-gray-100 hover:bg-gray-200'
                 }`}

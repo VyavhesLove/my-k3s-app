@@ -69,11 +69,15 @@ const ServiceModal = ({ isDarkMode }) => {
         toast.success("ТМЦ принято из ремонта");
       }
 
+      // ✅ Обновляем список через Zustand
+      const { refreshItems, setSelectedItem } = useItemStore.getState();
+      await refreshItems();
+      setSelectedItem(null);
+
       closeServiceModal();
       setComment('');
       setInvoiceNumber('');
       setLocation('');
-      window.location.reload();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Ошибка при выполнении операции");
       console.error(err);
