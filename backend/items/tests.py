@@ -1,10 +1,12 @@
+from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 from django.contrib.auth.models import User
-from rest_framework.settings import api_settings
 from rest_framework.permissions import AllowAny
 from .models import Brigade, Item, Location
+import datetime
 
 class BrigadeAPITests(APITestCase):
     def setUp(self):
@@ -554,3 +556,535 @@ class ItemAPITests(APITestCase):
             self.assertEqual(response.status_code, status.HTTP_200_OK)
         
         self.assertEqual(Item.objects.count(), initial_count - 2)
+
+
+class ItemLockTests(APITestCase):
+    """Тесты для блокировки/разблокировки ТМЦ"""
+    
+    def setUp(self):
+        """Создаём пользователей и ТМЦ"""
+        # Обычные пользователи
+        self.user1 = User.objects.create_user(username='user1', password='pass123')
+        self.user2 = User.objects.create_user(username='user2', password='pass123')
+        self.admin = User.objects.create_superuser(username='admin', password='pass123')
+        
+        # ТМЦ
+        self.item = Item.objects.create(
+            name='Ноутбук Dell',
+            status='available',
+            qty=1
+        )
+        
+        self.url_lock = reverse('lock_item', kwargs={'item_id': self.item.id})
+        self.url_unlock = reverse('unlock_item', kwargs={'item_id': self.item.id})
+    
+    def test_lock_item_success(self):
+        """✅ User1 блокирует свободный ТМЦ"""
+        self.client.force_authenticate(user=self.user1)
+        
+        response = self.client.post(self.url_lock)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'locked')
+        self.assertEqual(response.data['locked_by'], 'user1')
+        
+        # Проверяем в БД
+        item = Item.objects.get(id=self.item.id)
+        self.assertEqual(item.locked_by, self.user1)
+        self.assertIsNotNone(item.locked_at)
+    
+    def test_lock_item_already_locked_other_user(self):
+        """❌ User2 пытается заблокировать ТМЦ User1"""
+        # User1 блокирует
+        self.client.force_authenticate(user=self.user1)
+        self.client.post(self.url_lock)
+        
+        # User2 пытается
+        self.client.force_authenticate(user=self.user2)
+        response = self.client.post(self.url_lock)
+        
+        self.assertEqual(response.status_code, status.HTTP_423_LOCKED)
+        self.assertIn('user1', response.data['error'])
+    
+    def test_unlock_item_success_owner(self):
+        """✅ User1 разблокирует свой ТМЦ"""
+        # Блокируем
+        self.client.force_authenticate(user=self.user1)
+        self.client.post(self.url_lock)
+        
+        # Разблокируем
+        response = self.client.post(self.url_unlock)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'unlocked')
+        
+        item = Item.objects.get(id=self.item.id)
+        self.assertIsNone(item.locked_by)
+        self.assertIsNone(item.locked_at)
+    
+    def test_unlock_item_admin_success(self):
+        """✅ Admin разблокирует чужой ТМЦ"""
+        # User1 блокирует
+        self.client.force_authenticate(user=self.user1)
+        self.client.post(self.url_lock)
+        
+        # Admin разблокирует
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.post(self.url_unlock)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'unlocked')
+    
+    def test_unlock_item_forbidden_other_user(self):
+        """❌ User2 пытается разблокировать ТМЦ User1"""
+        # User1 блокирует
+        self.client.force_authenticate(user=self.user1)
+        self.client.post(self.url_lock)
+        
+        # User2 пытается разблокировать
+        self.client.force_authenticate(user=self.user2)
+        response = self.client.post(self.url_unlock)
+        
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('user1', response.data['error'])
+    
+    def test_unlock_not_locked_item(self):
+        """✅ Разблокировка свободного ТМЦ"""
+        self.client.force_authenticate(user=self.user1)
+        response = self.client.post(self.url_unlock)
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+    
+    def test_lock_item_nonexistent(self):
+        """❌ Блокировка несуществующего ТМЦ"""
+        self.client.force_authenticate(user=self.user1)
+        url = reverse('lock_item', kwargs={'item_id': 999})
+        response = self.client.post(url)
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_lock_item_unauthenticated(self):
+        """❌ Блокировка без авторизации"""
+        response = self.client.post(self.url_lock)
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class ItemServiceTests(APITestCase):
+    """Тесты для отправки ТМЦ в сервис (send_to_service)"""
+    
+    def setUp(self):
+        """Создаём пользователей, бригады и ТМЦ"""
+        self.user1 = User.objects.create_user(username='user1', password='pass')
+        self.user2 = User.objects.create_user(username='user2', password='pass')
+        
+        self.brigade = Brigade.objects.create(
+            name='Бригада 1',
+            brigadier='Иванов',
+            responsible='Петров'
+        )
+        
+        self.item_free = Item.objects.create(
+            name='Ноутбук Dell (свободный)',
+            status='available',
+            qty=1
+        )
+        
+        self.item_brigade = Item.objects.create(
+            name='Монитор LG (в бригаде)',
+            status='at_work',
+            brigade=self.brigade,
+            qty=1
+        )
+    
+    def test_send_to_service_free_item(self):
+        """✅ Отправка свободного ТМЦ в сервис"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('send_to_service', kwargs={'item_id': self.item_free.id})
+        data = {'reason': 'Не включается'}
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'confirm_repair')
+        
+        # Проверяем БД
+        item = Item.objects.get(id=self.item_free.id)
+        self.assertEqual(item.status, 'confirm_repair')
+        self.assertIsNone(item.brigade)
+        
+        # История
+        history = ItemHistory.objects.filter(item=self.item_free).last()
+        self.assertIn('Отправлено в сервис. Причина: Не включается', history.action)
+        self.assertEqual(history.user, 'user1')
+    
+    def test_send_to_service_item_from_brigade(self):
+        """✅ ТМЦ из бригады → сбрасываем привязку"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('send_to_service', kwargs={'item_id': self.item_brigade.id})
+        data = {'reason': 'Сломался экран'}
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'confirm_repair')
+        self.assertIsNone(response.data.get('brigade'))
+        
+        # БД проверки
+        item = Item.objects.get(id=self.item_brigade.id)
+        self.assertEqual(item.status, 'confirm_repair')
+        self.assertIsNone(item.brigade)  # ✅ Сброшена привязка!
+    
+    def test_send_to_service_no_reason(self):
+        """✅ Без reason — пустая строка"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('send_to_service', kwargs={'item_id': self.item_free.id})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        history = ItemHistory.objects.filter(item=self.item_free).last()
+        self.assertIn('Отправлено в сервис. Причина:', history.action)
+        self.assertIn('Ожидание подтверждения.', history.action)
+    
+    def test_send_to_service_unauthenticated(self):
+        """❌ Без авторизации"""
+        url = reverse('send_to_service', kwargs={'item_id': self.item_free.id})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+    def test_send_to_service_nonexistent_item(self):
+        """❌ Несуществующий ТМЦ"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('send_to_service', kwargs={'item_id': 999})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_serializer_returns_full_item(self):
+        """✅ Response содержит полные данные Item"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('send_to_service', kwargs={'item_id': self.item_free.id})
+        data = {'reason': 'Тест'}
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('id', response.data)
+        self.assertIn('name', response.data)
+        self.assertIn('status', response.data)
+        self.assertEqual(response.data['status'], 'confirm_repair')
+    
+    def test_history_ordering(self):
+        """✅ История сортируется по времени (новые сверху)"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('send_to_service', kwargs={'item_id': self.item_free.id})
+        self.client.post(url, {'reason': 'Первая отправка'})
+        
+        # Вторая отправка (повторно)
+        self.client.post(url, {'reason': 'Вторая отправка'})
+        
+        history = ItemHistory.objects.filter(item=self.item_free).order_by('-timestamp')
+        self.assertEqual(history.first().action, 'Отправлено в сервис. Причина: Вторая отправка. Ожидание подтверждения.')
+
+
+class ItemReturnFromServiceTests(APITestCase):
+    """Тесты для возврата ТМЦ из сервиса (return_from_service)"""
+    
+    def setUp(self):
+        """Создаём пользователей и ТМЦ в разных статусах"""
+        self.user1 = User.objects.create_user(username='user1', password='pass')
+        self.user2 = User.objects.create_user(username='user2', password='pass')
+        
+        # ТМЦ в сервисе (confirm_repair)
+        self.item_in_service = Item.objects.create(
+            name='Ноутбук Dell (из сервиса)',
+            status='confirm_repair',
+            qty=1
+        )
+        
+        # Другой ТМЦ для тестов
+        self.item_available = Item.objects.create(
+            name='Монитор LG (доступный)',
+            status='available',
+            qty=1
+        )
+    
+    def test_return_from_service_success(self):
+        """✅ Возврат из сервиса → available"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('return_from_service', kwargs={'item_id': self.item_in_service.id})
+        data = {'comment': 'Ремонт завершён, протестировано'}
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'available')
+        
+        # БД проверки
+        item = Item.objects.get(id=self.item_in_service.id)
+        self.assertEqual(item.status, 'available')
+        
+        # История
+        history = ItemHistory.objects.filter(item=self.item_in_service).last()
+        self.assertIn('Возвращено из сервиса. Комментарий: Ремонт завершён', history.action)
+        self.assertEqual(history.user, 'user1')
+    
+    def test_return_from_service_no_comment(self):
+        """✅ Без comment — пустая строка"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('return_from_service', kwargs={'item_id': self.item_in_service.id})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        history = ItemHistory.objects.filter(item=self.item_in_service).last()
+        self.assertIn('Возвращено из сервиса. Комментарий:', history.action)
+    
+    def test_return_from_service_already_available(self):
+        """✅ Возврат уже доступного ТМЦ"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('return_from_service', kwargs={'item_id': self.item_available.id})
+        data = {'comment': 'Повторный возврат'}
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'available')
+        
+        item = Item.objects.get(id=self.item_available.id)
+        self.assertEqual(item.status, 'available')
+    
+    def test_return_from_service_unauthenticated(self):
+        """❌ Без авторизации"""
+        url = reverse('return_from_service', kwargs={'item_id': self.item_in_service.id})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+    def test_return_from_service_nonexistent_item(self):
+        """❌ Несуществующий ТМЦ"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('return_from_service', kwargs={'item_id': 999})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_serializer_returns_full_item(self):
+        """✅ Response содержит полные данные Item"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('return_from_service', kwargs={'item_id': self.item_in_service.id})
+        data = {'comment': 'Тест'}
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('id', response.data)
+        self.assertIn('name', response.data)
+        self.assertIn('status', response.data)
+        self.assertEqual(response.data['status'], 'available')
+    
+    def test_history_user_fallback(self):
+        """✅ Username записывается в историю"""
+        from .models import ItemHistory
+        
+        # Создаём пользователя pvn
+        pvn_user = User.objects.create_user(username='pvn', password='pass')
+        self.client.force_authenticate(user=pvn_user)
+        
+        url = reverse('return_from_service', kwargs={'item_id': self.item_in_service.id})
+        self.client.post(url, format='json')
+        
+        history = ItemHistory.objects.filter(item=self.item_in_service).last()
+        self.assertEqual(history.user, 'pvn')
+    
+    def test_multiple_returns_ordering(self):
+        """✅ История сортируется правильно"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        # Первая запись
+        self.client.post(
+            reverse('return_from_service', kwargs={'item_id': self.item_in_service.id}), 
+            {'comment': 'Первая запись'}
+        )
+        
+        # Вторая запись
+        self.client.post(
+            reverse('return_from_service', kwargs={'item_id': self.item_in_service.id}), 
+            {'comment': 'Вторая запись'}
+        )
+        
+        history = list(ItemHistory.objects.filter(item=self.item_in_service).order_by('-timestamp'))
+        self.assertEqual(history[0].action, 'Возвращено из сервиса. Комментарий: Вторая запись')
+        self.assertEqual(history[1].action, 'Возвращено из сервиса. Комментарий: Первая запись')
+
+
+class ItemConfirmRepairTests(APITestCase):
+    """Тесты для подтверждения ремонта (confirm_repair)"""
+    
+    def setUp(self):
+        """Создаём пользователей и ТМЦ"""
+        self.user1 = User.objects.create_user(username='user1', password='pass')
+        self.user2 = User.objects.create_user(username='user2', password='pass')
+        
+        # ТМЦ в статусе confirm_repair (типично перед подтверждением)
+        self.item_confirm_repair = Item.objects.create(
+            name='Ноутбук Dell (подтверждение ремонта)',
+            status='confirm_repair',
+            qty=1
+        )
+        
+        # Другой ТМЦ для тестов
+        self.item_available = Item.objects.create(
+            name='Монитор LG (доступный)',
+            status='available',
+            qty=1
+        )
+    
+    def test_confirm_repair_success(self):
+        """✅ Подтверждение ремонта → in_repair"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('confirm_repair', kwargs={'item_id': self.item_confirm_repair.id})
+        data = {
+            'invoice_number': 'INV-2026-001',
+            'location': 'Сервисный центр №1'
+        }
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'in_repair')
+        
+        # БД проверки
+        item = Item.objects.get(id=self.item_confirm_repair.id)
+        self.assertEqual(item.status, 'in_repair')
+        
+        # История
+        history = ItemHistory.objects.filter(item=self.item_confirm_repair).last()
+        expected_action = "Ремонт ТМЦ согласован — № счета INV-2026-001. Локация: Сервисный центр №1"
+        self.assertEqual(history.action, expected_action)
+        self.assertEqual(history.user, 'user1')
+    
+    def test_confirm_repair_default_values(self):
+        """✅ Без параметров — дефолтные значения"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('confirm_repair', kwargs={'item_id': self.item_confirm_repair.id})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'in_repair')
+        
+        history = ItemHistory.objects.filter(item=self.item_confirm_repair).last()
+        expected_action = "Ремонт ТМЦ согласован — № счета Не указан. Локация: Не указана"
+        self.assertEqual(history.action, expected_action)
+    
+    def test_confirm_repair_any_status(self):
+        """✅ Работает с любым статусом (available → in_repair)"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('confirm_repair', kwargs={'item_id': self.item_available.id})
+        data = {'invoice_number': 'INV-001', 'location': 'Мастерская'}
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status'], 'in_repair')
+        
+        item = Item.objects.get(id=self.item_available.id)
+        self.assertEqual(item.status, 'in_repair')
+    
+    def test_confirm_repair_unauthenticated(self):
+        """❌ Без авторизации"""
+        url = reverse('confirm_repair', kwargs={'item_id': self.item_confirm_repair.id})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+    def test_confirm_repair_nonexistent_item(self):
+        """❌ Несуществующий ТМЦ"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('confirm_repair', kwargs={'item_id': 999})
+        response = self.client.post(url, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    
+    def test_serializer_returns_full_item(self):
+        """✅ Response содержит полные данные Item"""
+        self.client.force_authenticate(user=self.user1)
+        
+        url = reverse('confirm_repair', kwargs={'item_id': self.item_confirm_repair.id})
+        data = {'invoice_number': 'TEST-123', 'location': 'Тест'}
+        
+        response = self.client.post(url, data, format='json')
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('id', response.data)
+        self.assertIn('name', response.data)
+        self.assertIn('status', response.data)
+        self.assertEqual(response.data['status'], 'in_repair')
+    
+    def test_history_user_records_username(self):
+        """✅ Username записывается в историю"""
+        from .models import ItemHistory
+        
+        pvn_user = User.objects.create_user(username='pvn', password='pass')
+        self.client.force_authenticate(user=pvn_user)
+        
+        url = reverse('confirm_repair', kwargs={'item_id': self.item_confirm_repair.id})
+        self.client.post(url, format='json')
+        
+        history = ItemHistory.objects.filter(item=self.item_confirm_repair).last()
+        self.assertEqual(history.user, 'pvn')
+    
+    def test_multiple_confirmations_ordering(self):
+        """✅ История сортируется правильно (новые сверху)"""
+        from .models import ItemHistory
+        
+        self.client.force_authenticate(user=self.user1)
+        
+        # Первое подтверждение
+        self.client.post(
+            reverse('confirm_repair', kwargs={'item_id': self.item_confirm_repair.id}), 
+            {'invoice_number': 'INV-001'}
+        )
+        
+        # Второе подтверждение
+        self.client.post(
+            reverse('confirm_repair', kwargs={'item_id': self.item_confirm_repair.id}), 
+            {'invoice_number': 'INV-002'}
+        )
+        
+        history = list(ItemHistory.objects.filter(item=self.item_confirm_repair).order_by('-timestamp'))
+        self.assertIn('INV-002', history[0].action)
+        self.assertIn('INV-001', history[1].action)
