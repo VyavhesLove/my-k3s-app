@@ -2,6 +2,25 @@ from django.db import transaction
 from django.utils import timezone
 from .models import Item, ItemHistory, Location
 from .enums import ItemStatus
+from .serializers import ItemSerializer
+
+
+class HistoryService:
+    """Централизованный сервис для создания записей истории"""
+    @staticmethod
+    def create(item, action, user=None, comment=None, location_name=None):
+        location = None
+        if location_name:
+            location, _ = Location.objects.get_or_create(name=location_name)
+
+        return ItemHistory.objects.create(
+            item=item,
+            action=action,
+            comment=comment,
+            user=user,
+            location=location
+        )
+
 
 class ConfirmTMCService:
 
@@ -29,16 +48,11 @@ class ConfirmTMCService:
         item.responsible = user.username if hasattr(user, 'username') else str(user)
         item.save()
 
-        # Получаем Location объект для истории
-        location_obj = None
-        if item.location:
-            location_obj, _ = Location.objects.get_or_create(name=item.location)
-
-        ItemHistory.objects.create(
+        HistoryService.create(
             item=item,
+            action=f"ТМЦ принято. Объект - {item.location}",
             user=user,
-            location=location_obj,
-            action=f"ТМЦ принято. Объект - {item.location}"
+            location_name=item.location
         )
 
     @staticmethod
@@ -67,11 +81,11 @@ class ConfirmTMCService:
 
         item.save()
 
-        ItemHistory.objects.create(
+        HistoryService.create(
             item=item,
+            action=f"ТМЦ не принято. Возвращено на объект - {item.location}",
             user=user,
-            location=first_operation.location,
-            action=f"ТМЦ не принято. Возвращено на объект - {item.location}"
+            location_name=first_operation.location.name if first_operation.location else None
         )
 
 
@@ -88,16 +102,11 @@ class ItemLockService:
         item.locked_at = timezone.now()
         item.save()
         
-        # Получаем Location объект
-        location_obj = None
-        if item.location:
-            location_obj, _ = Location.objects.get_or_create(name=item.location)
-        
-        ItemHistory.objects.create(
+        HistoryService.create(
             item=item,
             action=f"Заблокировано: {user.username}",
             user=user,
-            location=location_obj
+            location_name=item.location
         )
         return item
 
@@ -128,18 +137,65 @@ class ItemServiceService:
             item.status = ItemStatus.IN_REPAIR
             item.save()
             
-            # Получаем Location объект
-            location_obj = None
-            if item.location:
-                location_obj, _ = Location.objects.get_or_create(name=item.location)
-            
-            ItemHistory.objects.create(
+            HistoryService.create(
                 item=item,
-                action=f"Отправлено в сервис. Причина: {reason}",
+                action=f"Отправлено в сервис. Причина: {reason}. Ожидание подтверждения.",
                 user=user,
-                location=location_obj
+                location_name=item.location
             )
             return item
             
         finally:
             ItemLockService.unlock_item(item_id, user)  # ✅ РАЗБЛОКИРОВКА
+
+class ItemWorkflowService:
+    @staticmethod
+    @transaction.atomic
+    def change_status(item_id, new_status, action, user, location_name=None, comment=None):
+        item = Item.objects.select_for_update().get(id=item_id)
+
+        item.status = new_status
+        item.save()
+
+        HistoryService.create(
+            item=item,
+            action=action,
+            user=user,
+            location_name=location_name or item.location,
+            comment=comment
+        )
+
+        return item
+
+class ItemUpdateService:
+    @staticmethod
+    @transaction.atomic
+    def update(item_id, data, user):
+        item = ItemLockService.lock_item(item_id, user)
+
+        try:
+            old_status = item.status
+
+            serializer = ItemSerializer(item, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            item = serializer.save()
+
+            comment = data.get("service_comment")
+            if comment:
+                action = (
+                    f"Смена статуса: {old_status} → {item.status}"
+                    if old_status != item.status
+                    else "Обновление информации"
+                )
+
+                HistoryService.create(
+                    item=item,
+                    action=action,
+                    comment=comment,
+                    user=user,
+                    location_name=item.location
+                )
+
+            return item
+        finally:
+            ItemLockService.unlock_item(item_id, user)

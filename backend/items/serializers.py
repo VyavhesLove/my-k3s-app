@@ -47,10 +47,24 @@ class ItemHistorySerializer(serializers.ModelSerializer):
             return obj.user.username
         return None
 
-
-class HistorySerializer(ItemHistorySerializer):
+class HistorySerializer(serializers.ModelSerializer):
     """Алиас для обратной совместимости"""
-    pass
+    user_username = serializers.CharField(
+        source="user.username",
+        read_only=True
+    )
+
+    class Meta:
+        model = History
+        fields = (
+            "id",
+            "status",
+            "comment",
+            "created_at",
+            "user",
+            "user_username",
+        )
+
 
 class ItemSerializer(serializers.ModelSerializer):
     # Для отображения истории и деталей бригады (ReadOnly)

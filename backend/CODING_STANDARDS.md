@@ -143,3 +143,17 @@ class MyService:
 - `confirm_item()` - подтверждение ТМЦ
 - `update_item()` - обновление с блокировкой
 
+Что в итоге ОСТАЁТСЯ во views
+
+После рефакторинга views.py:
+routing
+permissions
+serializers (input/output)
+HTTP-ответы
+
+И НИКАКОЙ:
+
+бизнес-логики
+истории
+блокировок
+смены статусов

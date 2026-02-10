@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 
 from .models import Item, Location, Brigade, ItemHistory
 from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer, ConfirmTMCSerializer
-from .services import ItemLockService, ConfirmTMCService
+from .services import ItemLockService, ConfirmTMCService, HistoryService, ItemServiceService, ItemWorkflowService, ItemUpdateService
 from .enums import ItemStatus
 
 
@@ -65,48 +65,11 @@ def item_detail(request, item_id):
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method in ['PUT', 'PATCH']:
-        # 🔒 НОВАЯ БЛОКИРОВКА!
         try:
-            ItemLockService.lock_item(item_id, request.user)
-            
-            old_status = item.status
-            
-            serializer = ItemSerializer(item, data=request.data, partial=True)
-            if serializer.is_valid():
-                item = serializer.save() 
-                
-                # Логика истории
-                service_comment = request.data.get('service_comment')
-                new_status = item.status
-                
-                if service_comment:
-                    if old_status != new_status:
-                        action_text = f"Смена статуса: {old_status} → {new_status}"
-                    else:
-                        action_text = "Обновление информации"
-                    
-                    # Получаем Location объект
-                    location_obj = None
-                    if item.location:
-                        location_obj, _ = Location.objects.get_or_create(name=item.location)
-                    
-                    ItemHistory.objects.create(
-                        item=item,
-                        action=action_text,
-                        comment=service_comment,
-                        user=request.user,
-                        location=location_obj
-                    )
-                
-                ItemLockService.unlock_item(item_id, request.user)
-                return Response(serializer.data)
-            
-            # Ошибка валидации
-            ItemLockService.unlock_item(item_id, request.user)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            
+            item = ItemUpdateService.update(item_id, request.data, request.user)
+            return Response(ItemSerializer(item).data)
         except ValueError as e:
-            return Response({"error": str(e)}, status=423)  # Locked
+            return Response({"error": str(e)}, status=423)
             
     if request.method == 'DELETE':
         item.delete()
@@ -213,32 +176,11 @@ def hello(request):
 @extend_schema(request=None, responses=ItemSerializer)
 @api_view(['POST'])
 def send_to_service(request, item_id):
-    from django.shortcuts import get_object_or_404
-    
-    item = get_object_or_404(Item, id=item_id)
-    reason = request.data.get('reason', '')
-
-    # Если предмет у бригады, сбрасываем привязку (возврат на склад)
-    if item.brigade:
-        item.brigade = None
-    
-    # Меняем статус на "Подтвердить ремонт"
-    item.status = ItemStatus.CONFIRM_REPAIR
-    item.save()
-
-    # Получаем Location объект
-    location_obj = None
-    if item.location:
-        location_obj, _ = Location.objects.get_or_create(name=item.location)
-
-    # Создаем запись в истории
-    ItemHistory.objects.create(
-        item=item,
-        action=f"Отправлено в сервис. Причина: {reason}. Ожидание подтверждения.",
-        user=request.user,
-        location=location_obj
+    item = ItemServiceService.send_to_service(
+        item_id=item_id,
+        reason=request.data.get("reason", ""),
+        user=request.user
     )
-
     return Response(ItemSerializer(item).data)
 
 
@@ -251,19 +193,11 @@ def return_from_service(request, item_id):
     comment = request.data.get('comment', '')
 
     # Меняем статус на "Доступно"
-    item.status = ItemStatus.AVAILABLE
-    item.save()
-
-    # Получаем Location объект
-    location_obj = None
-    if item.location:
-        location_obj, _ = Location.objects.get_or_create(name=item.location)
-
-    ItemHistory.objects.create(
-        item=item,
+    item = ItemWorkflowService.change_status(
+        item_id=item_id,
+        new_status=ItemStatus.AVAILABLE,
         action=f"Возвращено из сервиса. Комментарий: {comment}",
-        user=request.user,
-        location=location_obj
+        user=request.user
     )
 
     return Response(ItemSerializer(item).data)
@@ -281,20 +215,12 @@ def confirm_repair(request, item_id):
     service_location = request.data.get('location', 'Не указана')
     
     # Меняем статус на "В ремонте"
-    item.status = ItemStatus.IN_REPAIR
-    item.save()
-
-    # Получаем Location объект
-    location_obj = None
-    if service_location and service_location != 'Не указана':
-        location_obj, _ = Location.objects.get_or_create(name=service_location)
-
-    # Записываем историю (согласно логике из md файла)
-    ItemHistory.objects.create(
-        item=item,
+    item = ItemWorkflowService.change_status(
+        item_id=item_id,
+        new_status=ItemStatus.IN_REPAIR,
         action=f"Ремонт ТМЦ согласован — № счета {invoice_number}. Локация: {service_location}",
         user=request.user,
-        location=location_obj
+        location_name=service_location if service_location and service_location != 'Не указана' else None
     )
 
     return Response(ItemSerializer(item).data)
@@ -312,25 +238,18 @@ def confirm_item(request, item_id):
     item = get_object_or_404(Item, id=item_id)
     comment = request.data.get('comment', '')
     
-    # Меняем статус на "Доступно"
-    item.status = ItemStatus.AVAILABLE
-    item.save()
-
-    # Получаем Location объект
-    location_obj = None
-    if item.location:
-        location_obj, _ = Location.objects.get_or_create(name=item.location)
-
-    # Записываем историю
+    # Формируем текст действия
     action_text = "ТМЦ подтверждено и принято на склад"
     if comment:
         action_text += f". Комментарий: {comment}"
     
-    ItemHistory.objects.create(
-        item=item,
+    # Меняем статус на "Доступно"
+    item = ItemWorkflowService.change_status(
+        item_id=item_id,
+        new_status=ItemStatus.AVAILABLE,
         action=action_text,
         user=request.user,
-        location=location_obj
+        comment=comment
     )
 
     return Response(ItemSerializer(item).data)
@@ -343,26 +262,9 @@ def confirm_item(request, item_id):
 def lock_item(request, item_id):
     """
     Заблокировать ТМЦ для редактирования.
-    Возвращает 423 Locked, если предмет уже заблокирован другим пользователем.
+    Делегирует бизнес-логику ItemLockService.
     """
-    from django.shortcuts import get_object_or_404
-    from django.utils import timezone
-    
-    item = get_object_or_404(Item, id=item_id)
-    
-    # Проверяем, не заблокирован ли уже предмет
-    if item.locked_by:
-        return Response({
-            'error': f'Заблокировано пользователем {item.locked_by.username}',
-            'locked_by': item.locked_by.username,
-            'locked_at': item.locked_at.isoformat() if item.locked_at else None
-        }, status=status.HTTP_423_LOCKED)
-    
-    # Блокируем предмет
-    item.locked_by = request.user
-    item.locked_at = timezone.now()
-    item.save()
-    
+    item = ItemLockService.lock_item(item_id, request.user)
     return Response({'status': 'locked', 'locked_by': item.locked_by.username})
 
 
@@ -371,55 +273,10 @@ def lock_item(request, item_id):
 def unlock_item(request, item_id):
     """
     Разблокировать ТМЦ.
-    Может разблокировать только тот пользователь, который заблокировал,
-    или администратор.
+    Делегирует бизнес-логику ItemLockService.
     """
-    from django.shortcuts import get_object_or_404
-    
-    item = get_object_or_404(Item, id=item_id)
-    
-    # Проверяем права на разблокировку
-    if item.locked_by and item.locked_by != request.user:
-        # Разрешаем разблокировку только если это админ
-        if not request.user.is_superuser:
-            return Response({
-                'error': f'ТМЦ заблокировано пользователем {item.locked_by.username}'
-            }, status=status.HTTP_403_FORBIDDEN)
-    
-    # Разблокируем предмет
-    item.locked_by = None
-    item.locked_at = None
-    item.save()
-    
+    ItemLockService.unlock_item(item_id, request.user)
     return Response({'status': 'unlocked'})
-
-
-# --- ОБНОВЛЕНИЕ ТМЦ С БЛОКИРОВКОЙ ---
-# --- НЕ ИСПОЛЬЗУЕТСЯ ---
-
-@extend_schema(request=ItemSerializer, responses=ItemSerializer)
-@api_view(['PATCH'])
-def update_item(request, item_id):
-    """Редактирование ТМЦ с блокировкой"""
-    try:
-        # 1️⃣ Блокировка
-        item = ItemLockService.lock_item(item_id, request.user)
-        
-        # 2️⃣ Валидация и сохранение
-        serializer = ItemSerializer(item, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            ItemLockService.unlock_item(item_id, request.user)
-            return Response(serializer.data, status=200)
-        
-        # Ошибка валидации → разблокировка
-        ItemLockService.unlock_item(item_id, request.user)
-        return Response(serializer.errors, status=400)
-        
-    except ValueError as e:
-        return Response({"error": str(e)}, status=423)
-    except Exception:
-        return Response({"error": "Внутренняя ошибка"}, status=500)
 
 
 # --- ПОДТВЕРЖДЕНИЕ ТМЦ ---
