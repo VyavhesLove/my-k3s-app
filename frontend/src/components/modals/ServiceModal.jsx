@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'sonner';
@@ -9,13 +9,59 @@ const ServiceModal = ({ isDarkMode }) => {
     selectedItem, 
     serviceMode, 
     isServiceModalOpen, 
-    closeServiceModal 
+    closeServiceModal,
+    lockItem,
+    unlockItem,
+    refreshItems,
+    setSelectedItem
   } = useItemStore();
 
   const [comment, setComment] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+
+  // При открытии модалки - пробуем заблокировать ТМЦ
+  useEffect(() => {
+    if (isServiceModalOpen && selectedItem) {
+      const doLock = async () => {
+        try {
+          await lockItem(selectedItem.id);
+          setIsLocked(true);
+          toast.success('🔓 ТМЦ заблокировано для редактирования', {
+            description: 'Вы можете безопасно редактировать'
+          });
+        } catch (err) {
+          if (err.response?.status === 423) {
+            setIsLocked(false);
+            toast.error(`🔒 ${err.response.data.locked_by}`, {
+              description: 'Этот ТМЦ уже редактируется другим пользователем'
+            });
+          } else {
+            toast.error('Ошибка блокировки');
+          }
+        }
+      };
+      doLock();
+    }
+  }, [isServiceModalOpen, selectedItem, lockItem]);
+
+  // При закрытии - разблокируем
+  const handleClose = async () => {
+    if (isLocked && selectedItem) {
+      try {
+        await unlockItem(selectedItem.id);
+      } catch (err) {
+        console.error('Ошибка разблокировки:', err);
+      }
+    }
+    setComment('');
+    setInvoiceNumber('');
+    setLocation('');
+    setIsLocked(false);
+    closeServiceModal();
+  };
 
   if (!isServiceModalOpen || !selectedItem) return null;
 
@@ -36,6 +82,13 @@ const ServiceModal = ({ isDarkMode }) => {
       : 'Принять';
 
   const handleSubmit = async () => {
+    if (!isLocked) {
+      toast.error('Невозможно выполнить операцию', {
+        description: 'ТМЦ заблокирован другим пользователем'
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       if (isSend) {
@@ -70,14 +123,14 @@ const ServiceModal = ({ isDarkMode }) => {
       }
 
       // ✅ Обновляем список через Zustand
-      const { refreshItems, setSelectedItem } = useItemStore.getState();
       await refreshItems();
       setSelectedItem(null);
 
-      closeServiceModal();
-      setComment('');
-      setInvoiceNumber('');
-      setLocation('');
+      // Разблокируем
+      await unlockItem(selectedItem.id);
+      setIsLocked(false);
+
+      handleClose();
     } catch (err) {
       toast.error(err.response?.data?.detail || "Ошибка при выполнении операции");
       console.error(err);
@@ -95,9 +148,16 @@ const ServiceModal = ({ isDarkMode }) => {
       >
         {/* Шапка */}
         <div className="flex justify-between items-center p-6 border-b border-gray-500/10">
-          <h2 className="text-xl font-bold uppercase tracking-tight">{title}</h2>
+          <h2 className="text-xl font-bold uppercase tracking-tight">
+            {title}
+            {isLocked && (
+              <span className="ml-2 text-xs text-green-500 font-normal">
+                🔓 Заблокировано
+              </span>
+            )}
+          </h2>
           <button 
-            onClick={closeServiceModal} 
+            onClick={handleClose}
             className="p-2 hover:bg-gray-500/10 rounded-full transition-colors"
           >
             <X size={24} />

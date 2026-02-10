@@ -4,7 +4,7 @@ from .models import Item, Location, Brigade, ItemHistory
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
     # 'brigade' — это то самое поле, которое мы добавили в 0001_initial.py
-    list_display = ('name', 'serial', 'brand', 'status', 'responsible', 'location', 'brigade')
+    list_display = ('name', 'serial', 'brand', 'status', 'responsible', 'location', 'brigade', 'locked_at', 'locked_by')
     search_fields = ('name', 'serial', 'responsible')
     list_filter = ('status', 'brand', 'location', 'brigade')
 

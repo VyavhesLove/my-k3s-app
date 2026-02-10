@@ -1,12 +1,27 @@
 import React from 'react';
-import { X, History } from 'lucide-react';
+import { X, History, Lock } from 'lucide-react';
 import { statusMap, getStatusStyles } from '../constants/statusConfig';
 import TransferModal from './modals/TransferModal';
 import { useItemStore } from '../store/useItemStore';
+import { toast } from 'sonner';
 
 const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkClick }) => {
-  const { isTransferModalOpen, closeTransferModal } = useItemStore();
+  const { isTransferModalOpen, closeTransferModal, lockedItems } = useItemStore();
   const isOpen = !!item;
+
+  // Проверка, заблокирован ли ТМЦ
+  const isItemLocked = item ? lockedItems[item.id] : false;
+
+  // Обработчик клика по кнопкам действий с проверкой блокировки
+  const handleActionClick = (actionType) => {
+    if (isItemLocked) {
+      toast.error(`🔒 ${isItemLocked.user}`, {
+        description: 'Этот ТМЦ уже редактируется другим пользователем'
+      });
+      return;
+    }
+    onActionClick(item, actionType);
+  };
 
   return (
     <>
@@ -43,6 +58,18 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
                 </div>
               </div>
 
+              {/* Индикатор блокировки */}
+              {isItemLocked && (
+                <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
+                  isDarkMode ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'
+                }`}>
+                  <Lock className="text-amber-500" size={16} />
+                  <span className="text-amber-600 dark:text-amber-400">
+                    Заблокировано: {isItemLocked.user}
+                  </span>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-4">
                 <DetailRow label="Наименование" value={item?.name} />
                 <DetailRow label="Серийный номер" value={item?.serial || '—'} />
@@ -56,7 +83,10 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
               {item.status === 'issued' && (
                 <button
                   onClick={onAtWorkClick}
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95 mb-3"
+                  disabled={isItemLocked}
+                  className={`w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20 active:scale-95 mb-3 ${
+                    isItemLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   В работу
                 </button>
@@ -65,8 +95,11 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
               {/* ТМЦ свободен или в работе -> Отправить в сервис */}
               {(item.status === 'issued' || item.status === 'at_work') && (
                 <button
-                  onClick={() => onActionClick(item, 'send')}
-                  className={`w-full py-4 ${isDarkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-200'} rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95`}
+                  onClick={() => handleActionClick('send')}
+                  disabled={isItemLocked}
+                  className={`w-full py-4 ${isDarkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-700 border border-amber-200'} rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95 ${
+                    isItemLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   Отправить в сервис
                 </button>
@@ -75,8 +108,11 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
               {/* ТМЦ доступен -> Передать ТМЦ */}
               {item.status === 'available' && (
                 <button
-                  onClick={() => onActionClick(item, 'transfer')}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+                  onClick={() => handleActionClick('transfer')}
+                  disabled={isItemLocked}
+                  className={`w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95 ${
+                    isItemLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   Передать ТМЦ
                 </button>
@@ -85,8 +121,11 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
               {/* Ждет подтверждения -> Подтвердить */}
               {item.status === 'confirm_repair' && (
                 <button
-                  onClick={() => onActionClick(item, 'confirm')}
-                  className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95"
+                  onClick={() => handleActionClick('confirm')}
+                  disabled={isItemLocked}
+                  className={`w-full py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95 ${
+                    isItemLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   Подтвердить ремонт
                 </button>
@@ -95,8 +134,11 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
               {/* В ремонте -> Вернуть */}
               {(item.status === 'repair' || item.status === 'in_service') && (
                 <button
-                  onClick={() => onActionClick(item, 'return')}
-                  className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95"
+                  onClick={() => handleActionClick('return')}
+                  disabled={isItemLocked}
+                  className={`w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 active:scale-95 ${
+                    isItemLocked ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   Принять из ремонта
                 </button>

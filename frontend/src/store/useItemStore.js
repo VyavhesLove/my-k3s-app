@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import api from '../api/axios';
+import { toast } from 'sonner';
 
 export const useItemStore = create((set, get) => ({
   // Состояние выбранного ТМЦ
@@ -52,6 +53,84 @@ export const useItemStore = create((set, get) => ({
   removeItemFromList: (itemId) => {
     const { items } = get();
     set({ items: items.filter(i => i.id !== itemId) });
+  },
+
+  // === БЛОКИРОВКА ТМЦ ===
+  // Словарь заблокированных ТМЦ: { itemId: { user: 'Имя', time: 'ISO время' } }
+  lockedItems: {},
+
+  // Заблокировать ТМЦ
+  lockItem: async (itemId) => {
+    try {
+      const response = await api.post(`/items/${itemId}/lock/`);
+      
+      // Успешная блокировка
+      const username = response.data.locked_by || 'Текущий пользователь';
+      
+      set((state) => ({
+        lockedItems: {
+          ...state.lockedItems,
+          [itemId]: { 
+            user: username, 
+            time: new Date().toISOString() 
+          }
+        }
+      }));
+      
+      return response.data;
+    } catch (err) {
+      // Если уже заблокировано другим пользователем (423)
+      if (err.response?.status === 423) {
+        const lockInfo = err.response.data;
+        set((state) => ({
+          lockedItems: {
+            ...state.lockedItems,
+            [itemId]: { 
+              user: lockInfo.locked_by || 'Неизвестный', 
+              time: lockInfo.locked_at || new Date().toISOString()
+            }
+          }
+        }));
+      }
+      throw err;
+    }
+  },
+
+  // Разблокировать ТМЦ
+  unlockItem: async (itemId) => {
+    try {
+      await api.post(`/items/${itemId}/unlock/`);
+      
+      set((state) => {
+        const newLocked = { ...state.lockedItems };
+        delete newLocked[itemId];
+        return { lockedItems: newLocked };
+      });
+    } catch (err) {
+      console.error('Ошибка разблокировки:', err);
+      throw err;
+    }
+  },
+
+  // Проверить и обновить статус блокировки
+  checkAndUpdateLock: async (itemId) => {
+    try {
+      // Пытаемся заблокировать - если уже заблокировано, получим 423
+      await api.post(`/items/${itemId}/lock/`);
+    } catch (err) {
+      if (err.response?.status === 423) {
+        const lockInfo = err.response.data;
+        set((state) => ({
+          lockedItems: {
+            ...state.lockedItems,
+            [itemId]: { 
+              user: lockInfo.locked_by || 'Неизвестный', 
+              time: lockInfo.locked_at || new Date().toISOString()
+            }
+          }
+        }));
+      }
+    }
   },
 
   // === МОДАЛКИ ===

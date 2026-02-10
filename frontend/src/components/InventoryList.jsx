@@ -116,7 +116,7 @@ const TableHeader = ({
 
 function InventoryList({ isDarkMode }) {
   const location = useLocation();
-  const { setSelectedItem, selectedItem, items, refreshItems, itemsLoading } = useItemStore();
+  const { setSelectedItem, selectedItem, items, refreshItems, itemsLoading, lockedItems } = useItemStore();
   const [filters, setFilters] = useState({});
   const [sortConfig, setSortConfig] = useState([]);
   const [pageSize, setPageSize] = useState(10);
@@ -402,19 +402,32 @@ function InventoryList({ isDarkMode }) {
                       </td>
                     </tr>
                   ) : (
-                    paginatedItems.map((item, index) => (
+                    paginatedItems.map((item, index) => {
+                      const isLocked = lockedItems[item.id];
+                      return (
                       <tr 
                         key={item.id} 
-                        onClick={() => setSelectedItem(item)}
+                        onClick={() => !isLocked && setSelectedItem(item)}
                         className={`cursor-pointer transition-colors ${
                           selectedItem?.id === item.id 
                             ? 'bg-blue-600/30 ring-1 ring-blue-500' 
-                            : 'hover:bg-blue-500/5'
-                        }`}
+                            : isLocked 
+                              ? 'opacity-50' 
+                              : 'hover:bg-blue-500/5'
+                        } ${isLocked ? 'cursor-not-allowed' : ''}`}
                         style={{ borderColor: 'var(--table-border)' }}
                       >
                         <td className="px-4 py-4">{(currentPage - 1) * pageSize + index + 1}</td>
-                        <td className="px-4 py-4 font-medium">{item.name}</td>
+                        <td className="px-4 py-4 font-medium relative">
+                          {item.name}
+                          {isLocked && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 flex items-center gap-1">
+                              <span className="text-amber-500" title={`Заблокировано ${isLocked.user}`}>
+                                🔒
+                              </span>
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-4 opacity-70">{item.serial}</td>
                         <td className="px-4 py-4">{item.brand}</td>
                         <td className="px-4 py-4">
@@ -425,7 +438,8 @@ function InventoryList({ isDarkMode }) {
                         <td className="px-4 py-4 italic">{item.responsible}</td>
                         <td className="px-4 py-4">{item.location}</td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>

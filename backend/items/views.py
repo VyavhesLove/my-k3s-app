@@ -268,3 +268,61 @@ def confirm_repair(request, item_id):
 
     return Response(ItemSerializer(item).data)
 
+
+# --- БЛОКИРОВКА ТМЦ ---
+
+@extend_schema(request=None, responses={'status': str})
+@api_view(['POST'])
+def lock_item(request, item_id):
+    """
+    Заблокировать ТМЦ для редактирования.
+    Возвращает 423 Locked, если предмет уже заблокирован другим пользователем.
+    """
+    from django.shortcuts import get_object_or_404
+    from django.utils import timezone
+    
+    item = get_object_or_404(Item, id=item_id)
+    
+    # Проверяем, не заблокирован ли уже предмет
+    if item.locked_by:
+        return Response({
+            'error': f'Заблокировано пользователем {item.locked_by.username}',
+            'locked_by': item.locked_by.username,
+            'locked_at': item.locked_at.isoformat() if item.locked_at else None
+        }, status=status.HTTP_423_LOCKED)
+    
+    # Блокируем предмет
+    item.locked_by = request.user
+    item.locked_at = timezone.now()
+    item.save()
+    
+    return Response({'status': 'locked', 'locked_by': item.locked_by.username})
+
+
+@extend_schema(request=None, responses={'status': str})
+@api_view(['POST'])
+def unlock_item(request, item_id):
+    """
+    Разблокировать ТМЦ.
+    Может разблокировать только тот пользователь, который заблокировал,
+    или администратор.
+    """
+    from django.shortcuts import get_object_or_404
+    
+    item = get_object_or_404(Item, id=item_id)
+    
+    # Проверяем права на разблокировку
+    if item.locked_by and item.locked_by != request.user:
+        # Разрешаем разблокировку только если это админ
+        if not request.user.is_superuser:
+            return Response({
+                'error': f'ТМЦ заблокировано пользователем {item.locked_by.username}'
+            }, status=status.HTTP_403_FORBIDDEN)
+    
+    # Разблокируем предмет
+    item.locked_by = None
+    item.locked_at = None
+    item.save()
+    
+    return Response({'status': 'unlocked'})
+

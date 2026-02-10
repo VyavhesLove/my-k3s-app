@@ -51,6 +51,16 @@ class Item(models.Model):
         verbose_name="Закрепленная бригада"
     )
 
+    # Поля для блокировки ТМЦ (чтобы 2 пользователя не работали одновременно)
+    locked_by = models.ForeignKey(
+        'auth.User', 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL,
+        verbose_name="Заблокировано пользователем"
+    )
+    locked_at = models.DateTimeField(null=True, blank=True, verbose_name="Время блокировки")
+
     class Meta:
         verbose_name = 'ТМЦ'
         verbose_name_plural = 'ТМЦ'

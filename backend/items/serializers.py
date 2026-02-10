@@ -60,5 +60,8 @@ class ItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'serial', 'brand', 'status', 'responsible', 
             'location', 'qty', 'brigade', 'brigade_details', 'history', 
-            'service_comment'
+            'service_comment',
+            # Поля блокировки
+            'locked_by', 'locked_at'
         ]
+        read_only_fields = ['locked_by', 'locked_at']
