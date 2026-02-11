@@ -27,3 +27,36 @@ class HistoryAction(models.TextChoices):
     ASSIGNED = "assigned", "ТМЦ распределено"
     CONFIRMED = "confirmed", "ТМЦ подтверждено"
 
+    # Шаблоны для генерации текста из payload
+    TEMPLATES = {
+        "accepted": "ТМЦ принято. Объект - {location}",
+        "rejected": "ТМЦ не принято. Возвращено на объект - {location}",
+        "sent_to_service": "Отправлено в сервис. Причина: {reason}. Ожидание подтверждения.",
+        "returned_from_service": "Возвращено из сервиса",
+        "repair_confirmed": "Ремонт подтверждён",
+        "updated": "Обновление информации. Комментарий: {comment}",
+        "status_changed": "Смена статуса: {old_status} → {new_status}",
+        "locked": "Заблокировано: {username}",
+        "unlocked": "Разблокировано",
+        "assigned": "ТМЦ распределено",
+        "confirmed": "ТМЦ подтверждено. Комментарий: {comment}",
+    }
+
+    def get_template(self) -> str:
+        """Возвращает шаблон для данного типа действия."""
+        return self.TEMPLATES.get(self.value, self.label)
+
+    def format(self, payload: dict = None) -> str:
+        """Форматирует текст действия из payload.
+
+        Args:
+            payload: Словарь с параметрами для подстановки в шаблон
+
+        Returns:
+            Отформатированный текст действия
+        """
+        template = self.get_template()
+        if payload:
+            return template.format(**payload)
+        return template
+

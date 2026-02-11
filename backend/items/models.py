@@ -62,7 +62,7 @@ class Item(models.Model):
 
 class ItemHistory(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='history')
-    action = models.CharField(max_length=255)  # Текст для человека
+    action = models.CharField(max_length=255, blank=True, null=True)  # Текст для человека (генерируется динамически из payload)
     action_type = models.CharField(
         max_length=50,
         choices=HistoryAction.choices,
@@ -70,6 +70,7 @@ class ItemHistory(models.Model):
         blank=True,
         verbose_name="Тип действия"
     )  # Типизированное действие для фильтрации
+    payload = models.JSONField(null=True, blank=True)  # Структурированные параметры для генерации текста
     comment = models.TextField(blank=True, null=True)  # Дополнительный комментарий
     
     # Структурированные данные для системы

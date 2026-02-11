@@ -3,7 +3,6 @@ from django.db import transaction
 from django.utils import timezone
 from ..models import Item
 from .history_service import HistoryService
-from .domain.history_actions import HistoryActionsFormatter
 
 
 class LockService:

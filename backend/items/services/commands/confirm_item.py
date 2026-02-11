@@ -5,7 +5,6 @@ from ..enums import ItemStatus
 from .lock_service import LockService
 from .history_service import HistoryService
 from .domain.item_transitions import ItemTransitions
-from .domain.history_actions import HistoryActionsFormatter
 
 
 class ConfirmItemCommand:

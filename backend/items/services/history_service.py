@@ -1,7 +1,6 @@
 """Централизованный сервис для создания записей истории."""
 from django.db import models
 from ..models import Item, ItemHistory, Location
-from .domain.history_actions import HistoryActionsFormatter
 from ..enums import HistoryAction
 
 
@@ -11,22 +10,24 @@ class HistoryService:
     @staticmethod
     def create(
         item: Item,
-        action: str,
-        action_type: HistoryAction = None,
+        action_type: HistoryAction,
+        payload: dict = None,
         user=None,
         comment: str = None,
         location_name: str = None,
+        generate_action: bool = True,
     ) -> ItemHistory:
         """
         Базовый метод создания записи в истории ТМЦ.
 
         Args:
             item: Объект ТМЦ
-            action: Текст действия
-            action_type: Тип действия из HistoryAction enum (опционально)
+            action_type: Тип действия из HistoryAction enum
+            payload: Параметры для генерации текста действия
             user: Пользователь (объект User или username)
             comment: Дополнительный комментарий
             location_name: Название локации
+            generate_action: Генерировать ли текст действия из payload
 
         Returns:
             Созданный объект ItemHistory
@@ -43,10 +44,16 @@ class HistoryService:
         else:
             user_obj = None
 
+        # Генерируем текст действия из payload
+        action = None
+        if generate_action and action_type:
+            action = action_type.format(payload)
+
         return ItemHistory.objects.create(
             item=item,
             action=action,
-            action_type=action_type,
+            action_type=action_type.value if action_type else None,
+            payload=payload,
             comment=comment,
             user=user_obj,
             location=location,
@@ -67,11 +74,11 @@ class HistoryService:
         Returns:
             Созданный объект ItemHistory
         """
-        action_text, action_type = HistoryActionsFormatter.sent_to_service(reason)
+        payload = {"reason": reason}
         return HistoryService.create(
             item=item,
-            action=action_text,
-            action_type=action_type,
+            action_type=HistoryAction.SENT_TO_SERVICE,
+            payload=payload,
             user=user,
             location_name=item.location,
         )
@@ -91,12 +98,12 @@ class HistoryService:
             Созданный объект ItemHistory
         """
         loc = location_name or item.location
-        action_text, action_type = HistoryActionsFormatter.accepted(loc)
+        payload = {"location": loc} if loc else None
 
         return HistoryService.create(
             item=item,
-            action=action_text,
-            action_type=action_type,
+            action_type=HistoryAction.ACCEPTED,
+            payload=payload,
             user=user,
             comment=comment,
             location_name=loc,
@@ -117,12 +124,12 @@ class HistoryService:
             Созданный объект ItemHistory
         """
         loc = location_name or item.location
-        action_text, action_type = HistoryActionsFormatter.rejected(loc)
+        payload = {"location": loc} if loc else None
 
         return HistoryService.create(
             item=item,
-            action=action_text,
-            action_type=action_type,
+            action_type=HistoryAction.REJECTED,
+            payload=payload,
             user=user,
             comment=comment,
             location_name=loc,
@@ -142,12 +149,12 @@ class HistoryService:
         Returns:
             Созданный объект ItemHistory
         """
-        action_text, action_type = HistoryActionsFormatter.confirmed(comment)
+        payload = {"comment": comment} if comment else None
 
         return HistoryService.create(
             item=item,
-            action=action_text,
-            action_type=action_type,
+            action_type=HistoryAction.CONFIRMED,
+            payload=payload,
             user=user,
             location_name=location_name or item.location,
         )
@@ -165,12 +172,9 @@ class HistoryService:
         Returns:
             Созданный объект ItemHistory
         """
-        action_text, action_type = HistoryActionsFormatter.repair_confirmed()
-
         return HistoryService.create(
             item=item,
-            action=action_text,
-            action_type=action_type,
+            action_type=HistoryAction.REPAIR_CONFIRMED,
             user=user,
             location_name=location_name or item.location,
         )
@@ -188,12 +192,9 @@ class HistoryService:
         Returns:
             Созданный объект ItemHistory
         """
-        action_text, action_type = HistoryActionsFormatter.returned_from_service()
-
         return HistoryService.create(
             item=item,
-            action=action_text,
-            action_type=action_type,
+            action_type=HistoryAction.RETURNED_FROM_SERVICE,
             user=user,
             location_name=location_name or item.location,
         )
@@ -210,11 +211,11 @@ class HistoryService:
         Returns:
             Созданный объект ItemHistory
         """
-        action_text, action_type = HistoryActionsFormatter.locked(user.username)
+        payload = {"username": user.username}
         return HistoryService.create(
             item=item,
-            action=action_text,
-            action_type=action_type,
+            action_type=HistoryAction.LOCKED,
+            payload=payload,
             user=user,
             location_name=item.location,
         )
@@ -231,11 +232,9 @@ class HistoryService:
         Returns:
             Созданный объект ItemHistory
         """
-        action_text, action_type = HistoryActionsFormatter.unlocked()
         return HistoryService.create(
             item=item,
-            action=action_text,
-            action_type=action_type,
+            action_type=HistoryAction.UNLOCKED,
             user=user,
             location_name=item.location,
         )
@@ -264,17 +263,16 @@ class HistoryService:
             Созданный объект ItemHistory
         """
         if old_status and new_status and old_status != new_status:
-            action_text, action_type = HistoryActionsFormatter.status_changed(
-                old_status=str(old_status),
-                new_status=str(new_status),
-            )
+            action_type = HistoryAction.STATUS_CHANGED
+            payload = {"old_status": str(old_status), "new_status": str(new_status)}
         else:
-            action_text, action_type = HistoryActionsFormatter.updated(comment)
+            action_type = HistoryAction.UPDATED
+            payload = {"comment": comment} if comment else None
 
         return HistoryService.create(
             item=item,
-            action=action_text,
             action_type=action_type,
+            payload=payload,
             user=user,
             comment=comment,
             location_name=location_name or item.location,
@@ -292,7 +290,7 @@ class HistoryService:
             ItemHistory или None
         """
         return (
-            ItemHistory.objects.filter(item=item, action_type=HistoryAction.ASSIGNED)
+            ItemHistory.objects.filter(item=item, action_type=HistoryAction.ASSIGNED.value)
             .order_by("timestamp")
             .first()
         )
