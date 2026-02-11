@@ -1,6 +1,7 @@
 """Команда отправки ТМЦ в сервис на ремонт."""
+from __future__ import annotations
+
 from django.db import transaction
-from items.models import Item
 from items.enums import ItemStatus
 from ..lock_service import LockService
 from ..history_service import HistoryService
@@ -63,4 +64,3 @@ class SendToServiceCommand:
         finally:
             # Всегда разблокируем после изменения
             LockService.unlock(item_id, user)
-

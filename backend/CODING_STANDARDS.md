@@ -159,3 +159,17 @@ HTTP-ответы
 смены статусов
 
 Никогда больше не импортируй from django.contrib.auth.models import User. Только settings.AUTH_USER_MODEL
+
+commands не импортируют views
+domain не импортирует services
+enums не импортируют models
+Правильное направление зависимостей должно быть таким:
+views
+  ↓
+commands
+  ↓
+domain / enums
+  ↓
+models
+HistoryService может зависеть от models, но domain — никогда.
+Если это соблюдено — архитектура чистая.

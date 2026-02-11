@@ -1,6 +1,7 @@
 """Команда обновления данных ТМЦ."""
+from __future__ import annotations
+
 from django.db import transaction
-from items.models import Item
 from ..lock_service import LockService
 from ..history_service import HistoryService
 
@@ -68,4 +69,3 @@ class UpdateItemCommand:
 
         finally:
             LockService.unlock(item_id, user)
-

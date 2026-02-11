@@ -1,6 +1,7 @@
 """Команда возврата ТМЦ из сервиса."""
+from __future__ import annotations
+
 from django.db import transaction
-from items.models import Item
 from items.enums import ItemStatus
 from ..lock_service import LockService
 from ..history_service import HistoryService
@@ -57,7 +58,7 @@ class ReturnFromServiceCommand:
             LockService.unlock(item_id, user)
 
     @staticmethod
-    def _confirm_repair(item: Item, user) -> Item:
+    def _confirm_repair(item, user):
         """
         Подтверждение начала ремонта.
 
@@ -85,7 +86,7 @@ class ReturnFromServiceCommand:
         return item
 
     @staticmethod
-    def _return(item: Item, user) -> Item:
+    def _return(item, user):
         """
         Возврат ТМЦ из сервиса после завершения ремонта.
 
@@ -111,4 +112,3 @@ class ReturnFromServiceCommand:
         )
 
         return item
-

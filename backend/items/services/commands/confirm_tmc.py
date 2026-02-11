@@ -1,6 +1,7 @@
 """Команда подтверждения/отклонения ТМЦ кладовщиком."""
+from __future__ import annotations
+
 from django.db import transaction
-from items.models import Item
 from items.enums import ItemStatus
 from ..lock_service import LockService
 from ..history_service import HistoryService
@@ -53,7 +54,7 @@ class ConfirmTMCCommand:
             LockService.unlock(item_id, user)
 
     @staticmethod
-    def _accept(item: Item, user) -> None:
+    def _accept(item, user) -> None:
         """
         Принятие ТМЦ.
 
@@ -72,7 +73,7 @@ class ConfirmTMCCommand:
         )
 
     @staticmethod
-    def _reject(item: Item, user) -> None:
+    def _reject(item, user) -> None:
         """
         Отклонение ТМЦ — возврат на исходную локацию.
 
@@ -107,4 +108,3 @@ class ConfirmTMCCommand:
             user=user,
             location_name=item.location,
         )
-
