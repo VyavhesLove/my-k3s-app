@@ -1,4 +1,3 @@
-from django.db.models import Count, Q
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -6,10 +5,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 
-from .models import Item, Location, Brigade, ItemHistory
+from .models import Item, Location, Brigade
 from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer, ConfirmTMCSerializer
-from .services import ItemLockService, ConfirmTMCService, HistoryService, ItemServiceService, ItemWorkflowService, ItemUpdateService
-from .enums import ItemStatus
+from .services import ItemLockService, ConfirmTMCService, HistoryService
+from .services.commands import SendToServiceCommand, UpdateItemCommand, ReturnFromServiceCommand, ConfirmItemCommand
+from .services.queries import GetItemQuery, ListItemsQuery, GetStatusCountersQuery, GetAnalyticsQuery
+from .permissions import IsStorekeeper
 
 
 # --- ПРЕДСТАВЛЕНИЯ (VIEWS) ---
@@ -29,15 +30,7 @@ def item_list(request):
     """GET: список items, POST: создать item"""
     if request.method == 'GET':
         search_query = request.GET.get('search', '')
-        queryset = Item.objects.all().order_by('-id')
-        
-        if search_query:
-            # Поиск по названию или точному английскому ключу статуса
-            queryset = queryset.filter(
-                Q(name__icontains=search_query) | 
-                Q(status=search_query)
-            )
-        
+        queryset = ListItemsQuery.all(search_query)
         serializer = ItemSerializer(queryset, many=True)
         return Response({"items": serializer.data})
     
@@ -65,11 +58,11 @@ def item_detail(request, item_id):
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method in ['PUT', 'PATCH']:
-        try:
-            item = ItemUpdateService.update(item_id, request.data, request.user)
-            return Response(ItemSerializer(item).data)
-        except ValueError as e:
-            return Response({"error": str(e)}, status=423)
+        # Command: изменяем состояние, получаем ID
+        item_id = UpdateItemCommand.execute(item_id, request.data, request.user)
+        # Query: получаем обновлённый объект для сериализации
+        item = GetItemQuery.by_id(item_id)
+        return Response(ItemSerializer(item).data)
             
     if request.method == 'DELETE':
         item.delete()
@@ -84,14 +77,7 @@ def item_detail(request, item_id):
 @api_view(['GET'])
 def get_status_counters(request):
     """Получить счетчики статусов для виджета уведомлений"""
-    counts_query = Item.objects.values('status').annotate(total=Count('id'))
-    raw_data = {item['status']: item['total'] for item in counts_query}
-    
-    return Response({
-        "to_receive": raw_data.get(ItemStatus.CONFIRM, 0), 
-        "to_repair": raw_data.get(ItemStatus.CONFIRM_REPAIR, 0),
-        "issued": raw_data.get(ItemStatus.ISSUED, 0) + raw_data.get(ItemStatus.AT_WORK, 0)
-    })
+    return Response(GetStatusCountersQuery.summary())
 
 
 @extend_schema(responses={200: LocationSerializer(many=True)})
@@ -127,41 +113,20 @@ def brigade_list(request):
 )
 @api_view(['GET'])
 def get_analytics(request):
-    """Аналитика через Django ORM"""
+    """Аналитика через Query слой"""
     name_f = request.GET.get('name', '')
     brand_f = request.GET.get('brand', '')
     loc_f = request.GET.get('location', '')
 
-    # Применяем фильтры только если параметры не пустые
-    filters = Q()
-    if name_f:
-        filters &= Q(name__icontains=name_f)
-    if brand_f:
-        filters &= Q(brand__icontains=brand_f)
-    if loc_f:
-        filters &= Q(location__icontains=loc_f)
-    
-    queryset = Item.objects.filter(filters)
+    result = GetAnalyticsQuery.filtered(
+        name=name_f,
+        brand=brand_f,
+        location=loc_f
+    )
 
-    by_brand = list(queryset.values('brand').annotate(value=Count('id')).order_by('-value'))
-    by_location = list(queryset.values('location').annotate(value=Count('id')).order_by('-value'))
-    by_status = list(queryset.values('status').annotate(value=Count('id')).order_by('-value'))
-    
-    # Для графиков заменяем пустые значения
-    for item in by_brand:
-        item['brand'] = item['brand'] or 'Не указан'
-    for item in by_location:
-        item['location'] = item['location'] or 'Не указана'
+    result["details"] = ItemSerializer(result["details"], many=True).data
 
-    # Детализация
-    details = ItemSerializer(queryset.order_by('-id'), many=True).data
-
-    return Response({
-        "by_brand": by_brand,
-        "by_location": by_location,
-        "by_status": by_status,
-        "details": details
-    })
+    return Response(result)
 
 
 @api_view(['GET'])
@@ -176,82 +141,67 @@ def hello(request):
 @extend_schema(request=None, responses=ItemSerializer)
 @api_view(['POST'])
 def send_to_service(request, item_id):
-    item = ItemServiceService.send_to_service(
+    # Command: изменяем состояние, получаем ID
+    item_id = SendToServiceCommand.execute(
         item_id=item_id,
         reason=request.data.get("reason", ""),
         user=request.user
     )
+    # Query: получаем обновлённый объект для сериализации
+    item = GetItemQuery.by_id(item_id)
     return Response(ItemSerializer(item).data)
 
 
 @extend_schema(request=None, responses=ItemSerializer)
 @api_view(['POST'])
 def return_from_service(request, item_id):
-    from django.shortcuts import get_object_or_404
-    
-    item = get_object_or_404(Item, id=item_id)
-    comment = request.data.get('comment', '')
-
-    # Меняем статус на "Доступно"
-    item = ItemWorkflowService.change_status(
+    # Command: изменяем состояние, получаем ID
+    item_id = ReturnFromServiceCommand.execute(
         item_id=item_id,
-        new_status=ItemStatus.AVAILABLE,
-        action=f"Возвращено из сервиса. Комментарий: {comment}",
+        action="return",
         user=request.user
     )
-
+    # Query: получаем обновлённый объект для сериализации
+    item = GetItemQuery.by_id(item_id)
     return Response(ItemSerializer(item).data)
 
 
 @extend_schema(request=None, responses=ItemSerializer)
 @api_view(['POST'])
 def confirm_repair(request, item_id):
-    from django.shortcuts import get_object_or_404
-    
-    item = get_object_or_404(Item, id=item_id)
-    
-    # Получаем данные из запроса (согласно ТЗ)
-    invoice_number = request.data.get('invoice_number', 'Не указан')
-    service_location = request.data.get('location', 'Не указана')
-    
-    # Меняем статус на "В ремонте"
-    item = ItemWorkflowService.change_status(
+    """
+    Подтверждение начала ремонта (confirm_repair → in_repair).
+    """
+    # Command: подтверждаем ремонт, получаем ID
+    item_id = ReturnFromServiceCommand.execute(
         item_id=item_id,
-        new_status=ItemStatus.IN_REPAIR,
-        action=f"Ремонт ТМЦ согласован — № счета {invoice_number}. Локация: {service_location}",
-        user=request.user,
-        location_name=service_location if service_location and service_location != 'Не указана' else None
+        action="confirm_repair",
+        user=request.user
     )
-
+    # Query: получаем обновлённый объект для сериализации
+    item = GetItemQuery.by_id(item_id)
     return Response(ItemSerializer(item).data)
 
 
 @extend_schema(request=None, responses=ItemSerializer)
 @api_view(['POST'])
+@permission_classes([IsStorekeeper])
 def confirm_item(request, item_id):
     """
     Подтвердить ТМЦ (статус confirm -> available).
     Используется для приёмки ТМЦ от поставщика или после передачи.
+    
+    Permission: только кладовщик или администратор может подтверждать ТМЦ.
     """
-    from django.shortcuts import get_object_or_404
-    
-    item = get_object_or_404(Item, id=item_id)
+    # Command: подтверждаем, получаем ID
     comment = request.data.get('comment', '')
-    
-    # Формируем текст действия
-    action_text = "ТМЦ подтверждено и принято на склад"
-    if comment:
-        action_text += f". Комментарий: {comment}"
-    
-    # Меняем статус на "Доступно"
-    item = ItemWorkflowService.change_status(
+    item_id = ConfirmItemCommand.execute(
         item_id=item_id,
-        new_status=ItemStatus.AVAILABLE,
-        action=action_text,
-        user=request.user,
-        comment=comment
+        comment=comment,
+        user=request.user
     )
-
+    # Query: получаем обновлённый объект для сериализации
+    item = GetItemQuery.by_id(item_id)
     return Response(ItemSerializer(item).data)
 
 
@@ -282,7 +232,12 @@ def unlock_item(request, item_id):
 # --- ПОДТВЕРЖДЕНИЕ ТМЦ ---
 
 class ConfirmTMCAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    """
+    Подтверждение или отклонение ТМЦ кладовщиком.
+    
+    Permission: только кладовщик или администратор может подтверждать ТМЦ.
+    """
+    permission_classes = [IsStorekeeper]
 
     def post(self, request, pk):
         """

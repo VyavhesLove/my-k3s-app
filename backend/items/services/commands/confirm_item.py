@@ -1,4 +1,4 @@
-"""Команда отправки ТМЦ в сервис на ремонт."""
+"""Команда подтверждения ТМЦ (CONFIRM -> AVAILABLE)."""
 from django.db import transaction
 from ..models import Item
 from ..enums import ItemStatus
@@ -8,12 +8,9 @@ from .domain.item_transitions import ItemTransitions
 from .domain.history_actions import HistoryActions
 
 
-class SendToServiceCommand:
+class ConfirmItemCommand:
     """
-    Команда отправки ТМЦ в сервис на ремонт.
-
-    Переводит ТМЦ в статус "Ожидает подтверждения ремонта" (confirm_repair).
-    Далее ремонтник должен подтвердить, что взял в работу (in_repair).
+    Команда подтверждения ТМЦ (статус confirm -> available).
 
     Command — изменяет состояние системы.
     Returns:
@@ -22,13 +19,13 @@ class SendToServiceCommand:
 
     @staticmethod
     @transaction.atomic
-    def execute(item_id: int, reason: str, user) -> int:
+    def execute(item_id: int, comment: str, user) -> int:
         """
-        Отправляет ТМЦ в сервис.
+        Подтверждает ТМЦ и принимает на склад.
 
         Args:
             item_id: ID ТМЦ
-            reason: Причина отправки в сервис
+            comment: Комментарий к подтверждению
             user: Пользователь (объект User)
 
         Returns:
@@ -42,20 +39,22 @@ class SendToServiceCommand:
 
         try:
             # Валидация перехода
-            ItemTransitions.validate_send_to_service(item.status)
+            ItemTransitions.validate_confirm(item.status)
 
-            # Логика изменения
-            if item.brigade:
-                item.brigade = None
-
-            # Переводим в статус "Ожидает подтверждения ремонта"
-            item.status = ItemStatus.CONFIRM_REPAIR
+            # Изменяем статус на AVAILABLE
+            item.status = ItemStatus.AVAILABLE
             item.save()
+
+            # Формируем текст действия
+            action_text = HistoryActions.CONFIRMED
+            if comment:
+                action_text = f"{action_text}. Комментарий: {comment}"
 
             # Записываем в историю
             HistoryService.create(
                 item=item,
-                action=HistoryActions.sent_to_service(reason),
+                action=action_text,
+                comment=comment,
                 user=user,
                 location_name=item.location,
             )

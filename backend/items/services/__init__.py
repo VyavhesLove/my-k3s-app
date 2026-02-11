@@ -19,6 +19,7 @@ from .commands import (
     SendToServiceCommand,
     ReturnFromServiceCommand,
     UpdateItemCommand,
+    ConfirmItemCommand,
 )
 
 # Queries
@@ -40,6 +41,7 @@ __all__ = [
     'SendToServiceCommand',
     'ReturnFromServiceCommand',
     'UpdateItemCommand',
+    'ConfirmItemCommand',
     # Queries
     'GetItemQuery',
     'GetItemHistoryQuery',

@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
-from .models import Item, ItemHistory, Location
+from .models import Item, Location
 from .enums import ItemStatus
 from .serializers import ItemSerializer
 
@@ -23,6 +23,7 @@ class HistoryService:
 
 
 class ConfirmTMCService:
+    from .services.domain.exceptions import DomainValidationError
 
     @staticmethod
     @transaction.atomic
@@ -42,7 +43,7 @@ class ConfirmTMCService:
     def _accept(item: Item, user):
         """Внутренний метод — вызывается внутри транзакции"""
         if item.status != ItemStatus.CONFIRM:
-            raise ValueError("ТМЦ не требует подтверждения")
+            raise DomainValidationError("ТМЦ не требует подтверждения")
 
         item.status = ItemStatus.ISSUED
         item.responsible = user.username if hasattr(user, 'username') else str(user)
@@ -70,7 +71,7 @@ class ConfirmTMCService:
         )
 
         if not first_operation:
-            raise ValueError("Невозможно восстановить исходное состояние")
+            raise DomainValidationError("Невозможно восстановить исходное состояние")
 
         # Восстанавливаем из структурированных данных
         item.status = ItemStatus.ISSUED
@@ -90,13 +91,15 @@ class ConfirmTMCService:
 
 
 class ItemLockService:
+    from .services.domain.exceptions import DomainConflictError
+
     @staticmethod
     @transaction.atomic
     def lock_item(item_id, user):  # user = request.user (объект!)
         item = Item.objects.select_for_update().get(id=item_id)
         
         if item.locked_by and item.locked_by != user:  # Сравниваем объекты!
-            raise ValueError(f"ТМЦ заблокировано пользователем: {item.locked_by.username}")
+            raise DomainConflictError(f"ТМЦ заблокировано пользователем: {item.locked_by.username}")
             
         item.locked_by = user  # ✅ User instance!
         item.locked_at = timezone.now()
@@ -116,7 +119,7 @@ class ItemLockService:
         item = Item.objects.select_for_update().get(id=item_id)
         
         if item.locked_by and item.locked_by != user:
-            raise ValueError("Нет прав на разблокировку")
+            raise DomainConflictError("Нет прав на разблокировку")
             
         item.locked_by = None
         item.locked_at = None
@@ -199,3 +202,4 @@ class ItemUpdateService:
             return item
         finally:
             ItemLockService.unlock_item(item_id, user)
+

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from .enums import ItemStatus
 
@@ -44,7 +45,7 @@ class Item(models.Model):
 
     # Поля для блокировки ТМЦ (чтобы 2 пользователя не работали одновременно)
     locked_by = models.ForeignKey(
-        'auth.User', 
+        settings.AUTH_USER_MODEL, 
         null=True, 
         blank=True, 
         on_delete=models.SET_NULL,
@@ -66,7 +67,7 @@ class ItemHistory(models.Model):
     
     # Структурированные данные для системы
     user = models.ForeignKey(
-        'auth.User',
+        settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         null=True,
         blank=True,

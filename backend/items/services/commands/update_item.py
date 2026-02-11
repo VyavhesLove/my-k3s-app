@@ -11,11 +11,13 @@ class UpdateItemCommand:
     Команда обновления данных ТМЦ.
 
     Command — изменяет состояние системы.
+    Returns:
+        int: ID изменённого ТМЦ
     """
 
     @staticmethod
     @transaction.atomic
-    def execute(item_id: int, data: dict, user) -> Item:
+    def execute(item_id: int, data: dict, user) -> int:
         """
         Обновляет данные ТМЦ.
 
@@ -25,7 +27,7 @@ class UpdateItemCommand:
             user: Пользователь (объект User)
 
         Returns:
-            Обновлённый объект Item
+            int: ID изменённого ТМЦ
 
         Raises:
             ValueError: При ошибках валидации
@@ -62,7 +64,7 @@ class UpdateItemCommand:
                     location_name=item.location,
                 )
 
-            return item
+            return item.id
 
         finally:
             LockService.unlock(item_id, user)

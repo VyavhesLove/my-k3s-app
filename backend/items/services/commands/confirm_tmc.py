@@ -6,6 +6,7 @@ from .lock_service import LockService
 from .history_service import HistoryService
 from .domain.item_transitions import ItemTransitions
 from .domain.history_actions import HistoryActions
+from .domain.exceptions import DomainValidationError
 
 
 class ConfirmTMCCommand:
@@ -13,11 +14,13 @@ class ConfirmTMCCommand:
     Команда для принятия или отклонения ТМЦ.
 
     Command — изменяет состояние системы.
+    Returns:
+        int: ID изменённого ТМЦ
     """
 
     @staticmethod
     @transaction.atomic
-    def execute(item_id: int, action: str, user) -> Item:
+    def execute(item_id: int, action: str, user) -> int:
         """
         Единая точка входа для подтверждения/отклонения ТМЦ.
 
@@ -27,34 +30,37 @@ class ConfirmTMCCommand:
             user: Пользователь (объект User)
 
         Returns:
-            Обновлённый объект Item
+            int: ID изменённого ТМЦ
 
         Raises:
-            ValueError: При некорректном действии или статусе
+            DomainValidationError: При некорректном действии или статусе
         """
-        item = Item.objects.select_for_update().get(pk=item_id)
+        item = LockService.lock(item_id, user)
 
-        # Валидация перехода
-        ItemTransitions.validate_confirm(item.status)
+        try:
+            # Валидация перехода
+            ItemTransitions.validate_confirm(item.status)
 
-        if action == "accept":
-            return ConfirmTMCCommand._accept(item, user)
-        elif action == "reject":
-            return ConfirmTMCCommand._reject(item, user)
-        else:
-            raise ValueError(f"Неподдерживаемое действие: {action}")
+            if action == "accept":
+                ConfirmTMCCommand._accept(item, user)
+            elif action == "reject":
+                ConfirmTMCCommand._reject(item, user)
+            else:
+                raise DomainValidationError(f"Неподдерживаемое действие: {action}")
+
+            return item.id
+
+        finally:
+            LockService.unlock(item_id, user)
 
     @staticmethod
-    def _accept(item: Item, user) -> Item:
+    def _accept(item: Item, user) -> None:
         """
         Принятие ТМЦ.
 
         Args:
             item: Объект ТМЦ (уже заблокирован транзакцией)
             user: Пользователь
-
-        Returns:
-            Обновлённый объект Item
         """
         item.status = ItemTransitions.STATUS_AFTER_CONFIRM
         item.responsible = user.username if hasattr(user, 'username') else str(user)
@@ -68,10 +74,8 @@ class ConfirmTMCCommand:
             location_name=item.location,
         )
 
-        return item
-
     @staticmethod
-    def _reject(item: Item, user) -> Item:
+    def _reject(item: Item, user) -> None:
         """
         Отклонение ТМЦ — возврат на исходную локацию.
 
@@ -79,17 +83,14 @@ class ConfirmTMCCommand:
             item: Объект ТМЦ (уже заблокирован транзакцией)
             user: Пользователь
 
-        Returns:
-            Обновлённый объект Item
-
         Raises:
-            ValueError: Если невозможно восстановить исходное состояние
+            DomainValidationError: Если невозможно восстановить исходное состояние
         """
         # Восстанавливаем из первой записи истории
         first_operation = HistoryService.get_first_assignment(item)
 
         if not first_operation:
-            raise ValueError("Невозможно восстановить исходное состояние")
+            raise DomainValidationError("Невозможно восстановить исходное состояние")
 
         item.status = ItemStatus.ISSUED
         item.location = (
@@ -111,6 +112,4 @@ class ConfirmTMCCommand:
             user=user,
             location_name=location,
         )
-
-        return item
 

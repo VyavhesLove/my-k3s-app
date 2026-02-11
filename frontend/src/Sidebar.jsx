@@ -142,13 +142,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
       navigate('/?filter=at_work,issued');
       toast.info("Показаны ТМЦ в работе и выданные");
     }
-    else if (label === 'Вернуть из сервиса') {
-      navigate('/?filter=in_repair');
-      toast.info("Показаны ТМЦ в ремонте");
-    }
     else if (label === 'Подтвердить ремонт') {
       navigate('/?filter=confirm_repair');
       toast.info("Фильтр: Ожидание подтверждения счета");
+    }
+    else if (label === 'Вернуть из сервиса') {
+      navigate('/?filter=in_repair');
+      toast.info("Показаны ТМЦ в ремонте");
     }
     else if (label === 'Аналитика') navigate('/analytics');
     else if (label === 'Списание/затраты') navigate('/scraps');

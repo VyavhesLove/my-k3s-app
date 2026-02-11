@@ -4,6 +4,7 @@ from django.utils import timezone
 from ..models import Item
 from .history_service import HistoryService
 from .domain.history_actions import HistoryActions
+from .domain.exceptions import DomainConflictError
 
 
 class LockService:
@@ -30,12 +31,12 @@ class LockService:
             Заблокированный объект Item
 
         Raises:
-            ValueError: Если ТМЦ уже заблокировано другим пользователем
+            DomainConflictError: Если ТМЦ уже заблокировано другим пользователем
         """
         item = Item.objects.select_for_update().get(id=item_id)
 
         if item.locked_by and item.locked_by != user:
-            raise ValueError(
+            raise DomainConflictError(
                 f"ТМЦ заблокировано пользователем: {item.locked_by.username}"
             )
 
@@ -63,12 +64,12 @@ class LockService:
             user: Пользователь (объект User)
 
         Raises:
-            ValueError: Если нет прав на разблокировку
+            DomainConflictError: Если нет прав на разблокировку
         """
         item = Item.objects.select_for_update().get(id=item_id)
 
         if item.locked_by and item.locked_by != user:
-            raise ValueError("Нет прав на разблокировку")
+            raise DomainConflictError("Нет прав на разблокировку")
 
         item.locked_by = None
         item.locked_at = None
