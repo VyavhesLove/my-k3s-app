@@ -6,6 +6,7 @@ from items.enums import ItemStatus
 from ..lock_service import LockService
 from ..history_service import HistoryService
 from ..domain.item_transitions import ItemTransitions
+from ..domain.exceptions import DomainValidationError
 
 
 class ConfirmItemCommand:
@@ -38,8 +39,11 @@ class ConfirmItemCommand:
         item = LockService.lock(item_id, user)
 
         try:
-            # Валидация перехода
-            ItemTransitions.validate_confirm(item.status)
+            # Валидация перехода: только CONFIRM -> AVAILABLE
+            if item.status != ItemStatus.CONFIRM:
+                raise DomainValidationError(
+                    f"Невозможно подтвердить ТМЦ. Статус должен быть 'confirm', а не '{item.status}'"
+                )
 
             # Изменяем статус на AVAILABLE
             item.status = ItemStatus.AVAILABLE
@@ -50,7 +54,7 @@ class ConfirmItemCommand:
                 item=item,
                 user=user,
                 comment=comment,
-                location_name=item.location,
+                location=item.location,
             )
 
             return item.id

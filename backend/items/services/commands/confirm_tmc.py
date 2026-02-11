@@ -38,12 +38,13 @@ class ConfirmTMCCommand:
         item = LockService.lock(item_id, user)
 
         try:
-            # Валидация перехода
-            ItemTransitions.validate_confirm(item.status)
-
             if action == "accept":
+                # accept: CREATED → AVAILABLE
+                ConfirmTMCCommand._validate_accept(item.status)
                 ConfirmTMCCommand._accept(item, user)
             elif action == "reject":
+                # reject: CONFIRM → ISSUED
+                ConfirmTMCCommand._validate_reject(item.status)
                 ConfirmTMCCommand._reject(item, user)
             else:
                 raise DomainValidationError(f"Неподдерживаемое действие: {action}")
@@ -52,6 +53,22 @@ class ConfirmTMCCommand:
 
         finally:
             LockService.unlock(item_id, user)
+
+    @staticmethod
+    def _validate_accept(status: ItemStatus) -> None:
+        """Валидация принятия ТМЦ (CREATED → AVAILABLE)."""
+        if status != ItemStatus.CREATED:
+            raise DomainValidationError(
+                f"Невозможно принять ТМЦ. Статус должен быть 'created', а не '{status}'"
+            )
+
+    @staticmethod
+    def _validate_reject(status: ItemStatus) -> None:
+        """Валидация отклонения ТМЦ (CONFIRM → ISSUED)."""
+        if status != ItemStatus.CONFIRM:
+            raise DomainValidationError(
+                f"Невозможно отклонить ТМЦ. Статус должен быть 'confirm', а не '{status}'"
+            )
 
     @staticmethod
     def _accept(item, user) -> None:
@@ -69,7 +86,7 @@ class ConfirmTMCCommand:
         HistoryService.accepted(
             item=item,
             user=user,
-            location_name=item.location,
+            location=item.location,
         )
 
     @staticmethod
@@ -106,5 +123,5 @@ class ConfirmTMCCommand:
         HistoryService.rejected(
             item=item,
             user=user,
-            location_name=item.location,
+            location=item.location,
         )

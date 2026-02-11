@@ -11,6 +11,7 @@ from .services import LockService, HistoryService
 from .services.commands import SendToServiceCommand, UpdateItemCommand, ReturnFromServiceCommand, ConfirmItemCommand, ConfirmTMCCommand
 from .services.queries import GetItemQuery, ListItemsQuery, GetStatusCountersQuery, GetAnalyticsQuery
 from .permissions import IsStorekeeper
+from .services.domain.exceptions import DomainValidationError
 
 
 # --- ПРЕДСТАВЛЕНИЯ (VIEWS) ---
@@ -195,11 +196,17 @@ def confirm_item(request, item_id):
     """
     # Command: подтверждаем, получаем ID
     comment = request.data.get('comment', '')
-    item_id = ConfirmItemCommand.execute(
-        item_id=item_id,
-        comment=comment,
-        user=request.user
-    )
+    try:
+        item_id = ConfirmItemCommand.execute(
+            item_id=item_id,
+            comment=comment,
+            user=request.user
+        )
+    except Item.DoesNotExist:
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+    except DomainValidationError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
     # Query: получаем обновлённый объект для сериализации
     item = GetItemQuery.by_id(item_id)
     return Response(ItemSerializer(item).data)
@@ -239,7 +246,7 @@ class ConfirmTMCAPIView(APIView):
     """
     permission_classes = [IsStorekeeper]
 
-    def post(self, request, pk):
+    def post(self, request, item_id):
         """
         Подтвердить или отклонить ТМЦ.
         Транзакция и блокировка — внутри ConfirmTMCCommand.execute().
@@ -247,11 +254,16 @@ class ConfirmTMCAPIView(APIView):
         serializer = ConfirmTMCSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        ConfirmTMCCommand.execute(
-            item_id=pk,
-            action=serializer.validated_data["action"],
-            user=request.user
-        )
+        try:
+            ConfirmTMCCommand.execute(
+                item_id=item_id,
+                action=serializer.validated_data["action"],
+                user=request.user
+            )
+        except Item.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        except DomainValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response({"success": True})
 

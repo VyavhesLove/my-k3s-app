@@ -143,8 +143,15 @@ class ItemTransitions:
 
     @classmethod
     def can_confirm(cls, current_status: ItemStatus) -> bool:
-        """Можно ли подтвердить ТМЦ."""
-        return current_status in cls.ALLOWED_TRANSITIONS
+        """Можно ли подтвердить ТМЦ (CREATED -> AVAILABLE)."""
+        # Подтверждение возможно только из статуса CREATED
+        return current_status == ItemStatus.CREATED
+
+    @classmethod
+    def can_reject(cls, current_status: ItemStatus) -> bool:
+        """Можно ли отклонить ТМЦ (CONFIRM -> ISSUED)."""
+        # Отклонение возможно только из статуса CONFIRM
+        return current_status == ItemStatus.CONFIRM
 
     @classmethod
     def validate_send_to_service(cls, current_status: ItemStatus) -> None:
