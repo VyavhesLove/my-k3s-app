@@ -133,19 +133,31 @@ class ItemTransitions:
 
     @classmethod
     def can_send_to_service(cls, current_status: ItemStatus) -> bool:
-        """Можно ли отправить ТМЦ в сервис (в ремонт)."""
-        return cls.can_transition(current_status, ItemStatus.IN_REPAIR)
+        """Можно ли отправить ТМЦ в сервис (в ремонт).
 
-    @classmethod
-    def can_return_from_service(cls, current_status: ItemStatus) -> bool:
-        """Можно ли вернуть ТМЦ из сервиса."""
+        Отправка в сервис возможна из статусов ISSUED и AT_WORK,
+        переход происходит в статус CONFIRM_REPAIR.
+        """
         return cls.can_transition(current_status, ItemStatus.CONFIRM_REPAIR)
 
     @classmethod
+    def can_return_from_service(cls, current_status: ItemStatus) -> bool:
+        """Можно ли вернуть ТМЦ из сервиса.
+
+        Возврат из сервиса возможен из статуса IN_REPAIR,
+        переход происходит в статус ISSUED.
+        """
+        return cls.can_transition(current_status, ItemStatus.ISSUED)
+
+    @classmethod
     def can_confirm(cls, current_status: ItemStatus) -> bool:
-        """Можно ли подтвердить ТМЦ (CREATED -> AVAILABLE)."""
-        # Подтверждение возможно только из статуса CREATED
-        return current_status == ItemStatus.CREATED
+        """Можно ли подтвердить ТМЦ.
+
+        Подтверждение возможно для всех статусов, которые есть в ALLOWED_TRANSITIONS,
+        т.к. подтверждение означает переход в следующий допустимый статус.
+        """
+        # Проверяем, есть ли текущий статус в таблице переходов
+        return current_status in cls.ALLOWED_TRANSITIONS
 
     @classmethod
     def can_reject(cls, current_status: ItemStatus) -> bool:

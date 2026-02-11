@@ -43,8 +43,9 @@ class ConfirmItemCommandTestCase(TestCase):
         self.assertEqual(result, self.item.id)
         self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
         
-        # Проверяем историю
-        history = ItemHistory.objects.get(item=self.item)
+        # Проверяем историю - фильтруем только по action_type=CONFIRMED
+        # (LockService.locked() создаёт отдельную запись)
+        history = ItemHistory.objects.get(item=self.item, action_type=HistoryAction.CONFIRMED)
         self.assertEqual(history.user, self.user)
         self.assertEqual(history.action_type, HistoryAction.CONFIRMED)
 
@@ -86,8 +87,8 @@ class ConfirmItemCommandTestCase(TestCase):
             user=self.user,
         )
         
-        # Assert
-        history = ItemHistory.objects.get(item=self.item)
+        # Assert - фильтруем по action_type=CONFIRMED
+        history = ItemHistory.objects.get(item=self.item, action_type=HistoryAction.CONFIRMED)
         self.assertIn("Test comment", history.action)
 
     def test_confirm_item_returns_id(self):
