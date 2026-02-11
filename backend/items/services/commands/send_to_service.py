@@ -5,7 +5,6 @@ from ..enums import ItemStatus
 from .lock_service import LockService
 from .history_service import HistoryService
 from .domain.item_transitions import ItemTransitions
-from .domain.history_actions import HistoryActions
 
 
 class SendToServiceCommand:
@@ -53,11 +52,10 @@ class SendToServiceCommand:
             item.save()
 
             # Записываем в историю
-            HistoryService.create(
+            HistoryService.sent_to_service(
                 item=item,
-                action=HistoryActions.sent_to_service(reason),
                 user=user,
-                location_name=item.location,
+                reason=reason,
             )
 
             return item.id

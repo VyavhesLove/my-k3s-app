@@ -5,7 +5,6 @@ from ..enums import ItemStatus
 from .lock_service import LockService
 from .history_service import HistoryService
 from .domain.item_transitions import ItemTransitions
-from .domain.history_actions import HistoryActions
 from .domain.exceptions import DomainValidationError
 
 
@@ -77,9 +76,8 @@ class ReturnFromServiceCommand:
         item.status = ItemStatus.IN_REPAIR
         item.save()
 
-        HistoryService.create(
+        HistoryService.repair_confirmed(
             item=item,
-            action=HistoryActions.REPAIR_CONFIRMED,
             user=user,
             location_name=item.location,
         )
@@ -106,9 +104,8 @@ class ReturnFromServiceCommand:
         item.status = ItemStatus.ISSUED
         item.save()
 
-        HistoryService.create(
+        HistoryService.returned_from_service(
             item=item,
-            action=HistoryActions.RETURNED_FROM_SERVICE,
             user=user,
             location_name=item.location,
         )

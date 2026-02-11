@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from .models import Item, Location, Brigade
 from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer, ConfirmTMCSerializer
-from .services import ItemLockService, ConfirmTMCService, HistoryService
+from .services import ItemLockService, HistoryService
 from .services.commands import SendToServiceCommand, UpdateItemCommand, ReturnFromServiceCommand, ConfirmItemCommand
 from .services.queries import GetItemQuery, ListItemsQuery, GetStatusCountersQuery, GetAnalyticsQuery
 from .permissions import IsStorekeeper

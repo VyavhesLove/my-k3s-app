@@ -3,7 +3,7 @@ from django.db import transaction
 from ..models import Item
 from .lock_service import LockService
 from .history_service import HistoryService
-from .domain.history_actions import HistoryActions
+from .domain.history_actions import HistoryActionsFormatter
 
 
 class UpdateItemCommand:
@@ -49,20 +49,21 @@ class UpdateItemCommand:
             # Если есть комментарий — пишем в историю
             if service_comment:
                 if old_status != item.status:
-                    action = HistoryActions.status_changed(
-                        old_status=str(old_status),
-                        new_status=str(item.status),
+                    HistoryService.updated(
+                        item=item,
+                        user=user,
+                        comment=service_comment,
+                        location_name=item.location,
+                        old_status=old_status,
+                        new_status=item.status,
                     )
                 else:
-                    action = HistoryActions.UPDATED
-
-                HistoryService.create(
-                    item=item,
-                    action=action,
-                    comment=service_comment,
-                    user=user,
-                    location_name=item.location,
-                )
+                    HistoryService.updated(
+                        item=item,
+                        user=user,
+                        comment=service_comment,
+                        location_name=item.location,
+                    )
 
             return item.id
 

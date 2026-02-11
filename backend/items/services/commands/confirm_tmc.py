@@ -5,7 +5,6 @@ from ..enums import ItemStatus
 from .lock_service import LockService
 from .history_service import HistoryService
 from .domain.item_transitions import ItemTransitions
-from .domain.history_actions import HistoryActions
 from .domain.exceptions import DomainValidationError
 
 
@@ -62,14 +61,12 @@ class ConfirmTMCCommand:
             item: Объект ТМЦ (уже заблокирован транзакцией)
             user: Пользователь
         """
-        item.status = ItemTransitions.STATUS_AFTER_CONFIRM
+        item.status = ItemStatus.AVAILABLE
         item.responsible = user.username if hasattr(user, 'username') else str(user)
         item.save()
 
-        HistoryService.create(
+        HistoryService.accepted(
             item=item,
-            action=HistoryActions.ACCEPTED,
-            comment=f"Объект - {item.location}",
             user=user,
             location_name=item.location,
         )
@@ -105,11 +102,9 @@ class ConfirmTMCCommand:
         )
         item.save()
 
-        location = item.location
-        HistoryService.create(
+        HistoryService.rejected(
             item=item,
-            action=HistoryActions.rejected_with_location(location),
             user=user,
-            location_name=location,
+            location_name=item.location,
         )
 

@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-from .enums import ItemStatus
+from .enums import ItemStatus, HistoryAction
 
 
 class Location(models.Model):
@@ -63,6 +63,13 @@ class Item(models.Model):
 class ItemHistory(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='history')
     action = models.CharField(max_length=255)  # Текст для человека
+    action_type = models.CharField(
+        max_length=50,
+        choices=HistoryAction.choices,
+        null=True,
+        blank=True,
+        verbose_name="Тип действия"
+    )  # Типизированное действие для фильтрации
     comment = models.TextField(blank=True, null=True)  # Дополнительный комментарий
     
     # Структурированные данные для системы
@@ -87,3 +94,4 @@ class ItemHistory(models.Model):
         ordering = ['-timestamp']
         verbose_name = 'История ТМЦ'
         verbose_name_plural = 'История ТМЦ'
+

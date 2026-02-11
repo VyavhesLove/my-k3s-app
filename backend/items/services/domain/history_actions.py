@@ -1,49 +1,80 @@
-"""Константы действий для истории ТМЦ."""
+"""Форматировщики сообщений для истории ТМЦ."""
+from ...enums import HistoryAction
 
 
-class HistoryActions:
+class HistoryActionsFormatter:
     """
-    Стандартизированные строки действий для записи в историю.
-    Используются для обеспечения консистентности в UI и фильтрации.
+    Формирует текстовые сообщения для записей в историю.
+    Использует HistoryAction enum для типизации действий.
     """
 
     # === Подтверждение ТМЦ ===
-    ACCEPTED = "ТМЦ принято"
-    REJECTED = "ТМЦ не принято"
+    @staticmethod
+    def accepted(location: str = None) -> tuple[str, HistoryAction]:
+        """Формирует сообщение о принятии ТМЦ."""
+        if location:
+            return f"ТМЦ принято. Объект - {location}", HistoryAction.ACCEPTED
+        return "ТМЦ принято", HistoryAction.ACCEPTED
+
+    @staticmethod
+    def rejected(location: str = None) -> tuple[str, HistoryAction]:
+        """Формирует сообщение об отклонении ТМЦ."""
+        if location:
+            return f"ТМЦ не принято. Возвращено на объект - {location}", HistoryAction.REJECTED
+        return "ТМЦ не принято", HistoryAction.REJECTED
+
+    @staticmethod
+    def confirmed(comment: str = None) -> tuple[str, HistoryAction]:
+        """Формирует сообщение о подтверждении ТМЦ."""
+        if comment:
+            return f"ТМЦ подтверждено. Комментарий: {comment}", HistoryAction.CONFIRMED
+        return "ТМЦ подтверждено", HistoryAction.CONFIRMED
 
     # === Сервисные операции ===
-    SENT_TO_SERVICE = "Отправлено в сервис"
-    RETURNED_FROM_SERVICE = "Возвращено из сервиса"
-    REPAIR_CONFIRMED = "Ремонт подтверждён"
+    @staticmethod
+    def sent_to_service(reason: str) -> tuple[str, HistoryAction]:
+        """Формирует сообщение об отправке в сервис."""
+        text = f"Отправлено в сервис. Причина: {reason}. Ожидание подтверждения."
+        return text, HistoryAction.SENT_TO_SERVICE
+
+    @staticmethod
+    def returned_from_service() -> tuple[str, HistoryAction]:
+        """Формирует сообщение о возврате из сервиса."""
+        return "Возвращено из сервиса", HistoryAction.RETURNED_FROM_SERVICE
+
+    @staticmethod
+    def repair_confirmed() -> tuple[str, HistoryAction]:
+        """Формирует сообщение о подтверждении ремонта."""
+        return "Ремонт подтверждён", HistoryAction.REPAIR_CONFIRMED
 
     # === Обновление ===
-    UPDATED = "Обновление информации"
-    STATUS_CHANGED = "Смена статуса: {old_status} → {new_status}"
+    @staticmethod
+    def updated(comment: str = None) -> tuple[str, HistoryAction]:
+        """Формирует сообщение об обновлении."""
+        if comment:
+            return f"Обновление информации. Комментарий: {comment}", HistoryAction.UPDATED
+        return "Обновление информации", HistoryAction.UPDATED
+
+    @staticmethod
+    def status_changed(old_status: str, new_status: str) -> tuple[str, HistoryAction]:
+        """Формирует сообщение о смене статуса."""
+        text = f"Смена статуса: {old_status} → {new_status}"
+        return text, HistoryAction.STATUS_CHANGED
 
     # === Блокировка ===
-    LOCKED = "Заблокировано: {username}"
-    UNLOCKED = "Разблокировано"
+    @staticmethod
+    def locked(username: str) -> tuple[str, HistoryAction]:
+        """Формирует сообщение о блокировке."""
+        return f"Заблокировано: {username}", HistoryAction.LOCKED
+
+    @staticmethod
+    def unlocked() -> tuple[str, HistoryAction]:
+        """Формирует сообщение о разблокировке."""
+        return "Разблокировано", HistoryAction.UNLOCKED
 
     # === Распределение ===
-    ASSIGNED = "ТМЦ распределено"
-
-    @classmethod
-    def sent_to_service(cls, reason: str) -> str:
-        """Формирует сообщение об отправке в сервис."""
-        return f"{cls.SENT_TO_SERVICE}. Причина: {reason}. Ожидание подтверждения."
-
-    @classmethod
-    def rejected_with_location(cls, location: str) -> str:
-        """Формирует сообщение об отклонении с возвратом на локацию."""
-        return f"{cls.REJECTED}. Возвращено на объект - {location}"
-
-    @classmethod
-    def status_changed(cls, old_status: str, new_status: str) -> str:
-        """Формирует сообщение о смене статуса."""
-        return cls.STATUS_CHANGED.format(old_status=old_status, new_status=new_status)
-
-    @classmethod
-    def locked(cls, username: str) -> str:
-        """Формирует сообщение о блокировке."""
-        return cls.LOCKED.format(username=username)
+    @staticmethod
+    def assigned() -> tuple[str, HistoryAction]:
+        """Формирует сообщение о распределении."""
+        return "ТМЦ распределено", HistoryAction.ASSIGNED
 

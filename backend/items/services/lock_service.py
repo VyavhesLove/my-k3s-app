@@ -3,8 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from ..models import Item
 from .history_service import HistoryService
-from .domain.history_actions import HistoryActions
-from .domain.exceptions import DomainConflictError
+from .domain.history_actions import HistoryActionsFormatter
 
 
 class LockService:
@@ -33,6 +32,8 @@ class LockService:
         Raises:
             DomainConflictError: Если ТМЦ уже заблокировано другим пользователем
         """
+        from .domain.exceptions import DomainConflictError
+        
         item = Item.objects.select_for_update().get(id=item_id)
 
         if item.locked_by and item.locked_by != user:
@@ -44,12 +45,7 @@ class LockService:
         item.locked_at = timezone.now()
         item.save()
 
-        HistoryService.create(
-            item=item,
-            action=HistoryActions.locked(user.username),
-            user=user,
-            location_name=item.location,
-        )
+        HistoryService.locked(item=item, user=user)
 
         return item
 
@@ -66,6 +62,8 @@ class LockService:
         Raises:
             DomainConflictError: Если нет прав на разблокировку
         """
+        from .domain.exceptions import DomainConflictError
+        
         item = Item.objects.select_for_update().get(id=item_id)
 
         if item.locked_by and item.locked_by != user:

@@ -49,7 +49,7 @@ class ItemStatus(models.TextChoices):
 При любых операциях записи/изменения данных ТМЦ через API необходимо использовать `ItemLockService`:
 
 ```python
-from .services import ItemLockService
+from .services import LockService
 
 @api_view(['POST'])
 def my_view(request, item_id):
@@ -157,3 +157,5 @@ HTTP-ответы
 истории
 блокировок
 смены статусов
+
+Никогда больше не импортируй from django.contrib.auth.models import User. Только settings.AUTH_USER_MODEL

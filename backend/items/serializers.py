@@ -36,10 +36,11 @@ class ItemHistorySerializer(serializers.ModelSerializer):
     """Сериализатор для истории ТМЦ"""
     date = serializers.DateTimeField(source='timestamp', format="%d.%m.%y")
     user_username = serializers.SerializerMethodField()
+    action_type_display = serializers.CharField(source='get_action_type_display', read_only=True)
 
     class Meta:
         model = ItemHistory
-        fields = ['id', 'date', 'action', 'comment', 'user', 'user_username', 'location']
+        fields = ['id', 'date', 'action', 'action_type', 'action_type_display', 'comment', 'user', 'user_username', 'location']
 
     def get_user_username(self, obj):
         """Возвращает username пользователя, если FK существует"""
@@ -47,28 +48,10 @@ class ItemHistorySerializer(serializers.ModelSerializer):
             return obj.user.username
         return None
 
-class HistorySerializer(serializers.ModelSerializer):
-    """Алиас для обратной совместимости"""
-    user_username = serializers.CharField(
-        source="user.username",
-        read_only=True
-    )
-
-    class Meta:
-        model = History
-        fields = (
-            "id",
-            "status",
-            "comment",
-            "created_at",
-            "user",
-            "user_username",
-        )
-
 
 class ItemSerializer(serializers.ModelSerializer):
     # Для отображения истории и деталей бригады (ReadOnly)
-    history = HistorySerializer(many=True, read_only=True)
+    history = ItemHistorySerializer(many=True, read_only=True)
     brigade_details = BrigadeSerializer(source='brigade', read_only=True)
 
     # Для записи (принимает ID бригады)
@@ -97,3 +80,4 @@ class ItemSerializer(serializers.ModelSerializer):
 
 class ConfirmTMCSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=["accept", "reject"])
+

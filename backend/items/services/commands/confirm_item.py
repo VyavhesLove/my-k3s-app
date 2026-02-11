@@ -5,7 +5,7 @@ from ..enums import ItemStatus
 from .lock_service import LockService
 from .history_service import HistoryService
 from .domain.item_transitions import ItemTransitions
-from .domain.history_actions import HistoryActions
+from .domain.history_actions import HistoryActionsFormatter
 
 
 class ConfirmItemCommand:
@@ -45,17 +45,11 @@ class ConfirmItemCommand:
             item.status = ItemStatus.AVAILABLE
             item.save()
 
-            # Формируем текст действия
-            action_text = HistoryActions.CONFIRMED
-            if comment:
-                action_text = f"{action_text}. Комментарий: {comment}"
-
             # Записываем в историю
-            HistoryService.create(
+            HistoryService.confirmed(
                 item=item,
-                action=action_text,
-                comment=comment,
                 user=user,
+                comment=comment,
                 location_name=item.location,
             )
 

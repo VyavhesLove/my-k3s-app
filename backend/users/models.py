@@ -6,7 +6,7 @@ class UserRole(models.TextChoices):
     """Роли пользователей в системе."""
     ADMIN = "admin", "Администратор"
     STOREKEEPER = "storekeeper", "Кладовщик"
-    BRIGADIER = "brigadier", "Бригадир"
+    FOREMAN = "foreman", "Бригадир"
 
 
 """Кастомная модель User с полем роли."""
@@ -26,7 +26,8 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20,
         choices=UserRole.choices,
-        default=UserRole.BRIGADIER,
+        default=UserRole.FOREMAN,
+        db_index=True,
         verbose_name="Роль"
     )
 
@@ -36,4 +37,14 @@ class User(AbstractUser):
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
+
+    # Helper-методы для проверки ролей
+    def is_admin(self) -> bool:
+        return self.role == UserRole.ADMIN
+
+    def is_storekeeper(self) -> bool:
+        return self.role == UserRole.STOREKEEPER
+
+    def is_foreman(self) -> bool:
+        return self.role == UserRole.FOREMAN
 
