@@ -14,3 +14,17 @@
 - Логика загрузки локаций и отправки формы сохранена
 - Кнопка "Передать ТМЦ" находится в ItemDetailPanel и открывает модалку
 
+---
+
+# TODO: ItemTransitions.reject() - поиск по частичному совпадению
+
+## Задача:
+- В файле `history_service.py` метод `get_first_assignment` использует точное сравнение `action_type=HistoryAction.ASSIGNED.value`
+- Если поиск не находит записи, заменить на `action__icontains=HistoryAction.ASSIGNED.value`
+- Поиск по частичному совпадению в поле `action` (не `action_type`)
+
+## Расположение кода:
+- Файл: `my-k3s-app/backend/items/services/history_service.py`
+- Метод: `get_first_assignment`
+- Комментарий с TODO уже добавлен в код
+

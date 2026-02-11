@@ -96,3 +96,13 @@ class ItemHistory(models.Model):
         verbose_name = 'История ТМЦ'
         verbose_name_plural = 'История ТМЦ'
 
+    def save(self, *args, **kwargs):
+        """Автоматически генерируем текстовое действие из шаблона при сохранении"""
+        from .enums import HistoryActionTemplates
+
+        if self.action_type and not self.action:
+            # Генерируем текст из шаблона
+            self.action = HistoryActionTemplates.format(self.action_type, self.payload)
+
+        super().save(*args, **kwargs)
+

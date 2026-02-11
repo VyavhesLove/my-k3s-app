@@ -1,10 +1,10 @@
 """Команда подтверждения ТМЦ (CONFIRM -> AVAILABLE)."""
 from django.db import transaction
-from ..models import Item
-from ..enums import ItemStatus
-from .lock_service import LockService
-from .history_service import HistoryService
-from .domain.item_transitions import ItemTransitions
+from items.models import Item
+from items.enums import ItemStatus
+from ..lock_service import LockService
+from ..history_service import HistoryService
+from ..domain.item_transitions import ItemTransitions
 
 
 class ConfirmItemCommand:

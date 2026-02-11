@@ -1,5 +1,5 @@
 """Запрос получения одного ТМЦ по ID."""
-from ..models import Item
+from items.models import Item
 
 
 class GetItemQuery:

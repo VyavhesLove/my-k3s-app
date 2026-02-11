@@ -1,11 +1,11 @@
 """Команда возврата ТМЦ из сервиса."""
 from django.db import transaction
-from ..models import Item
-from ..enums import ItemStatus
-from .lock_service import LockService
-from .history_service import HistoryService
-from .domain.item_transitions import ItemTransitions
-from .domain.exceptions import DomainValidationError
+from items.models import Item
+from items.enums import ItemStatus
+from ..lock_service import LockService
+from ..history_service import HistoryService
+from ..domain.item_transitions import ItemTransitions
+from ..domain.exceptions import DomainValidationError
 
 
 class ReturnFromServiceCommand:

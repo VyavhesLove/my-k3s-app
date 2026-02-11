@@ -1,5 +1,5 @@
 # Domain layer - бизнес-правила и инварианты
-from ...enums import HistoryAction
+from items.enums import HistoryAction
 from .exceptions import DomainError, DomainValidationError, DomainConflictError
 from .item_transitions import ItemTransitions
 from .history_actions import HistoryActionsFormatter

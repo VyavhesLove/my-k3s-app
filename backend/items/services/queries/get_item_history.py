@@ -1,7 +1,7 @@
 """Запрос получения истории ТМЦ."""
 from django.utils import timezone
 from datetime import timedelta
-from ..models import ItemHistory
+from items.models import ItemHistory
 
 
 class GetItemHistoryQuery:

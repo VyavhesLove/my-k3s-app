@@ -1,6 +1,6 @@
 """Валидация переходов между статусами ТМЦ."""
 from .exceptions import DomainValidationError
-from ..enums import ItemStatus
+from items.enums import ItemStatus
 
 
 class ItemTransitions:

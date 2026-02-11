@@ -27,7 +27,10 @@ class HistoryAction(models.TextChoices):
     ASSIGNED = "assigned", "ТМЦ распределено"
     CONFIRMED = "confirmed", "ТМЦ подтверждено"
 
-    # Шаблоны для генерации текста из payload
+
+# Отдельный класс для шаблонов
+class HistoryActionTemplates:
+    """Шаблоны для генерации текста из payload"""
     TEMPLATES = {
         "accepted": "ТМЦ принято. Объект - {location}",
         "rejected": "ТМЦ не принято. Возвращено на объект - {location}",
@@ -42,21 +45,28 @@ class HistoryAction(models.TextChoices):
         "confirmed": "ТМЦ подтверждено. Комментарий: {comment}",
     }
 
-    def get_template(self) -> str:
+    @classmethod
+    def get_template(cls, action_value: str) -> str:
         """Возвращает шаблон для данного типа действия."""
-        return self.TEMPLATES.get(self.value, self.label)
+        return cls.TEMPLATES.get(action_value, action_value)
 
-    def format(self, payload: dict = None) -> str:
+    @classmethod
+    def format(cls, action_value: str, payload: dict = None) -> str:
         """Форматирует текст действия из payload.
 
         Args:
+            action_value: Значение действия (например, "accepted")
             payload: Словарь с параметрами для подстановки в шаблон
 
         Returns:
             Отформатированный текст действия
         """
-        template = self.get_template()
+        template = cls.get_template(action_value)
         if payload:
-            return template.format(**payload)
+            try:
+                return template.format(**payload)
+            except KeyError:
+                # Если в payload нет нужных ключей, возвращаем шаблон как есть
+                return template
         return template
 

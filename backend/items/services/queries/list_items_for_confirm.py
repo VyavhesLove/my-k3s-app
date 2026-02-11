@@ -1,6 +1,6 @@
 """Запрос списка ТМЦ для подтверждения."""
-from ..models import Item
-from ..enums import ItemStatus
+from items.models import Item
+from items.enums import ItemStatus
 
 
 class ListItemsForConfirmQuery:

@@ -1,8 +1,8 @@
 """Команда обновления данных ТМЦ."""
 from django.db import transaction
-from ..models import Item
-from .lock_service import LockService
-from .history_service import HistoryService
+from items.models import Item
+from ..lock_service import LockService
+from ..history_service import HistoryService
 
 
 class UpdateItemCommand:

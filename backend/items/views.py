@@ -7,8 +7,8 @@ from rest_framework.views import APIView
 
 from .models import Item, Location, Brigade
 from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer, ConfirmTMCSerializer
-from .services import ItemLockService, HistoryService
-from .services.commands import SendToServiceCommand, UpdateItemCommand, ReturnFromServiceCommand, ConfirmItemCommand
+from .services import LockService, HistoryService
+from .services.commands import SendToServiceCommand, UpdateItemCommand, ReturnFromServiceCommand, ConfirmItemCommand, ConfirmTMCCommand
 from .services.queries import GetItemQuery, ListItemsQuery, GetStatusCountersQuery, GetAnalyticsQuery
 from .permissions import IsStorekeeper
 
@@ -212,9 +212,9 @@ def confirm_item(request, item_id):
 def lock_item(request, item_id):
     """
     Заблокировать ТМЦ для редактирования.
-    Делегирует бизнес-логику ItemLockService.
+    Делегирует бизнес-логику LockService.
     """
-    item = ItemLockService.lock_item(item_id, request.user)
+    item = LockService.lock(item_id, request.user)
     return Response({'status': 'locked', 'locked_by': item.locked_by.username})
 
 
@@ -223,9 +223,9 @@ def lock_item(request, item_id):
 def unlock_item(request, item_id):
     """
     Разблокировать ТМЦ.
-    Делегирует бизнес-логику ItemLockService.
+    Делегирует бизнес-логику LockService.
     """
-    ItemLockService.unlock_item(item_id, request.user)
+    LockService.unlock(item_id, request.user)
     return Response({'status': 'unlocked'})
 
 
@@ -242,12 +242,12 @@ class ConfirmTMCAPIView(APIView):
     def post(self, request, pk):
         """
         Подтвердить или отклонить ТМЦ.
-        Транзакция и блокировка — внутри ConfirmTMCService.process().
+        Транзакция и блокировка — внутри ConfirmTMCCommand.execute().
         """
         serializer = ConfirmTMCSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        ConfirmTMCService.process(
+        ConfirmTMCCommand.execute(
             item_id=pk,
             action=serializer.validated_data["action"],
             user=request.user

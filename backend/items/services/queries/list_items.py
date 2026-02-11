@@ -1,6 +1,6 @@
 """Запрос списка ТМЦ с поиском и фильтрацией."""
 from django.db.models import Q
-from ..models import Item
+from items.models import Item
 
 
 class ListItemsQuery:

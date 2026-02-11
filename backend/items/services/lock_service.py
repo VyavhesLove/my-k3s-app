@@ -1,7 +1,7 @@
 """Сервис блокировки ТМЦ для предотвращения одновременного редактирования."""
 from django.db import transaction
 from django.utils import timezone
-from ..models import Item
+from items.models import Item
 from .history_service import HistoryService
 
 

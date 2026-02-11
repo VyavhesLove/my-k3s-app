@@ -1,6 +1,6 @@
 """Запрос аналитики по ТМЦ."""
 from django.db.models import Count, Q
-from ..models import Item
+from items.models import Item
 
 
 class GetAnalyticsQuery:
