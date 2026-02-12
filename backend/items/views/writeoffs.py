@@ -12,6 +12,7 @@ from ..services.queries import ListWriteOffsQuery
 from ..services.commands import WriteOffCommand, CancelWriteOffCommand
 from ..utils import api_response, api_error
 from ..exceptions import DomainNotFoundError, DomainValidationError
+from ..models import Location, Item
 
 
 @extend_schema(
@@ -132,4 +133,45 @@ def write_off_cancel(request, write_off_id):
         data=WriteOffRecordSerializer(write_off_record).data,
         message="Списание отменено"
     )
+
+
+@extend_schema(
+    methods=['GET'],
+    description="Получить доступные опции для фильтрации списаний",
+    responses={200: {
+        "type": "object",
+        "properties": {
+            "locations": {"type": "array", "items": {"type": "object", "properties": {"id": {"type": "integer"}, "name": {"type": "string"}}}},
+            "names": {"type": "array", "items": {"type": "string"}}
+        }
+    }}
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def write_off_filter_options(request):
+    """
+    Получить доступные опции для фильтрации списаний.
+    
+    Returns:
+        - locations: список локаций, где есть списания
+        - names: список уникальных названий ТМЦ в списаниях
+    """
+    # Получаем уникальные локации, где есть записи о списании
+    locations = list(
+        Location.objects.filter(
+            write_off_records__isnull=False
+        ).distinct().values('id', 'name')
+    )
+    
+    # Получаем уникальные названия ТМЦ из списаний
+    names = list(
+        Item.objects.filter(
+            write_off_records__isnull=False
+        ).values_list('name', flat=True).distinct()
+    )
+    
+    return api_response(data={
+        "locations": locations,
+        "names": sorted(names)
+    })
 

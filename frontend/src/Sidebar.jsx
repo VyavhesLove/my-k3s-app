@@ -65,7 +65,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
     const pathMap = {
       'Создать ТМЦ': '/create',
       'Аналитика': '/analytics',
-      'Списание/затраты': '/scraps',
+      'Списание/затраты': '/writeoffs',
     };
     
     // Проверяем pathname для маршрутов
@@ -151,7 +151,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
       toast.info("Показаны ТМЦ в ремонте");
     }
     else if (label === 'Аналитика') navigate('/analytics');
-    else if (label === 'Списание/затраты') navigate('/scraps');
+    else if (label === 'Списание/затраты') navigate('/writeoffs');
     // else if (label === 'Профиль пользователя') navigate('/profile');
   };
 
@@ -267,3 +267,4 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
 };
 
 export default Sidebar;
+

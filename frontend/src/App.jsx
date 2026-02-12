@@ -11,6 +11,7 @@ import ItemDetailPanel from './components/ItemDetailPanel';
 import ServiceModal from './components/modals/ServiceModal';
 import AtWorkModal from './components/modals/AtWorkModal';
 import ConfirmTMCModal from './components/modals/ConfirmTMCModal';
+import ScrapPage from './pages/ScrapPage';
 import api from './api/axios';
 import { useItemStore } from './store/useItemStore';
 
@@ -131,6 +132,7 @@ function App() {
                     } />
                     <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
+                    <Route path="/writeoffs" element={<ScrapPage isDarkMode={isDarkMode} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </main>

@@ -20,5 +20,6 @@ urlpatterns = [
     path('brigades/', views.brigade_list, name='brigade_list'),
     # Write-offs CRUD endpoints
     path('writeoffs/', views.write_off_list, name='write_off_list'),
+    path('writeoffs/filters/', views.write_off_filter_options, name='write_off_filter_options'),
     path('writeoffs/<int:write_off_id>/cancel/', views.write_off_cancel, name='write_off_cancel'),
 ]

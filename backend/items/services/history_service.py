@@ -174,9 +174,10 @@ class HistoryService:
     def written_off(item, user, reason=None, amount=None, location=None):
         """ТМЦ списано"""
         # Defensive: всегда передаём переменные в payload
+        # amount остаётся как Decimal - _clean_payload() сериализует его в строку при сохранении
         payload = {
             'reason': reason or "",
-            'amount': amount if amount is not None else 0
+            'amount': amount if amount is not None else Decimal("0")
         }
         
         action_type, action_text, action_payload = HistoryAction.WRITTEN_OFF.build(**payload)

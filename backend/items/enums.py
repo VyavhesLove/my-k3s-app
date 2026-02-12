@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 
 
@@ -80,7 +81,7 @@ class ItemStatus(models.TextChoices):
 # Обязательные ключи и значения по умолчанию для payload в HistoryAction.build()
 # Используем строковые ключи, так как Django TextChoices не позволяет dict внутри класса
 _REQUIRED_PAYLOAD_KEYS = {
-    "written_off": {"reason": "", "amount": 0},
+    "written_off": {"reason": "", "amount": Decimal("0")},
     "cancelled_write_off": {"write_off_id": ""},
 }
 
