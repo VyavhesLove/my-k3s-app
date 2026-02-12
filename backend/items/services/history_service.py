@@ -1,12 +1,6 @@
 from django.db import transaction
 from ..models import ItemHistory, Location
 from ..enums import HistoryAction
-from .domain.history_actions import (
-    create_accepted, create_rejected, create_sent_to_service,
-    create_returned_from_service, create_status_changed,
-    create_locked, create_updated, create_assigned,
-    create_repair_confirmed, create_unlocked, create_confirmed
-)
 
 
 class HistoryService:
@@ -36,23 +30,25 @@ class HistoryService:
     @staticmethod
     def accepted(item, user, location=None):
         """ТМЦ принято"""
-        action_type, action_text, payload = create_accepted(location or item.location)
+        location_value = location or item.location
+        action_type, action_text, payload = HistoryAction.ACCEPTED.build(location=location_value)
         return HistoryService._create_with_payload(
-            item, action_type, user, location, payload
+            item, action_type, user, location_value, payload
         )
     
     @staticmethod
     def rejected(item, user, location=None):
         """ТМЦ отклонено"""
-        action_type, action_text, payload = create_rejected(location or item.location)
+        location_value = location or item.location
+        action_type, action_text, payload = HistoryAction.REJECTED.build(location=location_value)
         return HistoryService._create_with_payload(
-            item, action_type, user, location, payload
+            item, action_type, user, location_value, payload
         )
     
     @staticmethod
     def sent_to_service(item, user, reason, location=None):
         """Отправлено в сервис"""
-        action_type, action_text, payload = create_sent_to_service(reason)
+        action_type, action_text, payload = HistoryAction.SENT_TO_SERVICE.build(reason=reason)
         return HistoryService._create_with_payload(
             item, action_type, user, location or item.location, payload
         )
@@ -60,7 +56,7 @@ class HistoryService:
     @staticmethod
     def returned_from_service(item, user, location=None):
         """Возвращено из сервиса"""
-        action_type, action_text, payload = create_returned_from_service()
+        action_type, action_text, payload = HistoryAction.RETURNED_FROM_SERVICE.build()
         return HistoryService._create_with_payload(
             item, action_type, user, location or item.location, payload
         )
@@ -68,7 +64,9 @@ class HistoryService:
     @staticmethod
     def status_changed(item, user, old_status, new_status, location=None):
         """Смена статуса"""
-        action_type, action_text, payload = create_status_changed(old_status, new_status)
+        action_type, action_text, payload = HistoryAction.STATUS_CHANGED.build(
+            old_status=old_status, new_status=new_status
+        )
         return HistoryService._create_with_payload(
             item, action_type, user, location or item.location, payload
         )
@@ -76,7 +74,7 @@ class HistoryService:
     @staticmethod
     def locked(item, user, location=None):
         """ТМЦ заблокировано"""
-        action_type, action_text, payload = create_locked(user.username)
+        action_type, action_text, payload = HistoryAction.LOCKED.build(username=user.username)
         return HistoryService._create_with_payload(
             item, action_type, user, location or item.location, payload
         )
@@ -84,7 +82,7 @@ class HistoryService:
     @staticmethod
     def updated(item, user, comment=None, location=None):
         """Обновление информации"""
-        action_type, action_text, payload = create_updated(comment)
+        action_type, action_text, payload = HistoryAction.UPDATED.build(comment=comment)
         return HistoryService._create_with_payload(
             item, action_type, user, location or item.location, payload, comment
         )
@@ -92,7 +90,7 @@ class HistoryService:
     @staticmethod
     def assigned(item, user, location=None):
         """ТМЦ распределено"""
-        action_type, action_text, payload = create_assigned(location or item.location)
+        action_type, action_text, payload = HistoryAction.ASSIGNED.build(location=location or item.location)
         return HistoryService._create_with_payload(
             item, action_type, user, location, payload
         )
@@ -100,7 +98,7 @@ class HistoryService:
     @staticmethod
     def repair_confirmed(item, user, location=None):
         """Ремонт подтверждён"""
-        action_type, action_text, payload = create_repair_confirmed()
+        action_type, action_text, payload = HistoryAction.REPAIR_CONFIRMED.build()
         return HistoryService._create_with_payload(
             item, action_type, user, location or item.location, payload
         )
@@ -108,7 +106,7 @@ class HistoryService:
     @staticmethod
     def unlocked(item, user, location=None):
         """ТМЦ разблокировано"""
-        action_type, action_text, payload = create_unlocked()
+        action_type, action_text, payload = HistoryAction.UNLOCKED.build()
         return HistoryService._create_with_payload(
             item, action_type, user, location or item.location, payload
         )
@@ -116,7 +114,7 @@ class HistoryService:
     @staticmethod
     def confirmed(item, user, comment=None, location=None):
         """ТМЦ подтверждено"""
-        action_type, action_text, payload = create_confirmed(comment)
+        action_type, action_text, payload = HistoryAction.CONFIRMED.build(comment=comment)
         return HistoryService._create_with_payload(
             item, action_type, user, location or item.location, payload, comment
         )

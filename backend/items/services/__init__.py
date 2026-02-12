@@ -7,7 +7,7 @@ Domain - бизнес-правила и инварианты
 """
 
 # Domain layer
-from .domain import HistoryAction, ItemTransitions, HistoryActionsFormatter
+from .domain import ItemTransitions
 
 # Services
 from .history_service import HistoryService
@@ -31,9 +31,7 @@ from .queries import (
 
 __all__ = [
     # Domain
-    'HistoryAction',
     'ItemTransitions',
-    'HistoryActionsFormatter',
     # Services
     'HistoryService',
     'LockService',
