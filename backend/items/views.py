@@ -1,13 +1,17 @@
-from django.views.decorators.csrf import csrf_exempt
-from django.db.models import Count, Q
 from drf_spectacular.utils import extend_schema
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.views import APIView
 
 from .models import Item, Location, Brigade
-from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer
+from .serializers import ItemSerializer, LocationSerializer, StatusCounterSerializer, BrigadeSerializer, ConfirmTMCSerializer
+from .services import LockService, HistoryService
+from .services.commands import SendToServiceCommand, UpdateItemCommand, ReturnFromServiceCommand, ConfirmItemCommand, ConfirmTMCCommand
+from .services.queries import GetItemQuery, ListItemsQuery, GetStatusCountersQuery, GetAnalyticsQuery
+from .permissions import IsStorekeeper
+from .services.domain.exceptions import DomainValidationError
 
 
 # --- ПРЕДСТАВЛЕНИЯ (VIEWS) ---
@@ -27,15 +31,7 @@ def item_list(request):
     """GET: список items, POST: создать item"""
     if request.method == 'GET':
         search_query = request.GET.get('search', '')
-        queryset = Item.objects.all().order_by('-id')
-        
-        if search_query:
-            # Поиск по названию или точному английскому ключу статуса
-            queryset = queryset.filter(
-                Q(name__icontains=search_query) | 
-                Q(status=search_query)
-            )
-        
+        queryset = ListItemsQuery.all(search_query)
         serializer = ItemSerializer(queryset, many=True)
         return Response({"items": serializer.data})
     
@@ -46,32 +42,33 @@ def item_list(request):
             return Response(ItemSerializer(item).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @extend_schema(
-    methods=['PUT'],
-    description="Обновить ТМЦ",
+    methods=['PUT', 'PATCH'],
+    description="Обновить ТМЦ (частичное или полное обновление)",
     request=ItemSerializer,
     responses={200: ItemSerializer}
 )
 @extend_schema(methods=['DELETE'], description="Удалить ТМЦ")
-@api_view(['PUT', 'DELETE'])
+@api_view(['PUT', 'PATCH', 'DELETE'])
 def item_detail(request, item_id):
-    """PUT: обновить, DELETE: удалить"""
+    """PUT/PATCH: обновить, DELETE: удалить"""
     try:
         item = Item.objects.get(id=item_id)
     except Item.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'PUT':
-        # partial=True позволяет обновлять только присланные поля
-        serializer = ItemSerializer(item, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    if request.method in ['PUT', 'PATCH']:
+        # Command: изменяем состояние, получаем ID
+        item_id = UpdateItemCommand.execute(item_id, request.data, request.user)
+        # Query: получаем обновлённый объект для сериализации
+        item = GetItemQuery.by_id(item_id)
+        return Response(ItemSerializer(item).data)
             
     if request.method == 'DELETE':
         item.delete()
         return Response({"status": "success"}, status=status.HTTP_200_OK)
+
 
 @extend_schema(
     methods=['GET'],
@@ -81,14 +78,8 @@ def item_detail(request, item_id):
 @api_view(['GET'])
 def get_status_counters(request):
     """Получить счетчики статусов для виджета уведомлений"""
-    counts_query = Item.objects.values('status').annotate(total=Count('id'))
-    raw_data = {item['status']: item['total'] for item in counts_query}
-    
-    return Response({
-        "to_receive": raw_data.get('confirm', 0), 
-        "to_repair": raw_data.get('confirm_repair', 0),
-        "issued": raw_data.get('issued', 0) + raw_data.get('at_work', 0)
-    })
+    return Response(GetStatusCountersQuery.summary())
+
 
 @extend_schema(responses={200: LocationSerializer(many=True)})
 @api_view(['GET'])
@@ -97,6 +88,7 @@ def location_list(request):
     locations = Location.objects.all().order_by('name')
     serializer = LocationSerializer(locations, many=True)
     return Response({"locations": serializer.data})
+
 
 @extend_schema(methods=['GET'], responses=BrigadeSerializer(many=True))
 @extend_schema(methods=['POST'], request=BrigadeSerializer, responses=BrigadeSerializer)
@@ -113,51 +105,165 @@ def brigade_list(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 # АНАЛИТИКА
 
 @extend_schema(
     description="Аналитика: группировка по брендам, локациям и статусам",
-    responses={200: dict} # Можно детализировать при необходимости
+    responses={200: dict}
 )
 @api_view(['GET'])
 def get_analytics(request):
-    """Аналитика через Django ORM"""
+    """Аналитика через Query слой"""
     name_f = request.GET.get('name', '')
     brand_f = request.GET.get('brand', '')
     loc_f = request.GET.get('location', '')
 
-    # Применяем фильтры только если параметры не пустые
-    filters = Q()
-    if name_f:
-        filters &= Q(name__icontains=name_f)
-    if brand_f:
-        filters &= Q(brand__icontains=brand_f)
-    if loc_f:
-        filters &= Q(location__icontains=loc_f)
-    
-    queryset = Item.objects.filter(filters)
+    result = GetAnalyticsQuery.filtered(
+        name=name_f,
+        brand=brand_f,
+        location=loc_f
+    )
 
-    by_brand = list(queryset.values('brand').annotate(value=Count('id')).order_by('-value'))
-    by_location = list(queryset.values('location').annotate(value=Count('id')).order_by('-value'))
-    by_status = list(queryset.values('status').annotate(value=Count('id')).order_by('-value'))
-    
-    # Для графиков заменяем пустые значения
-    for item in by_brand: item['brand'] = item['brand'] or 'Не указан'
-    for item in by_location: item['location'] = item['location'] or 'Не указана'
+    result["details"] = ItemSerializer(result["details"], many=True).data
 
-    # Детализация (используем существующий сериализатор)
-    details = ItemSerializer(queryset.order_by('-id'), many=True).data
+    return Response(result)
 
-    return Response({
-        "by_brand": by_brand,
-        "by_location": by_location,
-        "by_status": by_status,
-        "details": details
-    })
 
 @api_view(['GET'])
-@permission_classes([AllowAny]) # Это перекрывает глобальную настройку "IsAuthenticated"
+@permission_classes([AllowAny])
 def hello(request):
     """Health check для Kubernetes"""
     return Response({"status": "ok"})
+
+
+# --- СЕРВИС ---
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
+def send_to_service(request, item_id):
+    # Command: изменяем состояние, получаем ID
+    item_id = SendToServiceCommand.execute(
+        item_id=item_id,
+        reason=request.data.get("reason", ""),
+        user=request.user
+    )
+    # Query: получаем обновлённый объект для сериализации
+    item = GetItemQuery.by_id(item_id)
+    return Response(ItemSerializer(item).data)
+
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
+def return_from_service(request, item_id):
+    # Command: изменяем состояние, получаем ID
+    item_id = ReturnFromServiceCommand.execute(
+        item_id=item_id,
+        action="return",
+        user=request.user
+    )
+    # Query: получаем обновлённый объект для сериализации
+    item = GetItemQuery.by_id(item_id)
+    return Response(ItemSerializer(item).data)
+
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
+def confirm_repair(request, item_id):
+    """
+    Подтверждение начала ремонта (confirm_repair → in_repair).
+    """
+    # Command: подтверждаем ремонт, получаем ID
+    item_id = ReturnFromServiceCommand.execute(
+        item_id=item_id,
+        action="confirm_repair",
+        user=request.user
+    )
+    # Query: получаем обновлённый объект для сериализации
+    item = GetItemQuery.by_id(item_id)
+    return Response(ItemSerializer(item).data)
+
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
+@permission_classes([IsStorekeeper])
+def confirm_item(request, item_id):
+    """
+    Подтвердить ТМЦ (статус confirm -> available).
+    Используется для приёмки ТМЦ от поставщика или после передачи.
+    
+    Permission: только кладовщик или администратор может подтверждать ТМЦ.
+    """
+    # Command: подтверждаем, получаем ID
+    comment = request.data.get('comment', '')
+    try:
+        item_id = ConfirmItemCommand.execute(
+            item_id=item_id,
+            comment=comment,
+            user=request.user
+        )
+    except Item.DoesNotExist:
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+    except DomainValidationError as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Query: получаем обновлённый объект для сериализации
+    item = GetItemQuery.by_id(item_id)
+    return Response(ItemSerializer(item).data)
+
+
+# --- БЛОКИРОВКА ТМЦ ---
+
+@extend_schema(request=None, responses={'status': str})
+@api_view(['POST'])
+def lock_item(request, item_id):
+    """
+    Заблокировать ТМЦ для редактирования.
+    Делегирует бизнес-логику LockService.
+    """
+    item = LockService.lock(item_id, request.user)
+    return Response({'status': 'locked', 'locked_by': item.locked_by.username})
+
+
+@extend_schema(request=None, responses={'status': str})
+@api_view(['POST'])
+def unlock_item(request, item_id):
+    """
+    Разблокировать ТМЦ.
+    Делегирует бизнес-логику LockService.
+    """
+    LockService.unlock(item_id, request.user)
+    return Response({'status': 'unlocked'})
+
+
+# --- ПОДТВЕРЖДЕНИЕ ТМЦ ---
+
+class ConfirmTMCAPIView(APIView):
+    """
+    Подтверждение или отклонение ТМЦ кладовщиком.
+    
+    Permission: только кладовщик или администратор может подтверждать ТМЦ.
+    """
+    permission_classes = [IsStorekeeper]
+
+    def post(self, request, item_id):
+        """
+        Подтвердить или отклонить ТМЦ.
+        Транзакция и блокировка — внутри ConfirmTMCCommand.execute().
+        """
+        serializer = ConfirmTMCSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            ConfirmTMCCommand.execute(
+                item_id=item_id,
+                action=serializer.validated_data["action"],
+                user=request.user
+            )
+        except Item.DoesNotExist:
+            return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+        except DomainValidationError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"success": True})
 

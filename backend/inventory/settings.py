@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'drf_spectacular',
+    'users',
     'items',
 ]
 
@@ -39,6 +40,9 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated', # Теперь всё закрыто по умолчанию!
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_EXCEPTION_HANDLERS': (
+        'items.exceptions.domain_exception_handler',
+    ),
 }
 
 SIMPLE_JWT = {
@@ -103,6 +107,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1',
 ]
 
+# Кастомная модель пользователя с ролями
+AUTH_USER_MODEL = 'users.User'
+
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 USE_X_FORWARDED_PORT = True
@@ -123,3 +130,9 @@ LOGGING = {
         },
     },
 }
+
+# timezone поддержка
+USE_TZ = True
+
+# часовой пояс (Екатеринбург +5)
+TIME_ZONE = 'Asia/Yekaterinburg'

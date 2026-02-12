@@ -1,9 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Filter, FileText, Download } from 'lucide-react';
 import api from '../api/axios';
+import { statusMap, getStatusStyles } from '../constants/statusConfig';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+// Функция для получения hex-цвета статуса (не зависит от темы)
+const getStatusColor = (status) => {
+  const statusColors = {
+    at_work: '#0ea5e9',       // sky-500 - Синий
+    issued: '#0ea5e9',        // sky-500 - Синий
+    available: '#10b981',      // emerald-500 - Зелёный
+    in_repair: '#f43f5e',      // rose-500 - Розовый
+    confirm: '#f59e0b',        // amber-500 - Янтарный
+    confirm_repair: '#f59e0b', // amber-500 - Янтарный
+    retired: '#64748b',       // slate-500 - Серый
+  };
+  return statusColors[status] || COLORS[0];
+};
 
 const Analytics = ({ isDarkMode }) => {
   const [data, setData] = useState(null);
@@ -23,6 +38,16 @@ const Analytics = ({ isDarkMode }) => {
     };
     fetchAnalytics();
   }, [filters]);
+
+  // Трансформируем данные статусов с русскими названиями
+  const statusData = useMemo(() => {
+    if (!data?.by_status) return [];
+    return data.by_status.map(item => ({
+      ...item,
+      status: statusMap[item.status] || item.status,
+      originalStatus: item.status // Сохраняем оригинальный статус для определения цвета
+    }));
+  }, [data]);
 
   const handleExport = async () => {
     try {
@@ -56,7 +81,7 @@ const Analytics = ({ isDarkMode }) => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Аналитика ТМЦ</h1>
         <button 
@@ -73,7 +98,7 @@ const Analytics = ({ isDarkMode }) => {
         <div className="space-y-1">
           <label className="text-xs text-gray-500 uppercase font-bold">Наименование</label>
           <input 
-            className={`block w-48 h-10 px-3 rounded-md border ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-gray-50'}`}
+            className="input-theme block w-48 h-10 px-3 rounded-md border focus:outline-none"
             onChange={(e) => setFilters({...filters, name: e.target.value})}
             placeholder="Поиск..."
           />
@@ -81,7 +106,7 @@ const Analytics = ({ isDarkMode }) => {
         <div className="space-y-1">
           <label className="text-xs text-gray-500 uppercase font-bold">Бренд</label>
           <input 
-            className={`block w-48 h-10 px-3 rounded-md border ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-gray-50'}`}
+            className="input-theme block w-48 h-10 px-3 rounded-md border focus:outline-none"
             onChange={(e) => setFilters({...filters, brand: e.target.value})}
             placeholder="Все бренды"
           />
@@ -89,7 +114,7 @@ const Analytics = ({ isDarkMode }) => {
         <div className="space-y-1">
           <label className="text-xs text-gray-500 uppercase font-bold">Локация</label>
           <input 
-            className={`block w-48 h-10 px-3 rounded-md border ${isDarkMode ? 'bg-slate-800 border-slate-600 text-white' : 'bg-gray-50'}`}
+            className="input-theme block w-48 h-10 px-3 rounded-md border focus:outline-none"
             onChange={(e) => setFilters({...filters, location: e.target.value})}
             placeholder="Все объекты"
           />
@@ -123,12 +148,15 @@ const Analytics = ({ isDarkMode }) => {
           </ResponsiveContainer>
         </Card>
 
-        <Card title="Состояние фонда" hasData={data && data.by_status && data.by_status.length > 0}>
+        <Card title="Состояние фонда" hasData={statusData && statusData.length > 0}>
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={data?.by_status} dataKey="value" nameKey="status" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                {data?.by_status.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index + 2 % COLORS.length]} />
+              <Pie data={statusData} dataKey="value" nameKey="status" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                {statusData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={getStatusColor(entry.originalStatus)} 
+                  />
                 ))}
               </Pie>
               <Tooltip />
@@ -161,7 +189,9 @@ const Analytics = ({ isDarkMode }) => {
                 <td className="px-4 py-3">{item.brand}</td>
                 <td className="px-4 py-3">{item.location}</td>
                 <td className="px-4 py-3">
-                  <span className="px-2 py-1 rounded-full bg-slate-700 text-xs">{item.status}</span>
+                  <span className={`px-2 py-1 rounded-full text-xs ${getStatusStyles(item.status, isDarkMode)}`}>
+                    {statusMap[item.status] || item.status}
+                  </span>
                 </td>
               </tr>
             ))}

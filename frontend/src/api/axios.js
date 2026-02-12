@@ -36,6 +36,10 @@ api.interceptors.response.use(
 
         // Если ошибка 401 и мы еще не пробовали обновиться (_retry)
         if (error.response.status === 401 && !originalRequest._retry) {
+            // Если мы на странице логина — не пытаемся обновить токен, просто пробрасываем ошибку
+            if (window.location.pathname.includes('/login')) {
+                return Promise.reject(error);
+            }
             originalRequest._retry = true;
             
             try {

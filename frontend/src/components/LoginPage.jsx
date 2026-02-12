@@ -52,9 +52,7 @@ const LoginPage = ({ setToken, isDarkMode }) => {
             <label className="block text-sm font-medium mb-2">Логин</label>
             <input
               type="text"
-              className={`w-full p-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-300'
-              }`}
+              className="input-theme w-full p-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="admin"
@@ -66,9 +64,7 @@ const LoginPage = ({ setToken, isDarkMode }) => {
             <label className="block text-sm font-medium mb-2">Пароль</label>
             <input
               type="password"
-              className={`w-full p-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500 transition-all ${
-                isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-300'
-              }`}
+              className="input-theme w-full p-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500 transition-all"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"

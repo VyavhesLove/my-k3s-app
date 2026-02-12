@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X, ChevronDown } from 'lucide-react';
+import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X, ChevronDown, RefreshCw } from 'lucide-react';
 import api from '../api/axios';
 import { statusMap, getStatusStyles } from '../constants/statusConfig';
+import { useItemStore } from '../store/useItemStore';
 
 // Компонент для фильтрации по статусу (select)
 const StatusFilter = ({ isDarkMode, filterValue, onFilterChange }) => {
@@ -26,11 +27,7 @@ const StatusFilter = ({ isDarkMode, filterValue, onFilterChange }) => {
       <select
         value={filterValue}
         onChange={handleChange}
-        className={`py-1.5 pl-7 pr-8 text-xs w-full rounded border outline-none transition-colors appearance-none cursor-pointer
-          ${isDarkMode
-            ? 'bg-slate-800/50 border-slate-600 text-white focus:ring-blue-500'
-            : 'bg-white border-gray-300 text-slate-900 focus:ring-blue-400'
-          } focus:ring-1`}
+        className="input-theme py-2 pl-7 pr-8 text-xs w-full rounded outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-blue-500"
       >
         <option value="">Все статусы</option>
         {Object.entries(statusMap).map(([key, label]) => (
@@ -60,7 +57,8 @@ const TableHeader = ({
   const isPrimary = sortConfig.length > 0 && sortConfig[0].key === sortKey;
   
   return (
-    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b border-slate-700">
+    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b"
+      style={{ borderColor: 'var(--table-border)', color: 'var(--table-text)' }}>
       <div className="flex flex-col gap-2">
         <div
           className={`flex items-center gap-1 cursor-pointer hover:text-blue-400 ${sortDirection ? 'text-blue-400' : ''}`}
@@ -107,11 +105,7 @@ const TableHeader = ({
               placeholder="Поиск..."
               value={filterValue}
               onChange={(e) => handleFilterChange(sortKey, e.target.value)}
-              className={`pl-7 pr-2 py-1 text-xs w-full rounded border outline-none transition-colors
-                ${isDarkMode
-                  ? 'bg-slate-800/50 border-slate-600 text-white placeholder:text-gray-500 focus:ring-blue-500'
-                  : 'bg-white border-gray-300 text-slate-900 placeholder:text-gray-400 focus:ring-blue-400'
-                } focus:ring-1`}
+              className="input-theme pl-7 pr-2 py-2 text-xs w-full rounded outline-none transition-colors focus:ring-1 focus:ring-blue-500"
             />
           </div>
         )}
@@ -120,56 +114,69 @@ const TableHeader = ({
   );
 };
 
-function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
+function InventoryList({ isDarkMode }) {
   const location = useLocation();
-  const [items, setItems] = useState([]);
+  const { setSelectedItem, selectedItem, items, refreshItems, itemsLoading, lockedItems } = useItemStore();
   const [filters, setFilters] = useState({});
-  // Массив критериев сортировки: [{ key, direction }]
   const [sortConfig, setSortConfig] = useState([]);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchItems = (searchQuery = '') => {
-    const fetchItemsAsync = async () => {
-      try {
-        const params = new URLSearchParams();
-        if (searchQuery) {
-          params.append('search', searchQuery);
-        }
-        const queryString = params.toString();
-        
-        const response = await api.get(`/items${queryString ? '?' + queryString : ''}`);
-        setItems(response.data.items || []);
-        // Сбрасываем выбор при обновлении
-        if (onItemSelect) onItemSelect(null);
-        setSortConfig([]);
-        setCurrentPage(1);
-      } catch (err) {
-        console.error('Ошибка загрузки:', err);
-      }
-    };
-    fetchItemsAsync();
-  };
-
-  // Функция полного сброса фильтров
-  const resetAllFilters = () => {
-    setFilters({});
-    fetchItems('');
-  };
-
-  // Загружаем данные при монтировании и при каждом возврате на страницу
+  // Загружаем данные при монтировании и при изменении URL
   useEffect(() => {
-    fetchItems();
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      refreshItems();
+      // Сбрасываем выбор и пагинацию при обновлении
+      setSelectedItem(null);
+      setCurrentPage(1);
+      setFilters({});
+      setSortConfig([]);
+      setSearchQuery('');
+    }
   }, [location.pathname]);
 
-  // Обработка навигации - сброс фильтров при переходе на главную
-  useEffect(() => {
-    if (location.pathname === '/') {
-      if (location.state?.resetFilters || !location.state) {
-        resetAllFilters();
-      }
+  // Функция полного сброса фильтров
+  const resetAllFilters = useCallback(() => {
+    setFilters({});
+    setSearchQuery('');
+    setCurrentPage(1);
+    setSortConfig([]);
+    // Полное обновление из API
+    refreshItems();
+    setSelectedItem(null);
+  }, [refreshItems, setSelectedItem]);
+
+  // Функция поиска
+  const handleSearch = useCallback((query) => {
+    setSearchQuery(query);
+    
+    if (query.trim()) {
+      // Поиск через API
+      const searchItems = async () => {
+        try {
+          const params = new URLSearchParams();
+          params.append('search', query);
+          const response = await api.get(`/items?${params.toString()}`);
+          // Прямое обновление через store
+          useItemStore.setState({ items: response.data.items || [] });
+          setSelectedItem(null);
+          setCurrentPage(1);
+          setFilters({});
+          setSortConfig([]);
+        } catch (err) {
+          console.error('Ошибка поиска:', err);
+        }
+      };
+      searchItems();
+    } else {
+      // Сброс к полному списку
+      refreshItems();
+      setSelectedItem(null);
+      setCurrentPage(1);
     }
-  }, [location.pathname, location.state]);
+  }, [refreshItems, setSelectedItem]);
 
   const handleFilterChange = (key, value) => {
     // Для статуса храним английский ключ без lowerCase
@@ -180,19 +187,29 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
       [key]: filterValue
     }));
     setCurrentPage(1);
-
-    // Для фильтра по статусу вызываем API с выбранным значением
-    if (key === 'status') {
-      fetchItems(value);
-    }
   };
 
+  // Получаем параметр filter из URL
+  const { search } = location;
+  const queryParams = new URLSearchParams(search);
+  const filterParam = queryParams.get('filter'); // "at_work,issued" или "in_repair"
+
   const sortedAndFilteredItems = useMemo(() => {
-    let result = items.filter(item => 
-      Object.keys(filters).every(key => 
+    let result = items.filter(item => {
+      // Фильтрация по URL параметру filter
+      if (filterParam) {
+        const allowedStatuses = filterParam.split(',');
+        if (!allowedStatuses.includes(item.status)) {
+          return false;
+        }
+      }
+      
+      // Существующая фильтрация по полям
+      return Object.keys(filters).every(key => 
         String(item[key] || '').toLowerCase().includes(filters[key])
-      )
-    );
+      );
+    });
+    
     // Многоуровневая сортировка
     if (sortConfig.length > 0) {
       result.sort((a, b) => {
@@ -205,7 +222,7 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
       });
     }
     return result;
-  }, [items, filters, sortConfig]);
+  }, [items, filters, sortConfig, filterParam]);
 
   // Функция для обработки клика по заголовку с учетом Shift для вторичной сортировки
   const handleSortClick = (key, e) => {
@@ -243,22 +260,62 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
     <div className="flex">
       <div className="flex-1">
         <div className="max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-2xl font-bold">Список ТМЦ</h1>
-            <button 
-              onClick={resetAllFilters}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg"
-            >
-              Обновить
-            </button>
+          {/* Заголовок с поиском и кнопками */}
+          <div className="flex justify-between items-center mb-6 gap-4">
+            <h1 className="text-2xl font-bold text-primary">Список ТМЦ</h1>
+            
+            <div className="flex items-center gap-3">
+              {/* Поле поиска */}
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Поиск по названию..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className={`pl-10 pr-4 py-2 rounded-lg text-sm w-64 outline-none transition-all ${
+                    isDarkMode 
+                      ? 'bg-slate-800 border border-slate-700 focus:border-blue-500' 
+                      : 'bg-white border border-gray-200 focus:border-blue-400'
+                  } border`}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => handleSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Кнопка обновления */}
+              <button 
+                onClick={resetAllFilters}
+                disabled={itemsLoading}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg flex items-center gap-2 ${
+                  isDarkMode 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                } ${itemsLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <RefreshCw size={16} className={itemsLoading ? 'animate-spin' : ''} />
+                Обновить
+              </button>
+            </div>
           </div>
 
-          <div className={`rounded-xl shadow-2xl overflow-hidden border ${isDarkMode ? 'bg-[#1e293b] border-slate-700' : 'bg-white border-gray-200'}`}>
+          <div className="rounded-xl shadow-2xl overflow-hidden border"
+            style={{
+              backgroundColor: 'var(--table-bg)',
+              borderColor: 'var(--table-border)'
+            }}>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className={isDarkMode ? 'bg-slate-800/50' : 'bg-gray-100'}>
-                    <th className="px-4 py-3 text-left text-xs font-bold border-b border-slate-700 w-12">№</th>
+                  <tr style={{ backgroundColor: 'var(--table-header-bg)' }}>
+                    <th className="px-4 py-3 text-left text-xs font-bold border-b w-12"
+                      style={{ borderColor: 'var(--table-border)' }}>№</th>
                     <TableHeader
                       label="Наименование"
                       sortKey="name"
@@ -315,56 +372,107 @@ function InventoryList({ isDarkMode, onItemSelect, selectedItem }) {
                     />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-700/50">
-                  {paginatedItems.map((item, index) => (
-                    <tr 
-                      key={item.id} 
-                      onClick={() => onItemSelect && onItemSelect(item)}
-                      className={`cursor-pointer transition-colors ${
-                        selectedItem?.id === item.id 
-                          ? 'bg-blue-600/30 ring-1 ring-blue-500' 
-                          : 'hover:bg-blue-500/5'
-                      }`}
-                    >
-                      <td className="px-4 py-4">{(currentPage - 1) * pageSize + index + 1}</td>
-                      <td className="px-4 py-4 font-medium">{item.name}</td>
-                      <td className="px-4 py-4 text-slate-400">{item.serial}</td>
-                      <td className="px-4 py-4">{item.brand}</td>
-                      <td className="px-4 py-4">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${getStatusStyles(item.status, isDarkMode)}`}>
-                          {statusMap[item.status] || item.status}
-                        </span>
+                <tbody style={{ color: 'var(--table-text)', borderColor: 'var(--table-border)' }}>
+                  {itemsLoading && items.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <RefreshCw size={32} className="animate-spin text-blue-500" />
+                          <span className="text-gray-500">Загрузка данных...</span>
+                        </div>
                       </td>
-                      <td className="px-4 py-4 italic">{item.responsible}</td>
-                      <td className="px-4 py-4">{item.location}</td>
                     </tr>
-                  ))}
+                  ) : paginatedItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-12 text-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <Search size={32} className="text-gray-400" />
+                          <span className="text-gray-500">
+                            {searchQuery ? 'Ничего не найдено' : 'Нет данных о ТМЦ'}
+                          </span>
+                          {searchQuery && (
+                            <button 
+                              onClick={() => handleSearch('')}
+                              className="text-blue-500 hover:underline text-sm"
+                            >
+                              Очистить поиск
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedItems.map((item, index) => {
+                      const isLocked = lockedItems[item.id];
+                      return (
+                      <tr 
+                        key={item.id} 
+                        onClick={() => !isLocked && setSelectedItem(item)}
+                        className={`cursor-pointer transition-colors ${
+                          selectedItem?.id === item.id 
+                            ? 'bg-blue-600/30 ring-1 ring-blue-500' 
+                            : isLocked 
+                              ? 'opacity-50' 
+                              : 'hover:bg-blue-500/5'
+                        } ${isLocked ? 'cursor-not-allowed' : ''}`}
+                        style={{ borderColor: 'var(--table-border)' }}
+                      >
+                        <td className="px-4 py-4">{(currentPage - 1) * pageSize + index + 1}</td>
+                        <td className="px-4 py-4 font-medium relative">
+                          {item.name}
+                          {isLocked && (
+                            <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 flex items-center gap-1">
+                              <span className="text-amber-500" title={`Заблокировано ${isLocked.user}`}>
+                                🔒
+                              </span>
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-4 opacity-70">{item.serial}</td>
+                        <td className="px-4 py-4">{item.brand}</td>
+                        <td className="px-4 py-4">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${getStatusStyles(item.status, isDarkMode)}`}>
+                            {statusMap[item.status] || item.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 italic">{item.responsible}</td>
+                        <td className="px-4 py-4">{item.location}</td>
+                      </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
 
             {/* Пагинация */}
-            <div className={`px-6 py-4 flex items-center justify-between border-t border-slate-700/50 ${isDarkMode ? 'bg-slate-800/30' : 'bg-gray-50'}`}>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Кол-во на странице:</span>
-                <select 
-                  value={pageSize} 
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="bg-transparent border border-slate-600 rounded px-2 py-1 text-xs focus:outline-none"
-                >
-                  {[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}
-                </select>
+            {sortedAndFilteredItems.length > 0 && (
+              <div className={`px-6 py-4 flex items-center justify-between border-t border-slate-700/50`}
+                style={{
+                  backgroundColor: 'var(--table-header-bg)',
+                  borderTopColor: 'var(--table-border)'
+                }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: 'var(--table-text)', opacity: 0.6 }}>Кол-во на странице:</span>
+                  <select 
+                    value={pageSize} 
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="input-theme bg-transparent border rounded px-2 py-1 text-xs focus:outline-none"
+                  >
+                    {[10, 20, 50].map(size => <option key={size} value={size}>{size}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-4">
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 hover:bg-blue-500/20 rounded-lg disabled:opacity-30" disabled={currentPage === 1}>
+                    <ChevronLeft size={20} />
+                  </button>
+                  <span className="text-sm font-medium" style={{ color: '#3b82f6' }}>Страница {currentPage} из {totalPages || 1}</span>
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-2 hover:bg-blue-500/20 rounded-lg disabled:opacity-30" disabled={currentPage === totalPages}>
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-4">
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 hover:bg-blue-500/20 rounded-lg disabled:opacity-30" disabled={currentPage === 1}>
-                  <ChevronLeft size={20} />
-                </button>
-                <span className="text-sm font-medium text-blue-500">Страница {currentPage} из {totalPages || 1}</span>
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-2 hover:bg-blue-500/20 rounded-lg disabled:opacity-30" disabled={currentPage === totalPages}>
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
