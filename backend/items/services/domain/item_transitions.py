@@ -61,16 +61,38 @@ class ItemTransitions:
             ItemStatus.IN_REPAIR,      # Подтверждение ремонта
         ],
 
-        # В ремонте: in_repair → issued (возврат из ремонта)
+        # В ремонте: in_repair → issued (возврат из ремонта) или written_off (списание)
         ItemStatus.IN_REPAIR: [
             ItemStatus.ISSUED,         # Возврат из ремонта
+            ItemStatus.WRITTEN_OFF,    # Списание
+        ],
+
+        # Выдано: issued → confirm_repair (в ремонт) или confirm (перераспределение) или written_off (списание)
+        ItemStatus.ISSUED: [
+            ItemStatus.CONFIRM_REPAIR,  # Отправка в ремонт
+            ItemStatus.CONFIRM,         # Перераспределение
+            ItemStatus.WRITTEN_OFF,     # Списание
+        ],
+
+        # Выдано в работу: at_work → issued (возврат) или confirm_repair (в ремонт) или written_off (списание)
+        ItemStatus.AT_WORK: [
+            ItemStatus.ISSUED,          # Возврат с работы
+            ItemStatus.CONFIRM_REPAIR,   # Отправка в ремонт
+            ItemStatus.WRITTEN_OFF,      # Списание
         ],
 
         # Списано: written_off → available (отмена списания)
         ItemStatus.WRITTEN_OFF: [
-            ItemStatus.AVAILABLE,      # Отмена списания
+            ItemStatus.AVAILABLE,       # Отмена списания
         ],
     }
+
+    # Статусы из которых допустимо списание
+    WRITE_OFF_ALLOWED_FROM = [
+        ItemStatus.ISSUED,
+        ItemStatus.AT_WORK,
+        ItemStatus.IN_REPAIR,
+    ]
 
     # ========== КОНСТАНТЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ==========
     # Статус после подтверждения
@@ -100,9 +122,9 @@ class ItemTransitions:
     def can_write_off(cls, current_status: ItemStatus) -> bool:
         """
         Можно ли списать ТМЦ.
-        Списание возможно из любого статуса.
+        Списание возможно только из статусов ISSUED, AT_WORK, IN_REPAIR.
         """
-        return True  # Списание допустимо из любого статуса
+        return current_status in cls.WRITE_OFF_ALLOWED_FROM
 
     @classmethod
     def validate_transition(
@@ -125,9 +147,16 @@ class ItemTransitions:
     def validate_write_off(cls, current_status: ItemStatus) -> None:
         """
         Валидация списания.
-        Списание допустимо из любого статуса.
+        Списание допустимо только из статусов ISSUED, AT_WORK, IN_REPAIR.
+
+        Raises:
+            DomainValidationError: Если списание из текущего статуса недопустимо
         """
-        pass  # Списание всегда допустимо
+        if not cls.can_write_off(current_status):
+            raise DomainValidationError(
+                f"ТМЦ со статусом '{current_status}' нельзя списать. "
+                f"Списание допустимо из статусов: {cls.WRITE_OFF_ALLOWED_FROM}"
+            )
 
     # ========== МЕТОДЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ==========
 

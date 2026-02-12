@@ -15,6 +15,8 @@ class HistoryActionTemplates:
         "unlocked": "Разблокировано",
         "assigned": "ТМЦ распределено",
         "confirmed": "ТМЦ подтверждено. Комментарий: {comment}",
+        "written_off": "Списание ТМЦ. Причина: {reason}. Сумма: {amount} руб.",
+        "cancelled_write_off": "Отмена списания ТМЦ. Запись №{write_off_id}",
     }
 
     @classmethod
@@ -68,6 +70,8 @@ class HistoryAction(models.TextChoices):
     UNLOCKED = "unlocked", "Разблокировано"
     ASSIGNED = "assigned", "ТМЦ распределено"
     CONFIRMED = "confirmed", "ТМЦ подтверждено"
+    WRITTEN_OFF = "written_off", "Списано"
+    CANCELLED_WRITE_OFF = "cancelled_write_off", "Отмена списания"
 
     def build(self, **kwargs) -> tuple:
         """Создаёт кортеж (action_type, action_text, payload) для сохранения в историю.

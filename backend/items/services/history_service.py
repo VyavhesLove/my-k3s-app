@@ -120,6 +120,32 @@ class HistoryService:
         )
     
     @staticmethod
+    def written_off(item, user, reason=None, amount=None, location=None):
+        """ТМЦ списано"""
+        payload = {}
+        if reason:
+            payload['reason'] = reason
+        if amount is not None:
+            payload['amount'] = str(amount)
+        
+        action_type, action_text, action_payload = HistoryAction.WRITTEN_OFF.build(**payload)
+        return HistoryService._create_with_payload(
+            item, action_type, user, location or item.location, action_payload
+        )
+    
+    @staticmethod
+    def cancelled_write_off(item, user, write_off_id=None, location=None):
+        """Отмена списания ТМЦ"""
+        payload = {}
+        if write_off_id:
+            payload['write_off_id'] = str(write_off_id)
+        
+        action_type, action_text, action_payload = HistoryAction.CANCELLED_WRITE_OFF.build(**payload)
+        return HistoryService._create_with_payload(
+            item, action_type, user, location or item.location, action_payload
+        )
+    
+    @staticmethod
     def _create_with_payload(item, action_type, user, location_name, payload, comment=None):
         """Вспомогательный метод для создания истории с payload"""
         location_obj = None

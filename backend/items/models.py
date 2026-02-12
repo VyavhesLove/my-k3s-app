@@ -106,3 +106,93 @@ class ItemHistory(models.Model):
 
         super().save(*args, **kwargs)
 
+
+class WriteOffRecord(models.Model):
+    """
+    Модель записи о списании ТМЦ.
+
+    Агрегат для бухгалтерски значимой операции списания.
+    Обеспечивает полную историю списания с финансовыми данными.
+
+    Инварианты:
+    - У одного Item может быть только одна активная (is_cancelled=False) запись списания.
+    - cascade delete запрещён (on_delete=PROTECT).
+    """
+
+    item = models.ForeignKey(
+        'Item',
+        on_delete=models.PROTECT,
+        related_name='write_off_records',
+        verbose_name="ТМЦ"
+    )
+
+    location = models.ForeignKey(
+        'Location',
+        on_delete=models.PROTECT,
+        related_name='write_off_records',
+        verbose_name="Локация списания"
+    )
+
+    repair_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Стоимость ремонта/списания"
+    )
+
+    invoice_number = models.CharField(
+        max_length=255,
+        verbose_name="Номер накладной"
+    )
+
+    description = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Описание причины списания"
+    )
+
+    date_to_service = models.DateField(
+        verbose_name="Дата поступления в ремонт"
+    )
+
+    date_written_off = models.DateField(
+        verbose_name="Дата списания"
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='write_off_records',
+        verbose_name="Кто создал запись"
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Дата создания записи"
+    )
+
+    is_cancelled = models.BooleanField(
+        default=False,
+        verbose_name="Запись отменена"
+    )
+
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Дата отмены"
+    )
+
+    class Meta:
+        verbose_name = 'Запись о списании'
+        verbose_name_plural = 'Записи о списании'
+        constraints = [
+            # У одного Item может быть только одна активная (is_cancelled=False) запись
+            models.UniqueConstraint(
+                fields=['item', 'is_cancelled'],
+                condition=models.Q(is_cancelled=False),
+                name='unique_active_write_off_per_item'
+            )
+        ]
+
+    def __str__(self):
+        return f"Списание {self.item.name} от {self.date_written_off}"
+

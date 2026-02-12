@@ -1,5 +1,6 @@
+from decimal import Decimal
 from rest_framework import serializers
-from .models import Item, Location, Brigade, ItemHistory
+from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord
 
 
 # class ItemSerializer(serializers.ModelSerializer):
@@ -80,4 +81,38 @@ class ItemSerializer(serializers.ModelSerializer):
 
 class ConfirmTMCSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=["accept", "reject"])
+
+
+class WriteOffSerializer(serializers.Serializer):
+    """Сериализатор для запроса списания ТМЦ"""
+    invoice_number = serializers.CharField(max_length=255)
+    repair_cost = serializers.DecimalField(max_digits=12, decimal_places=2, default=Decimal("0"))
+    date_to_service = serializers.DateField(required=False)
+    date_written_off = serializers.DateField(required=False)
+    description = serializers.CharField(required=False, allow_blank=True)
+
+
+class WriteOffRecordSerializer(serializers.ModelSerializer):
+    """Сериализатор для записи о списании ТМЦ"""
+    item_name = serializers.CharField(source='item.name', read_only=True)
+    item_serial = serializers.CharField(source='item.serial', read_only=True)
+    location_name = serializers.CharField(source='location.name', read_only=True)
+    created_by_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model = WriteOffRecord
+        fields = [
+            'id', 'item', 'item_name', 'item_serial', 'location', 'location_name',
+            'repair_cost', 'invoice_number', 'description',
+            'date_to_service', 'date_written_off',
+            'created_by', 'created_by_username', 'created_at',
+            'is_cancelled', 'cancelled_at'
+        ]
+        read_only_fields = ['created_at', 'is_cancelled', 'cancelled_at']
+
+    def get_created_by_username(self, obj):
+        """Возвращает username создателя записи"""
+        if obj.created_by:
+            return obj.created_by.username
+        return None
 

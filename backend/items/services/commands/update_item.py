@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from django.db import transaction
-from ..lock_service import LockService
+from ...services.lock_service import LockService
 from ..history_service import HistoryService
 
 
