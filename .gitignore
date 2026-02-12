@@ -142,3 +142,4 @@ Thumbs.db
 *.rej
 *~
 
+my-k3s-app/backend/venv/
