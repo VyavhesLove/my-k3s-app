@@ -1,6 +1,54 @@
+from decimal import Decimal
+from uuid import UUID
+from datetime import date, datetime, time
 from django.db import transaction
 from ..models import ItemHistory, Location
 from ..enums import HistoryAction
+
+
+def _clean_payload(payload):
+    """
+    Рекурсивно преобразует несериализуемые в JSON типы данных.
+    
+    Decimal, UUID, date, datetime, time преобразуются в строки.
+    None значения сохраняются.
+    
+    Args:
+        payload: Словарь с данными payload
+        
+    Returns:
+        dict: Очищенный словарь с JSON-сериализуемыми значениями
+    """
+    if payload is None:
+        return None
+    
+    if not isinstance(payload, dict):
+        return str(payload) if _is_json_unsupported_type(payload) else payload
+    
+    cleaned = {}
+    for key, value in payload.items():
+        if value is None:
+            cleaned[key] = None
+        elif isinstance(value, dict):
+            cleaned[key] = _clean_payload(value)
+        elif isinstance(value, (list, tuple)):
+            cleaned[key] = [
+                _clean_payload(item) if isinstance(item, dict) else
+                str(item) if _is_json_unsupported_type(item) else
+                item
+                for item in value
+            ]
+        elif _is_json_unsupported_type(value):
+            cleaned[key] = str(value)
+        else:
+            cleaned[key] = value
+    
+    return cleaned
+
+
+def _is_json_unsupported_type(value):
+    """Проверяет, является ли тип несовместимым с JSON сериализацией."""
+    return isinstance(value, (Decimal, UUID, date, datetime, time))
 
 
 class HistoryService:
@@ -17,11 +65,14 @@ class HistoryService:
         from ..enums import HistoryActionTemplates
         action_text = HistoryActionTemplates.format(action_type, payload)
         
+        # Очищаем payload от несериализуемых типов (Decimal, UUID, etc.)
+        cleaned_payload = _clean_payload(payload) if payload else {}
+        
         return ItemHistory.objects.create(
             item=item,
             action=action_text,
             action_type=action_type,
-            payload=payload or {},
+            payload=cleaned_payload,
             comment=comment,
             user=user,
             location=location
@@ -122,11 +173,11 @@ class HistoryService:
     @staticmethod
     def written_off(item, user, reason=None, amount=None, location=None):
         """ТМЦ списано"""
-        payload = {}
-        if reason:
-            payload['reason'] = reason
-        if amount is not None:
-            payload['amount'] = str(amount)
+        # Defensive: всегда передаём переменные в payload
+        payload = {
+            'reason': reason or "",
+            'amount': amount if amount is not None else 0
+        }
         
         action_type, action_text, action_payload = HistoryAction.WRITTEN_OFF.build(**payload)
         return HistoryService._create_with_payload(
@@ -136,9 +187,10 @@ class HistoryService:
     @staticmethod
     def cancelled_write_off(item, user, write_off_id=None, location=None):
         """Отмена списания ТМЦ"""
-        payload = {}
-        if write_off_id:
-            payload['write_off_id'] = str(write_off_id)
+        # Defensive: всегда передаём write_off_id в payload
+        payload = {
+            'write_off_id': str(write_off_id) if write_off_id else ""
+        }
         
         action_type, action_text, action_payload = HistoryAction.CANCELLED_WRITE_OFF.build(**payload)
         return HistoryService._create_with_payload(
@@ -156,11 +208,14 @@ class HistoryService:
         from ..enums import HistoryActionTemplates
         action_text = HistoryActionTemplates.format(action_type, payload)
         
+        # Очищаем payload от несериализуемых типов (Decimal, UUID, etc.)
+        cleaned_payload = _clean_payload(payload)
+        
         return ItemHistory.objects.create(
             item=item,
             action=action_text,
             action_type=action_type,
-            payload=payload,
+            payload=cleaned_payload,
             comment=comment,
             user=user,
             location=location_obj

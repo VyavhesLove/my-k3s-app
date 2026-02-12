@@ -8,6 +8,12 @@ Domain - бизнес-правила и инварианты
 
 # Domain layer
 from .domain import ItemTransitions
+from .domain.exceptions import (
+    DomainError,
+    DomainValidationError,
+    DomainConflictError,
+    DomainNotFoundError,
+)
 
 # Services
 from .history_service import HistoryService
@@ -32,6 +38,10 @@ from .queries import (
 __all__ = [
     # Domain
     'ItemTransitions',
+    'DomainError',
+    'DomainValidationError',
+    'DomainConflictError',
+    'DomainNotFoundError',
     # Services
     'HistoryService',
     'LockService',

@@ -26,3 +26,10 @@ class DomainConflictError(DomainError):
     """
     pass
 
+
+class DomainNotFoundError(DomainError):
+    """
+    Объект не найден.
+    """
+    pass
+

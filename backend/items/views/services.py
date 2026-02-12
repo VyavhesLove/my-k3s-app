@@ -3,8 +3,6 @@ from decimal import Decimal
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
 
 from ..serializers import ItemSerializer, WriteOffSerializer, WriteOffRecordSerializer
 from ..models import Item, WriteOffRecord
@@ -15,7 +13,8 @@ from ..services.commands import (
     ConfirmItemCommand, ConfirmTMCCommand,
     WriteOffCommand, CancelWriteOffCommand
 )
-from ..services.domain.exceptions import DomainValidationError
+from ..services import DomainValidationError
+from ..utils import api_response
 
 
 @extend_schema(request=None, responses=ItemSerializer)
@@ -28,7 +27,10 @@ def send_to_service(request, item_id):
         user=request.user
     )
     item = GetItemQuery.by_id(item_id)
-    return Response(ItemSerializer(item).data)
+    return api_response(
+        data=ItemSerializer(item).data,
+        message="ТМЦ отправлено в сервис"
+    )
 
 
 @extend_schema(request=None, responses=ItemSerializer)
@@ -41,7 +43,10 @@ def return_from_service(request, item_id):
         user=request.user
     )
     item = GetItemQuery.by_id(item_id)
-    return Response(ItemSerializer(item).data)
+    return api_response(
+        data=ItemSerializer(item).data,
+        message="ТМЦ возвращено из сервиса"
+    )
 
 
 @extend_schema(request=None, responses=ItemSerializer)
@@ -56,7 +61,10 @@ def confirm_repair(request, item_id):
         user=request.user
     )
     item = GetItemQuery.by_id(item_id)
-    return Response(ItemSerializer(item).data)
+    return api_response(
+        data=ItemSerializer(item).data,
+        message="Ремонт подтвержден"
+    )
 
 
 @extend_schema(request=None, responses=ItemSerializer)
@@ -68,19 +76,16 @@ def confirm_item(request, item_id):
     Permission: только кладовщик или администратор.
     """
     comment = request.data.get('comment', '')
-    try:
-        item_id = ConfirmItemCommand.execute(
-            item_id=item_id,
-            comment=comment,
-            user=request.user
-        )
-    except Item.DoesNotExist:
-        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-    except DomainValidationError as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-    
+    item_id = ConfirmItemCommand.execute(
+        item_id=item_id,
+        comment=comment,
+        user=request.user
+    )
     item = GetItemQuery.by_id(item_id)
-    return Response(ItemSerializer(item).data)
+    return api_response(
+        data=ItemSerializer(item).data,
+        message="ТМЦ подтверждено"
+    )
 
 
 @extend_schema(request=None, responses=ItemSerializer)
@@ -93,23 +98,22 @@ def write_off_item(request, item_id):
     serializer = WriteOffSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    try:
-        item_id, write_off_id = WriteOffCommand.execute(
-            item_id=item_id,
-            invoice_number=serializer.validated_data["invoice_number"],
-            repair_cost=serializer.validated_data.get("repair_cost", Decimal("0")),
-            date_to_service=serializer.validated_data.get("date_to_service"),
-            date_written_off=serializer.validated_data.get("date_written_off"),
-            description=serializer.validated_data.get("description", ""),
-            user=request.user
-        )
-    except Item.DoesNotExist:
-        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-    except DomainValidationError as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    item_id, write_off_id = WriteOffCommand.execute(
+        item_id=item_id,
+        invoice_number=serializer.validated_data["invoice_number"],
+        repair_cost=serializer.validated_data.get("repair_cost", Decimal("0")),
+        date_to_service=serializer.validated_data.get("date_to_service"),
+        date_written_off=serializer.validated_data.get("date_written_off"),
+        description=serializer.validated_data.get("description", ""),
+        user=request.user
+    )
 
     write_off_record = WriteOffRecord.objects.select_related('item', 'location', 'created_by').get(id=write_off_id)
-    return Response(WriteOffRecordSerializer(write_off_record).data, status=status.HTTP_201_CREATED)
+    return api_response(
+        data=WriteOffRecordSerializer(write_off_record).data,
+        message="ТМЦ списано",
+        status_code=201
+    )
 
 
 @extend_schema(request=None, responses=ItemSerializer)
@@ -119,16 +123,13 @@ def cancel_write_off_item(request, item_id):
     Отмена списания ТМЦ.
     Возвращает ТМЦ в статус available и отменяет запись о списании.
     """
-    try:
-        item_id = CancelWriteOffCommand.execute(
-            item_id=item_id,
-            user=request.user
-        )
-    except Item.DoesNotExist:
-        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
-    except DomainValidationError as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+    item_id = CancelWriteOffCommand.execute(
+        item_id=item_id,
+        user=request.user
+    )
     item = GetItemQuery.by_id(item_id)
-    return Response(ItemSerializer(item).data)
+    return api_response(
+        data=ItemSerializer(item).data,
+        message="Списание отменено"
+    )
 

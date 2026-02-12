@@ -15,7 +15,7 @@ class HistoryActionTemplates:
         "unlocked": "Разблокировано",
         "assigned": "ТМЦ распределено",
         "confirmed": "ТМЦ подтверждено. Комментарий: {comment}",
-        "written_off": "Списание ТМЦ. Причина: {reason}. Сумма: {amount} руб.",
+        "written_off": "Списание ТМЦ. Причина: {reason}. Сумма: {amount}",
         "cancelled_write_off": "Отмена списания ТМЦ. Запись №{write_off_id}",
     }
 
@@ -37,12 +37,32 @@ class HistoryActionTemplates:
         """
         template = cls.get_template(action_value)
         if payload:
+            # Проверяем, есть ли в payload все ключи из шаблона
+            template_keys = cls._extract_template_keys(template)
+            
+            # Для write_off_id пустая строка трактуется как отсутствующий ключ
+            missing_keys = []
+            for k in template_keys:
+                if k not in payload:
+                    missing_keys.append(k)
+                elif k in _EMPTY_AS_MISSING_KEYS and payload[k] in (None, ""):
+                    missing_keys.append(k)
+            
+            if missing_keys:
+                # Есть отсутствующие ключи - возвращаем шаблон как есть
+                return template
+            
             try:
                 return template.format(**payload)
-            except KeyError:
-                # Если в payload нет нужных ключей, возвращаем шаблон как есть
+            except (KeyError, ValueError):
                 return template
         return template
+    
+    @staticmethod
+    def _extract_template_keys(template: str) -> set:
+        """Извлекает все ключи из шаблона."""
+        import re
+        return set(re.findall(r'\{(\w+)\}', template))
 
 
 class ItemStatus(models.TextChoices):
@@ -55,6 +75,17 @@ class ItemStatus(models.TextChoices):
     CONFIRM = "confirm", "Требует подтверждения"
     CONFIRM_REPAIR = "confirm_repair", "Подтвердить ремонт"
     WRITTEN_OFF = "written_off", "Списано"
+
+
+# Обязательные ключи и значения по умолчанию для payload в HistoryAction.build()
+# Используем строковые ключи, так как Django TextChoices не позволяет dict внутри класса
+_REQUIRED_PAYLOAD_KEYS = {
+    "written_off": {"reason": "", "amount": 0},
+    "cancelled_write_off": {"write_off_id": ""},
+}
+
+# Ключи, для которых пустая строка трактуется как отсутствующий параметр
+_EMPTY_AS_MISSING_KEYS = {"write_off_id"}
 
 
 class HistoryAction(models.TextChoices):
@@ -86,7 +117,20 @@ class HistoryAction(models.TextChoices):
         Returns:
             tuple: (action_type, action_text, payload)
         """
-        payload = kwargs if kwargs else {}
-        action_text = HistoryActionTemplates.format(self.value, payload)
+        # Получаем обязательные ключи и значения по умолчанию для этого типа действия
+        default_keys = _REQUIRED_PAYLOAD_KEYS.get(self.value, {})
+
+        # Payload содержит defaults + переданные параметры
+        if kwargs:
+            payload = {**default_keys, **kwargs}
+            # Преобразуем write_off_id в строку если передан (включая пустую строку)
+            if "write_off_id" in payload:
+                payload["write_off_id"] = str(payload["write_off_id"])
+            format_payload = payload.copy()
+        else:
+            payload = default_keys.copy()
+            format_payload = {}
+
+        action_text = HistoryActionTemplates.format(self.value, format_payload)
         return self.value, action_text, payload
 

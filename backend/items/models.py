@@ -130,7 +130,9 @@ class WriteOffRecord(models.Model):
         'Location',
         on_delete=models.PROTECT,
         related_name='write_off_records',
-        verbose_name="Локация списания"
+        verbose_name="Локация списания",
+        null=True,
+        blank=True
     )
 
     repair_cost = models.DecimalField(

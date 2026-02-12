@@ -40,9 +40,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated', # Теперь всё закрыто по умолчанию!
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_EXCEPTION_HANDLERS': (
-        'items.exceptions.domain_exception_handler',
-    ),
+    'EXCEPTION_HANDLER': 'items.exceptions.custom_exception_handler',
 }
 
 SIMPLE_JWT = {

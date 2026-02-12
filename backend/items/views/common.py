@@ -2,11 +2,12 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
-from rest_framework.response import Response
 
 from ..models import Location, Brigade
 from ..serializers import LocationSerializer, BrigadeSerializer, StatusCounterSerializer
 from ..services.queries import GetStatusCountersQuery, GetAnalyticsQuery
+from ..exceptions import DomainValidationError
+from ..utils import api_response
 
 
 @extend_schema(
@@ -17,7 +18,7 @@ from ..services.queries import GetStatusCountersQuery, GetAnalyticsQuery
 @api_view(['GET'])
 def get_status_counters(request):
     """Получить счетчики статусов для виджета уведомлений"""
-    return Response(GetStatusCountersQuery.summary())
+    return api_response(data=GetStatusCountersQuery.summary())
 
 
 @extend_schema(responses={200: LocationSerializer(many=True)})
@@ -26,7 +27,7 @@ def location_list(request):
     """Список локаций для выпадающих списков"""
     locations = Location.objects.all().order_by('name')
     serializer = LocationSerializer(locations, many=True)
-    return Response({"locations": serializer.data})
+    return api_response(data={"locations": serializer.data})
 
 
 @extend_schema(methods=['GET'], responses=BrigadeSerializer(many=True))
@@ -35,14 +36,14 @@ def location_list(request):
 def brigade_list(request):
     if request.method == 'GET':
         brigades = Brigade.objects.all().order_by('name')
-        return Response({"brigades": BrigadeSerializer(brigades, many=True).data})
+        return api_response(data={"brigades": BrigadeSerializer(brigades, many=True).data})
     
     if request.method == 'POST':
         serializer = BrigadeSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+            return api_response(data=serializer.data)
+        raise DomainValidationError(str(serializer.errors))
 
 
 @extend_schema(
@@ -65,12 +66,12 @@ def get_analytics(request):
 
     result["details"] = ItemSerializer(result["details"], many=True).data
 
-    return Response(result)
+    return api_response(data=result)
 
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def hello(request):
     """Health check для Kubernetes"""
-    return Response({"status": "ok"})
+    return api_response(data={"status": "ok"})
 

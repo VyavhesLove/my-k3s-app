@@ -8,7 +8,7 @@ from items.models import Item, WriteOffRecord, ItemHistory, Location
 from items.services.commands.write_off import WriteOffCommand
 from items.services.commands.cancel_write_off import CancelWriteOffCommand
 from items.enums import ItemStatus, HistoryAction
-from items.services.domain.exceptions import DomainValidationError
+from items.services.domain.exceptions import DomainValidationError, DomainConflictError
 
 User = get_user_model()
 
@@ -147,9 +147,9 @@ class WriteOffCommandTestCase(TestCase):
         
         # Act + Assert - второй раз пытаемся списать тот же Item
         # После первого списания Item в статусе WRITTEN_OFF, поэтому:
-        # - validate_write_off() падает первой с "нельзя списать"
+        # - выбрасывается DomainConflictError "Item уже списан"
         # Это корректное поведение - нельзя списать уже списанный Item
-        with self.assertRaises(DomainValidationError) as context:
+        with self.assertRaises(DomainConflictError) as context:
             WriteOffCommand.execute(
                 item_id=self.item.id,
                 invoice_number="INV-2024-002",
@@ -158,10 +158,7 @@ class WriteOffCommandTestCase(TestCase):
         
         # Проверяем, что ошибка содержит ожидаемый текст
         error_msg = str(context.exception)
-        self.assertTrue(
-            "уже имеет активную запись" in error_msg or "нельзя списать" in error_msg,
-            f"Ожидалась ошибка о невозможности списания, получено: {error_msg}"
-        )
+        self.assertIn("Item уже списан", error_msg)
 
     def test_write_off_record_contains_correct_data(self):
         """Проверка, что WriteOffRecord создаётся с корректными данными."""
@@ -320,6 +317,97 @@ class WriteOffCommandTestCase(TestCase):
                 invoice_number="INV-2024-009",
                 user=self.user,
             )
+
+    def test_write_off_history_action_type_and_text(self):
+        """Проверка точных значений action_type и action_text в истории."""
+        # Act
+        WriteOffCommand.execute(
+            item_id=self.item.id,
+            invoice_number="INV-2024-010",
+            repair_cost=Decimal("2500.00"),
+            description="Списание по причине износа",
+            user=self.user,
+        )
+        
+        # Assert - проверяем запись WRITTEN_OFF
+        history_write_off = ItemHistory.objects.filter(
+            item=self.item,
+            action_type=HistoryAction.WRITTEN_OFF
+        ).first()
+        self.assertIsNotNone(history_write_off)
+        
+        # Проверяем action_type
+        self.assertEqual(history_write_off.action_type, HistoryAction.WRITTEN_OFF)
+        
+        # Проверяем action_text - должен содержать ключевые элементы
+        self.assertIn("Списание ТМЦ", history_write_off.action)
+        self.assertIn("износа", history_write_off.action)
+        self.assertIn("2500.00", history_write_off.action)
+        
+        # Проверяем payload
+        self.assertEqual(history_write_off.payload['reason'], "Списание по причине износа")
+        self.assertEqual(history_write_off.payload['amount'], "2500.00")
+        
+        # Assert - проверяем запись STATUS_CHANGED
+        history_status = ItemHistory.objects.filter(
+            item=self.item,
+            action_type=HistoryAction.STATUS_CHANGED
+        ).first()
+        self.assertIsNotNone(history_status)
+        self.assertEqual(history_status.action_type, HistoryAction.STATUS_CHANGED)
+        self.assertIn(ItemStatus.ISSUED, history_status.action)
+        self.assertIn(ItemStatus.WRITTEN_OFF, history_status.action)
+        self.assertEqual(history_status.payload['old_status'], ItemStatus.ISSUED)
+        self.assertEqual(history_status.payload['new_status'], ItemStatus.WRITTEN_OFF)
+
+    def test_write_off_after_cancel_success(self):
+        """Успешное повторное списание после отмены предыдущего."""
+        # Arrange - первый раз списываем
+        WriteOffCommand.execute(
+            item_id=self.item.id,
+            invoice_number="INV-FIRST-001",
+            user=self.user,
+        )
+        
+        # Отменяем списание
+        CancelWriteOffCommand.execute(item_id=self.item.id, user=self.user)
+        
+        # Проверяем что Item снова доступен
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
+        
+        # Проверяем что старая запись о списании отменена
+        old_record = WriteOffRecord.objects.filter(item=self.item).first()
+        self.assertIsNotNone(old_record)
+        self.assertTrue(old_record.is_cancelled)
+        
+        # NOTE: После отмены списания Item в статусе AVAILABLE.
+        # Списание допустимо только из ISSUED, AT_WORK, IN_REPAIR.
+        # Для повторного списания нужно сначала изменить статус на допустимый.
+        # В этом тесте мы используем setUp который создаёт item в статусе ISSUED,
+        # но после отмены списания он переходит в AVAILABLE.
+        # Поэтому для повторного списания меняем статус на ISSUED.
+        self.item.status = ItemStatus.ISSUED
+        self.item.save()
+        
+        # Act - второй раз списываем тот же Item
+        item_id, record_id = WriteOffCommand.execute(
+            item_id=self.item.id,
+            invoice_number="INV-SECOND-001",
+            repair_cost=Decimal("1000.00"),
+            user=self.user,
+        )
+        
+        # Assert
+        self.item.refresh_from_db()
+        self.assertEqual(self.item.status, ItemStatus.WRITTEN_OFF)
+        self.assertEqual(item_id, self.item.id)
+        
+        # Проверяем что создалась новая запись о списании
+        new_record = WriteOffRecord.objects.filter(id=record_id).first()
+        self.assertIsNotNone(new_record)
+        self.assertEqual(new_record.invoice_number, "INV-SECOND-001")
+        self.assertFalse(new_record.is_cancelled)
 
 
 class CancelWriteOffCommandTestCase(TestCase):
@@ -498,6 +586,44 @@ class CancelWriteOffCommandTestCase(TestCase):
         
         self.assertEqual(result, self.item.id)
         self.assertIsInstance(result, int)
+
+    def test_cancel_write_off_history_action_type_and_text(self):
+        """Проверка точных значений action_type и action_text в истории при отмене."""
+        # Arrange
+        write_off_record_id = self.record_id
+        
+        # Act
+        CancelWriteOffCommand.execute(
+            item_id=self.item.id,
+            user=self.user,
+        )
+        
+        # Assert - проверяем запись CANCELLED_WRITE_OFF
+        history_cancel = ItemHistory.objects.filter(
+            item=self.item,
+            action_type=HistoryAction.CANCELLED_WRITE_OFF
+        ).first()
+        self.assertIsNotNone(history_cancel)
+        
+        # Проверяем action_type
+        self.assertEqual(history_cancel.action_type, HistoryAction.CANCELLED_WRITE_OFF)
+        
+        # Проверяем action_text
+        self.assertIn("Отмена списания ТМЦ", history_cancel.action)
+        self.assertIn(str(write_off_record_id), history_cancel.action)
+        
+        # Проверяем payload
+        self.assertEqual(history_cancel.payload['write_off_id'], str(write_off_record_id))
+        
+        # Assert - проверяем запись STATUS_CHANGED
+        history_status = ItemHistory.objects.filter(
+            item=self.item,
+            action_type=HistoryAction.STATUS_CHANGED
+        ).order_by('-timestamp').first()
+        self.assertIsNotNone(history_status)
+        self.assertEqual(history_status.action_type, HistoryAction.STATUS_CHANGED)
+        self.assertEqual(history_status.payload['old_status'], ItemStatus.WRITTEN_OFF)
+        self.assertEqual(history_status.payload['new_status'], ItemStatus.AVAILABLE)
 
     def test_cancel_write_off_not_found(self):
         """Ошибка при несуществующем item_id."""

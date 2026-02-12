@@ -92,11 +92,45 @@ class WriteOffSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
 
 
+class WriteOffCreateSerializer(serializers.Serializer):
+    """
+    Сериализатор для создания записи о списании ТМЦ через API.
+    
+    Используется в POST /writeoffs/ endpoint.
+    """
+    item_id = serializers.IntegerField(
+        help_text="ID ТМЦ для списания"
+    )
+    invoice_number = serializers.CharField(
+        max_length=255,
+        help_text="Номер накладной"
+    )
+    repair_cost = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0"),
+        help_text="Стоимость ремонта/списания"
+    )
+    date_to_service = serializers.DateField(
+        required=False,
+        help_text="Дата поступления в ремонт"
+    )
+    date_written_off = serializers.DateField(
+        required=False,
+        help_text="Дата списания"
+    )
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Описание причины списания"
+    )
+
+
 class WriteOffRecordSerializer(serializers.ModelSerializer):
     """Сериализатор для записи о списании ТМЦ"""
     item_name = serializers.CharField(source='item.name', read_only=True)
     item_serial = serializers.CharField(source='item.serial', read_only=True)
-    location_name = serializers.CharField(source='location.name', read_only=True)
+    location_name = serializers.SerializerMethodField()
     created_by_username = serializers.SerializerMethodField()
 
     class Meta:
@@ -108,7 +142,13 @@ class WriteOffRecordSerializer(serializers.ModelSerializer):
             'created_by', 'created_by_username', 'created_at',
             'is_cancelled', 'cancelled_at'
         ]
-        read_only_fields = ['created_at', 'is_cancelled', 'cancelled_at']
+        read_only_fields = ["id", "created_at", "cancelled_at", "is_cancelled", "created_by"]
+
+    def get_location_name(self, obj):
+        """Возвращает название локации, если FK существует"""
+        if obj.location:
+            return obj.location.name
+        return None
 
     def get_created_by_username(self, obj):
         """Возвращает username создателя записи"""

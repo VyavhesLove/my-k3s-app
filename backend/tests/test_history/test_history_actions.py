@@ -307,6 +307,55 @@ class HistoryActionBuildTestCase(TestCase):
         self.assertEqual(action_type, "confirmed")
         self.assertIn("{comment}", action_text)
 
+    def test_written_off_build_with_reason_and_amount(self):
+        """WRITTEN_OFF.build() с reason и amount."""
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build(
+            reason="Износ", amount=1500
+        )
+        
+        self.assertEqual(action_type, "written_off")
+        self.assertIn("Износ", action_text)
+        self.assertIn("1500", action_text)
+        self.assertEqual(payload, {"reason": "Износ", "amount": 1500})
+
+    def test_written_off_build_missing_reason_and_amount(self):
+        """WRITTEN_OFF.build() БЕЗ reason и amount - KeyError защищён."""
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build()
+        
+        self.assertEqual(action_type, "written_off")
+        self.assertIn("{reason}", action_text)
+        self.assertIn("{amount}", action_text)
+        self.assertEqual(payload, {"reason": "", "amount": 0})
+
+    def test_written_off_build_empty_reason(self):
+        """WRITTEN_OFF.build() с пустым reason."""
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build(
+            reason="", amount=0
+        )
+
+        self.assertEqual(action_type, "written_off")
+        # При пустом reason плейсхолдер заменяется на пустую строку
+        self.assertIn("Списание ТМЦ. Причина: . Сумма: 0", action_text)
+        self.assertEqual(payload, {"reason": "", "amount": 0})
+
+    def test_cancelled_write_off_build_with_id(self):
+        """CANCELLED_WRITE_OFF.build() с write_off_id."""
+        action_type, action_text, payload = HistoryAction.CANCELLED_WRITE_OFF.build(
+            write_off_id=123
+        )
+        
+        self.assertEqual(action_type, "cancelled_write_off")
+        self.assertIn("123", action_text)
+        self.assertEqual(payload, {"write_off_id": "123"})
+
+    def test_cancelled_write_off_build_missing_id(self):
+        """CANCELLED_WRITE_OFF.build() БЕЗ write_off_id."""
+        action_type, action_text, payload = HistoryAction.CANCELLED_WRITE_OFF.build()
+        
+        self.assertEqual(action_type, "cancelled_write_off")
+        self.assertIn("{write_off_id}", action_text)
+        self.assertEqual(payload, {"write_off_id": ""})
+
 
 class HistoryServiceCreateMethodTestCase(TestCase):
     """Тесты для HistoryService.create() - общий метод создания истории."""
@@ -723,6 +772,85 @@ class HistoryServiceCreateMethodsTestCase(TestCase):
         )
 
         self.assertEqual(history.location.name, "Warehouse B")
+
+    def test_written_off_basic(self):
+        """written_off() списание ТМЦ с причиной и суммой."""
+        history = HistoryService.written_off(
+            item=self.item,
+            user=self.user,
+            reason="Физический износ",
+            amount=5000
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.WRITTEN_OFF)
+        self.assertIn("Списание", history.action)
+        self.assertIn("Физический износ", history.action)
+        self.assertIn("5000", history.action)
+        self.assertEqual(history.payload["reason"], "Физический износ")
+        self.assertEqual(history.payload["amount"], 5000)
+
+    def test_written_off_empty_reason(self):
+        """written_off() списание ТМЦ с пустой причиной."""
+        history = HistoryService.written_off(
+            item=self.item,
+            user=self.user,
+            reason="",
+            amount=0
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.WRITTEN_OFF)
+        self.assertIn("Списание", history.action)
+        # При пустой причине плейсхолдер заменяется на пустую строку
+        self.assertIn("Списание ТМЦ. Причина: . Сумма: 0", history.action)
+        self.assertEqual(history.payload["reason"], "")
+
+    def test_written_off_with_location(self):
+        """written_off() с локацией."""
+        history = HistoryService.written_off(
+            item=self.item,
+            user=self.user,
+            reason="Устарел",
+            amount=1000,
+            location="Main warehouse"
+        )
+
+        self.assertEqual(history.location.name, "Main warehouse")
+
+    def test_cancelled_write_off_basic(self):
+        """cancelled_write_off() отмена списания ТМЦ."""
+        history = HistoryService.cancelled_write_off(
+            item=self.item,
+            user=self.user,
+            write_off_id=42
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.CANCELLED_WRITE_OFF)
+        self.assertIn("Отмена списания", history.action)
+        self.assertIn("42", history.action)
+        self.assertEqual(history.payload["write_off_id"], "42")
+
+    def test_cancelled_write_off_empty_id(self):
+        """cancelled_write_off() с пустым write_off_id."""
+        history = HistoryService.cancelled_write_off(
+            item=self.item,
+            user=self.user,
+            write_off_id=""
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.CANCELLED_WRITE_OFF)
+        self.assertIn("{write_off_id}", history.action)
+        self.assertEqual(history.payload["write_off_id"], "")
+
+    def test_cancelled_write_off_with_location(self):
+        """cancelled_write_off() с локацией."""
+        history = HistoryService.cancelled_write_off(
+            item=self.item,
+            user=self.user,
+            write_off_id=123,
+            location="Warehouse A"
+        )
+
+        self.assertEqual(history.location.name, "Warehouse A")
 
 
 class HistoryServiceEdgeCasesTestCase(TestCase):

@@ -3,6 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from items.models import Item
 from .history_service import HistoryService
+from .domain.exceptions import DomainConflictError, DomainNotFoundError
 
 
 class LockService:
@@ -30,10 +31,12 @@ class LockService:
 
         Raises:
             DomainConflictError: Если ТМЦ уже заблокировано другим пользователем
+            DomainNotFoundError: Если ТМЦ не найдено
         """
-        from .domain.exceptions import DomainConflictError
-        
-        item = Item.objects.select_for_update().get(id=item_id)
+        try:
+            item = Item.objects.select_for_update().get(id=item_id)
+        except Item.DoesNotExist:
+            raise DomainNotFoundError(f"ТМЦ с ID {item_id} не найдено")
 
         if item.locked_by and item.locked_by != user:
             raise DomainConflictError(
@@ -60,10 +63,12 @@ class LockService:
 
         Raises:
             DomainConflictError: Если нет прав на разблокировку
+            DomainNotFoundError: Если ТМЦ не найдено
         """
-        from .domain.exceptions import DomainConflictError
-        
-        item = Item.objects.select_for_update().get(id=item_id)
+        try:
+            item = Item.objects.select_for_update().get(id=item_id)
+        except Item.DoesNotExist:
+            raise DomainNotFoundError(f"ТМЦ с ID {item_id} не найдено")
 
         if item.locked_by and item.locked_by != user:
             raise DomainConflictError("Нет прав на разблокировку")

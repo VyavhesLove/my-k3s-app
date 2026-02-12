@@ -8,7 +8,7 @@ from items.enums import ItemStatus
 from ...models import Item, WriteOffRecord, Location
 from ..history_service import HistoryService
 from ..domain.item_transitions import ItemTransitions
-from ..domain.exceptions import DomainValidationError
+from ..domain.exceptions import DomainValidationError, DomainConflictError
 
 
 class WriteOffCommand:
@@ -60,26 +60,30 @@ class WriteOffCommand:
         # 1. Получаем Item через select_for_update() - блокируем строку
         item = Item.objects.select_for_update().get(id=item_id)
 
-        # 2. Проверяем допустимость списания (списание допустимо из любого статуса)
+        # 2. Проверяем, что Item ещё не списан (конфликт состояния)
+        if item.status == ItemStatus.WRITTEN_OFF:
+            raise DomainConflictError("Item уже списан")
+
+        # 3. Проверяем допустимость списания из текущего статуса
         ItemTransitions.validate_write_off(item.status)
 
-        # 3. Проверяем, что нет активной записи списания
+        # 5. Проверяем, что нет активной записи списания
         if WriteOffRecord.objects.filter(item=item, is_cancelled=False).exists():
             raise DomainValidationError(
                 f"ТМЦ '{item.name}' уже имеет активную запись о списании"
             )
 
-        # 4. Определяем даты
+        # 6. Определяем даты
         today = date.today()
         effective_date_to_service = date_to_service or today
         effective_date_written_off = date_written_off or today
 
-        # 5. Получаем или создаём Location для списания
+        # 7. Получаем или создаём Location для списания
         location = None
         if item.location:
             location, _ = Location.objects.get_or_create(name=item.location)
 
-        # 6. Создаём запись о списании
+        # 9. Создаём запись о списании
         write_off_record = WriteOffRecord.objects.create(
             item=item,
             location=location,
@@ -91,12 +95,12 @@ class WriteOffCommand:
             created_by=user,
         )
 
-        # 7. Обновляем статус Item на WRITTEN_OFF
+        # 10. Обновляем статус Item на WRITTEN_OFF
         old_status = item.status
         item.status = ItemStatus.WRITTEN_OFF
         item.save()
 
-        # 8. Записываем в историю
+        # 11. Записываем в историю списания
         HistoryService.written_off(
             item=item,
             user=user,
@@ -105,7 +109,7 @@ class WriteOffCommand:
             location=item.location,
         )
 
-        # История смены статуса
+        # 12. История смены статуса
         HistoryService.status_changed(
             item=item,
             user=user,
