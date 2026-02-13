@@ -25,6 +25,18 @@ const LoginPage = ({ setToken, isDarkMode }) => {
       localStorage.setItem('accessToken', access);
       localStorage.setItem('refreshToken', refresh);
       
+      // ✅ Получаем и сохраняем информацию о пользователе
+      try {
+        const userResponse = await api.get('/users/me/');
+        const userData = userResponse.data;
+        
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('userRole', userData.role || 'user');
+        
+      } catch (userError) {
+        console.error('Не удалось загрузить пользователя:', userError);
+      }
+      
       // Передаем токен в родительский компонент App.js
       setToken(access);
       

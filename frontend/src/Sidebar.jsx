@@ -38,15 +38,49 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
   // Состояние для счетчиков
   const [stats, setStats] = React.useState({ to_receive: 0, to_repair: 0 /*, issued: 0 */ });
 
+  // Состояние пользователя
+  const [user, setUser] = React.useState(null);
+
+  // Загрузка информации о пользователе
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        // Пробуем получить из localStorage (если сохраняли при логине)
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+          return;
+        }
+        
+        // Если нет в localStorage - запрашиваем с сервера
+        const response = await api.get('/users/me/');
+        setUser(response.data);
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('user', JSON.stringify(response.data));
+        
+      } catch (error) {
+        console.error('Ошибка загрузки пользователя:', error);
+      }
+    };
+
+    if (localStorage.getItem('accessToken')) {
+      fetchUser();
+    }
+  }, []);
+
   // Загрузка счетчиков с сервера
   React.useEffect(() => {
     const fetchStats = async () => {
       try {
         const response = await api.get('/status-counters/');
+        console.log('Status-counters response:', response.data); // Отладка
+
+        // ✅ Правильный парсинг с оберткой data
         setStats({
-          to_receive: response.data.to_receive || 0,
-          to_repair: response.data.to_repair || 0,
-          // issued: response.data.issued || 0
+          to_receive: response.data?.data?.to_receive || 0,
+          to_repair: response.data?.data?.to_repair || 0,
+          // issued: response.data?.data?.issued || 0
         });
       } catch (error) {
         console.error('Ошибка загрузки счетчиков:', error);
@@ -158,12 +192,24 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
   // ... (toggleTheme остаются прежними)
 
   const handleLogout = () => {
-    // 1. Чистим всё хранилище
-    localStorage.clear();
+    // ✅ 1. Точечное удаление ТОЛЬКО пользовательских данных
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('permissions');
     
+    // ❌ НЕ УДАЛЯЕМ! - настройки темы остаются
+    // localStorage.removeItem('theme');
+    // localStorage.removeItem('isDarkMode');
+    
+    // ✅ 2. Сбрасываем Zustand store в начальное состояние
+    useItemStore.getState().reset();
+    
+    // ✅ 3. Уведомление
     toast.success("Выход выполнен");
-
-    // 2. Жёсткий редирект на страницу логина
+    
+    // ✅ 4. Жесткий редирект на логин
     window.location.href = '/login';
   };
 
@@ -201,14 +247,48 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
         ${isCollapsed ? 'w-20' : 'w-72'}`}
       >
         {/* Шапка */}
-        <div className="flex items-center justify-between p-4 border-b border-theme">
-          <Link to="/" className="flex items-center gap-3 text-primary">
-             <Home size={24} className="text-blue-500" />
-             {!isCollapsed && <span className="font-bold text-xl uppercase">Учёт ТМЦ</span>}
-          </Link>
-          <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1 rounded-md transition-colors hover:bg-blue-500/10">
-            {isCollapsed ? <ChevronRight className="text-primary" /> : <ChevronLeft className="text-primary" />}
-          </button>
+        <div className="flex flex-col p-4 border-b border-theme">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-3 text-primary">
+              <Home size={24} className="text-blue-500" />
+              {!isCollapsed && <span className="font-bold text-xl uppercase">Учёт ТМЦ</span>}
+            </Link>
+            <button 
+              onClick={() => setIsCollapsed(!isCollapsed)} 
+              className="p-1 rounded-md transition-colors hover:bg-blue-500/10"
+            >
+              {isCollapsed ? <ChevronRight className="text-primary" /> : <ChevronLeft className="text-primary" />}
+            </button>
+          </div>
+          
+          {/* 👤 Информация о пользователе (показываем только когда сайдбар не свернут) */}
+          {!isCollapsed && (
+            <div className="mt-3 flex items-center gap-3 px-2 py-2 rounded-lg bg-blue-500/10">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                {user?.username?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium truncate text-primary">
+                  {user?.username || 'Загрузка...'}
+                </div>
+                <div className="text-xs opacity-60 flex items-center gap-1">
+                  <span className={`inline-block w-2 h-2 rounded-full ${user?.role === 'storekeeper' ? 'bg-green-500' : 'bg-blue-500'} animate-pulse`}></span>
+                  {user?.role === 'storekeeper' ? 'Кладовщик' : 
+                   user?.role === 'admin' ? 'Администратор' : 
+                   user?.role === 'brigadier' ? 'Бригадир' : 'Пользователь'}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* 👤 Для свернутого сайдбара - только иконка */}
+          {isCollapsed && (
+            <div className="mt-3 flex justify-center">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
+                {user?.username?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Навигация */}

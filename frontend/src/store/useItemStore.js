@@ -57,11 +57,11 @@ export const useItemStore = create((set, get) => ({
       });
       
       // ✅ УСПЕХ - показываем только если реально загрузили
-      if (itemsArray.length > 0) {
-        toast.success(`✅ Загружено ${itemsArray.length} ТМЦ`, {
-          duration: 3000, // 3 секунды
-        });
-      }
+      // if (itemsArray.length > 0) {
+      //   toast.success(`✅ Загружено ${itemsArray.length} ТМЦ`, {
+      //     duration: 3000, // 3 секунды
+      //   });
+      // }
       
     } catch (err) {
       console.error('Ошибка обновления списка ТМЦ:', err);
@@ -242,5 +242,29 @@ export const useItemStore = create((set, get) => ({
   }),
   closeConfirmTMCModal: () => set({ 
     isConfirmTMCModalOpen: false 
+  }),
+
+  // === СОСТОЯНИЕ МОДАЛКИ "В РАБОТУ" ===
+  isAtWorkModalOpen: false,
+  
+  // Экшены для управления модалкой "В работу"
+  openAtWorkModal: () => set({ 
+    isAtWorkModalOpen: true 
+  }),
+  closeAtWorkModal: () => set({ 
+    isAtWorkModalOpen: false 
+  }),
+
+  // ✅ НОВЫЙ МЕТОД: ПОЛНЫЙ СБРОС СТОРА
+  reset: () => set({
+    selectedItem: null,
+    items: [],
+    itemsLoading: false,
+    lockedItems: {},
+    isServiceModalOpen: false,
+    serviceMode: 'send',
+    isTransferModalOpen: false,
+    isConfirmTMCModalOpen: false,
+    isAtWorkModalOpen: false,
   }),
 }));

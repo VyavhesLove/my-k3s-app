@@ -138,11 +138,11 @@ function InventoryList({ isDarkMode }) {
   }, [location.pathname]);
 
   // ✅ Отладка: логируем изменения items из store
-  useEffect(() => {
-    console.log('🔄 InventoryList - items from store:', items);
-    console.log('🔄 items length:', items?.length);
-    console.log('🔄 itemsLoading:', itemsLoading);
-  }, [items, itemsLoading]);
+  // useEffect(() => {
+  //   console.log('🔄 InventoryList - items from store:', items);
+  //   console.log('🔄 items length:', items?.length);
+  //   console.log('🔄 itemsLoading:', itemsLoading);
+  // }, [items, itemsLoading]);
 
   // Функция полного сброса фильтров
   const resetAllFilters = useCallback(() => {
