@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: docker.io/library/react-frontend:local
+        image: docker.io/library/react-frontend:production
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80

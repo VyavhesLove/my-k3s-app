@@ -4,6 +4,7 @@ import { Search, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, X, 
 import api from '../api/axios';
 import { statusMap, getStatusStyles } from '../constants/statusConfig';
 import { useItemStore } from '../store/useItemStore';
+import { logger } from '../utils/logger';
 
 // Компонент для фильтрации по статусу (select)
 const StatusFilter = ({ isDarkMode, filterValue, onFilterChange }) => {
@@ -139,9 +140,9 @@ function InventoryList({ isDarkMode }) {
 
   // ✅ Отладка: логируем изменения items из store
   useEffect(() => {
-    console.log('🔄 InventoryList - items from store:', items);
-    console.log('🔄 items length:', items?.length);
-    console.log('🔄 itemsLoading:', itemsLoading);
+    logger.log('🔄 InventoryList - items from store:', items);
+    logger.log('🔄 items length:', items?.length);
+    logger.log('🔄 itemsLoading:', itemsLoading);
   }, [items, itemsLoading]);
 
   // Функция полного сброса фильтров
@@ -173,7 +174,7 @@ function InventoryList({ isDarkMode }) {
           setFilters({});
           setSortConfig([]);
         } catch (err) {
-          console.error('Ошибка поиска:', err);
+          logger.error('Ошибка поиска:', err);
         }
       };
       searchItems();

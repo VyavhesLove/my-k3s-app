@@ -1,13 +1,16 @@
 import axios from 'axios';
 
+// Получаем API URL из переменных окружения (Vite)
+const API_URL = import.meta.env.VITE_API_URL || 'http://k8s.local/api/';
+
 // Создаем экземпляр axios с базовыми настройками
 const api = axios.create({
-    baseURL: 'http://k8s.local/api/',
+    baseURL: API_URL,
 });
 
 // ✅ Отдельный экземпляр для refresh токена (без интерцепторов, чтобы избежать цикла)
 const refreshApi = axios.create({
-    baseURL: 'http://k8s.local/api/',
+    baseURL: API_URL,
 });
 
 // ✅ Защита от использования чистого axios в проекте
