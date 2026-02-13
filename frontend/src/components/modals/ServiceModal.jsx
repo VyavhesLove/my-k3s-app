@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import api from '../../api/axios';
+import api from '@/api/axios';
 import { toast } from 'sonner';
-import { useItemStore } from '../../store/useItemStore';
+import { useItemStore } from '@/store/useItemStore';
 
 const ServiceModal = ({ isDarkMode }) => {
   const { 

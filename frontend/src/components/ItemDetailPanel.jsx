@@ -1,9 +1,9 @@
 import React from 'react';
 import { X, History, Lock } from 'lucide-react';
-import { statusMap, getStatusStyles } from '../constants/statusConfig';
+import { statusMap, getStatusStyles } from '@/constants/statusConfig';
 import TransferModal from './modals/TransferModal';
 import ConfirmTMCModal from './modals/ConfirmTMCModal';
-import { useItemStore } from '../store/useItemStore';
+import { useItemStore } from '@/store/useItemStore';
 import { toast } from 'sonner';
 
 const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkClick }) => {

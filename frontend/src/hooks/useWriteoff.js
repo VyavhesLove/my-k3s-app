@@ -1,6 +1,6 @@
 // Умный хук для списаний с Debounce и AbortController
 import { useState, useEffect, useCallback } from 'react';
-import api from '../api/axios';
+import api from '@/api/axios';
 
 // Хук для загрузки доступных опций фильтрации
 export const useWriteoffFilterOptions = () => {

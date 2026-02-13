@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Bell, ChevronDown, ChevronUp, PackageCheck, Wrench, Send } from 'lucide-react';
-import api from '../api/axios';
+import api from '@/api/axios';
 
 const QuickActions = ({ isDarkMode }) => {
   const navigate = useNavigate();

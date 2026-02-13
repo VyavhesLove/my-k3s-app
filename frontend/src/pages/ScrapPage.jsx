@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowLeft, RotateCcw, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/axios';
-import { useWriteoffList, useWriteoffFilters, useWriteoffFilterOptions } from '../hooks/useWriteoff';
+import api from '@/api/axios';
+import { useWriteoffList, useWriteoffFilters, useWriteoffFilterOptions } from '@/hooks/useWriteoff';
 
 const ScrapPage = ({ isDarkMode = false }) => {
   const navigate = useNavigate();

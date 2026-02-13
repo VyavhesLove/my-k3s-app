@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import api from '../api/axios';
+import api from '@/api/axios';
 import { toast } from 'sonner';
 
 export const useItemStore = create((set, get) => ({

@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
-import Sidebar from './Sidebar';
-import InventoryList from './components/InventoryList';
-import ItemCreate from './components/ItemCreate';
-import Analytics from './components/Analytics';
-import QuickActions from './components/QuickActions';
-import LoginPage from './components/LoginPage';
-import ItemDetailPanel from './components/ItemDetailPanel';
-import ServiceModal from './components/modals/ServiceModal';
-import AtWorkModal from './components/modals/AtWorkModal';
-import ConfirmTMCModal from './components/modals/ConfirmTMCModal';
-import ScrapPage from './pages/ScrapPage';
-import api from './api/axios';
-import { useItemStore } from './store/useItemStore';
+import Sidebar from '@/components/sidebar/Sidebar';
+import InventoryList from '@/components/InventoryList';
+import ItemCreate from '@/components/ItemCreate';
+import Analytics from '@/components/Analytics';
+import QuickActions from '@/components/QuickActions';
+import LoginPage from '@/components/LoginPage';
+import ItemDetailPanel from '@/components/ItemDetailPanel';
+import ServiceModal from '@/components/modals/ServiceModal';
+import AtWorkModal from '@/components/modals/AtWorkModal';
+import ConfirmTMCModal from '@/components/modals/ConfirmTMCModal';
+import ScrapPage from '@/pages/ScrapPage';
+import api from '@/api/axios';
+import { useItemStore } from '@/store/useItemStore';
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);

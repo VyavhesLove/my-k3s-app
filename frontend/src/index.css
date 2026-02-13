@@ -99,3 +99,35 @@ body {
 .light-theme .text-slate-900 {
   color: #000000 !important;
 }
+
+/* Анимация пульсации для бэйджей */
+@keyframes gentle-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+    box-shadow: 0 0 0 6px rgba(245, 158, 11, 0);
+  }
+}
+
+.badge-pulse {
+  animation: gentle-pulse 2s infinite ease-in-out;
+}
+
+/* Альтернативный вариант - более мягкий */
+@keyframes soft-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.1);
+  }
+}
+
+.badge-glow {
+  animation: soft-glow 2s infinite ease-in-out;
+}

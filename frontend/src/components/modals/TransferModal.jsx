@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Send, MapPin, User as UserIcon, Lock } from 'lucide-react';
-import api from '../../api/axios';
+import api from '@/api/axios';
 import { toast } from 'sonner';
-import { useItemStore } from '../../store/useItemStore';
+import { useItemStore } from '@/store/useItemStore';
 
 const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
   const { selectedItem, setSelectedItem, lockItem, unlockItem, refreshItems, lockedItems } = useItemStore();

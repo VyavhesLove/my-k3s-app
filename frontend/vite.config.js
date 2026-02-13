@@ -1,5 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 // export default defineConfig({
@@ -21,6 +25,11 @@ const buildTime = new Date().toLocaleString('ru-RU', {
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
   define: {
     'import.meta.env.PACKAGE_VERSION': JSON.stringify(
       buildTime

@@ -3,8 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Save } from 'lucide-react';
 import { toast } from 'sonner';
-import api from '../api/axios';
-import { useItemStore } from '../store/useItemStore';
+import api from '@/api/axios';
+import { useItemStore } from '@/store/useItemStore';
 
 const ItemCreate = ({ isDarkMode }) => {
   const navigate = useNavigate();

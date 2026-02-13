@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 // ✅ Импортируем НАСТРОЕННЫЙ экземпляр axios, а не чистый!
-import api from '../api/axios';
-import { useItemStore } from '../store/useItemStore';
+import api from '@/api/axios';
+import { useItemStore } from '@/store/useItemStore';
 import { toast } from 'sonner';
 
 const LoginPage = ({ setToken, isDarkMode }) => {
