@@ -30,6 +30,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    css: true,
+    setupFiles: './src/test/setup.js'
+  },
   define: {
     'import.meta.env.PACKAGE_VERSION': JSON.stringify(
       buildTime

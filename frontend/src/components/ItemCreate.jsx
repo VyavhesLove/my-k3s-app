@@ -37,6 +37,12 @@ const ItemCreate = ({ isDarkMode }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Валидация серийного номера
+    if (!formData.noSerial && !formData.serial.trim()) {
+      toast.warning('Заполните серийный номер или активируйте чекбокс "Серийный номер отсутствует"');
+      return;
+    }
+    
     const isEdit = !!editItem;
     const url = isEdit ? `/items/${editItem.id}/` : '/items';
 
@@ -65,13 +71,14 @@ const ItemCreate = ({ isDarkMode }) => {
           // ✅ Обновляем список через Zustand перед переходом
           refreshItems();
           
+          // Навигация после успеха
+          navigate('/');
+          
           return `ТМЦ "${payload.name}" успешно ${actionText}!`;
         },
         error: isEdit ? 'Не удалось сохранить изменения.' : 'Не удалось создать ТМЦ.',
       }
-    ).then(() => {
-      navigate('/');
-    });
+    );
   };
 
   return (
