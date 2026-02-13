@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useItemStore } from '../store/useItemStore';
 import { toast } from 'sonner';
-import { logger } from '../utils/logger';
 
 const LoginPage = ({ setToken, isDarkMode }) => {
   const [username, setUsername] = useState('');
@@ -33,16 +32,13 @@ const LoginPage = ({ setToken, isDarkMode }) => {
       await useItemStore.getState().refreshItems();
       
       // ✅ УСПЕШНЫЙ ВХОД
-      logger.info('✅ Успешный вход:', username);
-      
       toast.success('✅ Добро пожаловать!', {
         description: `Вы вошли как ${username}`,
       });
       
       navigate('/'); // Редирект на главную
     } catch (err) {
-      // Лог ошибки
-      logger.error('❌ Ошибка входа:', err.response?.data);
+      console.error('Login error:', err);
       
       // ❌ ОШИБКА ВХОДА
       toast.error('❌ Ошибка входа', {

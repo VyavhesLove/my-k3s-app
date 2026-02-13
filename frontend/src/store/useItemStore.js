@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import api from '../api/axios';
 import { toast } from 'sonner';
-import { logger } from '../utils/logger';
 
 export const useItemStore = create((set, get) => ({
   // Состояние выбранного ТМЦ
@@ -23,12 +22,7 @@ export const useItemStore = create((set, get) => ({
       }
       
       const response = await api.get('/items');
-      // 🔥 Логи ТОЛЬКО в development
-      logger.group('📦 Загрузка ТМЦ');
-      logger.log('URL:', response.config.url);
-      logger.log('Status:', response.status);
-      logger.log('Response:', response.data);
-      logger.groupEnd();
+      console.log('API Response:', response.data);
       
       // ✅ УНИВЕРСАЛЬНЫЙ ПАРСЕР - ВСЕГДА ВОЗВРАЩАЕТ МАССИВ
       let itemsArray = [];
@@ -54,27 +48,23 @@ export const useItemStore = create((set, get) => ({
         itemsArray = response.data.data;
       }
       
-      // ✅ УСПЕХ - показываем только если реально загрузили
-      if (itemsArray.length > 0) {
-        toast.success(`✅ Загружено ${itemsArray.length} ТМЦ`, {
-          duration: 3000, // 3 секунды
-        });
-        // Лог только в dev
-        logger.info(`Загружено ${itemsArray.length} ТМЦ`);
-      }
+      console.log(`✅ Загружено ${itemsArray.length} ТМЦ`);
       
       // ✅ КРИТИЧЕСКИ ВАЖНО: ВСЕГДА УСТАНАВЛИВАЕМ МАССИВ!
       set({ 
         items: itemsArray,
         itemsLoading: false 
       });
+      
+      // ✅ УСПЕХ - показываем только если реально загрузили
+      if (itemsArray.length > 0) {
+        toast.success(`✅ Загружено ${itemsArray.length} ТМЦ`, {
+          duration: 3000, // 3 секунды
+        });
+      }
+      
     } catch (err) {
-      // Ошибки логируем всегда
-      logger.group('❌ Ошибка загрузки ТМЦ');
-      logger.error('Message:', err.message);
-      logger.error('Status:', err.response?.status);
-      logger.error('Data:', err.response?.data);
-      logger.groupEnd();
+      console.error('Ошибка обновления списка ТМЦ:', err);
       
       // ❌ ОШИБКА - понятное сообщение пользователю
       toast.error('❌ Не удалось загрузить список ТМЦ', {
@@ -184,11 +174,7 @@ export const useItemStore = create((set, get) => ({
       });
       
     } catch (err) {
-      // Ошибки логируем всегда
-      logger.group('❌ Ошибка разблокировки');
-      logger.error('Message:', err.message);
-      logger.error('Status:', err.response?.status);
-      logger.groupEnd();
+      console.error('Ошибка разблокировки:', err);
       
       // ❌ ОШИБКА РАЗБЛОКИРОВКИ
       toast.error('❌ Не удалось разблокировать', {

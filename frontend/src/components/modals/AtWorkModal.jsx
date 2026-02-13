@@ -15,29 +15,15 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isBrigadeModalOpen, setIsBrigadeModalOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
-  const [isLoadingBrigades, setIsLoadingBrigades] = useState(false);
-  
-  // ✅ AbortController для отмены предыдущих запросов
-  const abortControllerRef = React.useRef(null);
-  // ✅ mounted ref для проверки монтирования компонента
-  const isMountedRef = React.useRef(true);
 
   // ✅ Загрузка бригад и попытка блокировки только при открытии
   useEffect(() => {
     if (isOpen && selectedItem) {
-      // ✅ Отменяем предыдущий запрос при новом открытии
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      
       const doLock = async () => {
         try {
           await lockItem(selectedItem.id);
-          if (isMountedRef.current) {
-            setIsLocked(true);
-          }
+          setIsLocked(true);
         } catch (err) {
-          if (!isMountedRef.current) return;
           if (err.response?.status === 423) {
             setIsLocked(false);
             toast.error(`🔒 ${err.response.data.locked_by}`, {
@@ -50,46 +36,19 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
       };
       
       const fetchBrigades = async () => {
-        // ✅ Создаем новый AbortController
-        abortControllerRef.current = new AbortController();
-        setIsLoadingBrigades(true);
         try {
-          const response = await api.get('/brigades/', {
-            signal: abortControllerRef.current.signal
-          });
-          // ✅ Проверяем mounted перед setState
-          if (isMountedRef.current) {
-            setBrigades(response.data.brigades || []);
-          }
+          const response = await api.get('/brigades/');
+          setBrigades(response.data.brigades || []);
         } catch (err) {
-          // ✅ Игнорируем ошибку отмены
-          if (err.name === 'AbortError' || err.name === 'CanceledError') {
-            return;
-          }
-          if (!isMountedRef.current) return;
           console.error('Ошибка загрузки бригад:', err);
           toast.error('Не удалось загрузить список бригад');
-        } finally {
-          if (isMountedRef.current) {
-            setIsLoadingBrigades(false);
-          }
         }
       };
       
       doLock();
       fetchBrigades();
-      if (isMountedRef.current) {
-        setSelectedBrigade(''); // Сброс выбора
-      }
+      setSelectedBrigade(''); // Сброс выбора
     }
-    
-    // ✅ Очистка при размонтировании
-    return () => {
-      isMountedRef.current = false;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
   }, [isOpen, selectedItem, lockItem]);
 
   // При закрытии - разблокируем
@@ -236,22 +195,18 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
                   <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <select 
                     value={selectedBrigade}
-                    disabled={!isLocked || isLoadingBrigades}
+                    disabled={!isLocked}
                     onChange={(e) => setSelectedBrigade(e.target.value)}
                     className={`w-full pl-10 pr-4 py-3 rounded-xl border outline-none appearance-none focus:ring-2 focus:ring-blue-500 ${
                       isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-300'
-                    } ${!isLocked || isLoadingBrigades ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    } ${!isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <option value="">-- Не выбрана --</option>
-                    {isLoadingBrigades ? (
-                      <option disabled>Загрузка...</option>
-                    ) : (
-                      brigades.map(b => (
-                        <option key={b.id} value={b.id}>
-                          {b.name} ({b.brigadier})
-                        </option>
-                      ))
-                    )}
+                    {brigades.map(b => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} ({b.brigadier})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
