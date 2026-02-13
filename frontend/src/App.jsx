@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import Sidebar from './Sidebar';
 import InventoryList from './components/InventoryList';
 import ItemCreate from './components/ItemCreate';
@@ -24,7 +24,7 @@ function App() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
-  const { selectedItem, serviceMode, isServiceModalOpen } = useItemStore();
+  const { selectedItem, serviceMode, isServiceModalOpen, refreshItems } = useItemStore();
   
   // ✅ Состояние для AtWorkModal
   const [isAtWorkModalOpen, setIsAtWorkModalOpen] = useState(false);
@@ -57,10 +57,10 @@ function App() {
       
       await api.post(`/items/${itemId}/${endpoint}/`, payload);
       
-      Toaster.success(serviceMode === 'send' ? "Отправлено в сервис" : "Принято из сервиса");
+      toast.success(serviceMode === 'send' ? "Отправлено в сервис" : "Принято из сервиса");
       useItemStore.getState().closeServiceModal();
     } catch (error) {
-      Toaster.error("Ошибка при выполнении операции");
+      toast.error("Ошибка при выполнении операции");
     }
   };
 
@@ -69,6 +69,14 @@ function App() {
     const storedToken = localStorage.getItem('accessToken');
     setToken(storedToken);
   }, []);
+
+  // ✅ КРИТИЧЕСКИ ВАЖНО: Загружаем ТМЦ при наличии токена
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      refreshItems();
+    }
+  }, [token, refreshItems]);
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark' : 'light'}`}>

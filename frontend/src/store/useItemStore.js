@@ -22,13 +22,62 @@ export const useItemStore = create((set, get) => ({
       }
       
       const response = await api.get('/items');
+      console.log('API Response:', response.data);
+      
+      // ✅ УНИВЕРСАЛЬНЫЙ ПАРСЕР - ВСЕГДА ВОЗВРАЩАЕТ МАССИВ
+      let itemsArray = [];
+      
+      // Вариант 1: { success: true, data: { items: [...] } }
+      if (response.data?.data?.items && Array.isArray(response.data.data.items)) {
+        itemsArray = response.data.data.items;
+      }
+      // Вариант 2: { success: true, data: [...] }
+      else if (response.data?.data && Array.isArray(response.data.data)) {
+        itemsArray = response.data.data;
+      }
+      // Вариант 3: { items: [...] }
+      else if (response.data?.items && Array.isArray(response.data.items)) {
+        itemsArray = response.data.items;
+      }
+      // Вариант 4: прямой массив
+      else if (Array.isArray(response.data)) {
+        itemsArray = response.data;
+      }
+      // Вариант 5: { data: [...] } (без success)
+      else if (response.data?.data && Array.isArray(response.data.data)) {
+        itemsArray = response.data.data;
+      }
+      
+      console.log(`✅ Загружено ${itemsArray.length} ТМЦ`);
+      
+      // ✅ КРИТИЧЕСКИ ВАЖНО: ВСЕГДА УСТАНАВЛИВАЕМ МАССИВ!
       set({ 
-        items: response.data.items || [],
+        items: itemsArray,
         itemsLoading: false 
       });
+      
+      // ✅ УСПЕХ - показываем только если реально загрузили
+      if (itemsArray.length > 0) {
+        toast.success(`✅ Загружено ${itemsArray.length} ТМЦ`, {
+          duration: 3000, // 3 секунды
+        });
+      }
+      
     } catch (err) {
       console.error('Ошибка обновления списка ТМЦ:', err);
-      set({ itemsLoading: false });
+      
+      // ❌ ОШИБКА - понятное сообщение пользователю
+      toast.error('❌ Не удалось загрузить список ТМЦ', {
+        description: err.response?.status === 401 
+          ? 'Сессия истекла. Войдите снова.' 
+          : 'Проверьте подключение к серверу',
+        duration: 5000,
+      });
+      
+      set({ 
+        items: [],  // ← Пустой массив при ошибке
+        itemsLoading: false 
+      });
     }
   },
 
@@ -77,6 +126,12 @@ export const useItemStore = create((set, get) => ({
         }
       }));
       
+      // ✅ УВЕДОМЛЕНИЕ О БЛОКИРОВКЕ
+      toast.info('🔒 ТМЦ заблокирован', {
+        description: 'Вы можете редактировать',
+        duration: 2000,
+      });
+      
       return response.data;
     } catch (err) {
       // Если уже заблокировано другим пользователем (423)
@@ -91,6 +146,12 @@ export const useItemStore = create((set, get) => ({
             }
           }
         }));
+        
+        // ⚠️ УЖЕ ЗАБЛОКИРОВАНО
+        toast.warning('🔒 ТМЦ уже заблокирован', {
+          description: `Пользователем: ${lockInfo.locked_by || 'Неизвестный'}`,
+          duration: 4000,
+        });
       }
       throw err;
     }
@@ -106,8 +167,20 @@ export const useItemStore = create((set, get) => ({
         delete newLocked[itemId];
         return { lockedItems: newLocked };
       });
+      
+      // ✅ УВЕДОМЛЕНИЕ О РАЗБЛОКИРОВКЕ
+      toast.success('🔓 ТМЦ разблокирован', {
+        duration: 2000,
+      });
+      
     } catch (err) {
       console.error('Ошибка разблокировки:', err);
+      
+      // ❌ ОШИБКА РАЗБЛОКИРОВКИ
+      toast.error('❌ Не удалось разблокировать', {
+        description: 'Попробуйте позже',
+      });
+      
       throw err;
     }
   },

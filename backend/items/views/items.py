@@ -1,6 +1,7 @@
 # CRUD ТМЦ
 from drf_spectacular.utils import extend_schema
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 
 from ..models import Item
 from ..serializers import ItemSerializer
@@ -22,6 +23,7 @@ from ..utils import api_response
     responses={201: ItemSerializer}
 )
 @api_view(['GET', 'POST'])
+@permission_classes([AllowAny])
 def item_list(request):
     """GET: список items, POST: создать item"""
     if request.method == 'GET':

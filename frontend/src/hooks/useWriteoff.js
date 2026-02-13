@@ -12,7 +12,7 @@ export const useWriteoffFilterOptions = () => {
     const fetchOptions = async () => {
       try {
         setLoading(true);
-        const response = await api.get('/writeoff/filters/');
+        const response = await api.get('/writeoffs/filters/');
         setOptions(response.data);
       } catch (err) {
         setError(err.response?.data?.error || 'Ошибка загрузки фильтров');

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+// ✅ Импортируем НАСТРОЕННЫЙ экземпляр axios, а не чистый!
+import api from '../api/axios';
+import { useItemStore } from '../store/useItemStore';
+import { toast } from 'sonner';
 
 const LoginPage = ({ setToken, isDarkMode }) => {
   const [username, setUsername] = useState('');
@@ -11,7 +14,8 @@ const LoginPage = ({ setToken, isDarkMode }) => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://k8s.local/api/token/', {
+      // ✅ Используем api.post с относительным путем!
+      const response = await api.post('token/', {
         username,
         password
       });
@@ -23,8 +27,24 @@ const LoginPage = ({ setToken, isDarkMode }) => {
       
       // Передаем токен в родительский компонент App.js
       setToken(access);
+      
+      // ✅ ЯВНО ЗАГРУЖАЕМ ТМЦ ПОСЛЕ ЛОГИНА
+      await useItemStore.getState().refreshItems();
+      
+      // ✅ УСПЕШНЫЙ ВХОД
+      toast.success('✅ Добро пожаловать!', {
+        description: `Вы вошли как ${username}`,
+      });
+      
       navigate('/'); // Редирект на главную
     } catch (err) {
+      console.error('Login error:', err);
+      
+      // ❌ ОШИБКА ВХОДА
+      toast.error('❌ Ошибка входа', {
+        description: 'Неверный логин или пароль',
+      });
+      
       setError('Неверный логин или пароль');
     }
   };

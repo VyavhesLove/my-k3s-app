@@ -12,7 +12,7 @@ from .common import (
     get_status_counters, hello
 )
 from .confirm_tmc import ConfirmTMCAPIView
-from .writeoffs import write_off_list, write_off_cancel
+from .writeoffs import write_off_list, write_off_cancel, write_off_filter_options
 
 # Alias для обратной совместимости с urls.py
 # items/urls.py использует views.item_list и т.д.
@@ -33,6 +33,7 @@ get_status_counters = get_status_counters
 hello = hello
 write_off_list = write_off_list
 write_off_cancel = write_off_cancel
+write_off_filter_options = write_off_filter_options
 
 __all__ = [
     'item_list', 'item_detail',
@@ -41,6 +42,6 @@ __all__ = [
     'lock_item', 'unlock_item',
     'location_list', 'brigade_list', 'get_analytics', 'get_status_counters', 'hello',
     'ConfirmTMCAPIView',
-    'write_off_list', 'write_off_cancel',
+    'write_off_list', 'write_off_cancel', 'write_off_filter_options',
 ]
 

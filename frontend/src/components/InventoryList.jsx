@@ -137,6 +137,13 @@ function InventoryList({ isDarkMode }) {
     }
   }, [location.pathname]);
 
+  // ✅ Отладка: логируем изменения items из store
+  useEffect(() => {
+    console.log('🔄 InventoryList - items from store:', items);
+    console.log('🔄 items length:', items?.length);
+    console.log('🔄 itemsLoading:', itemsLoading);
+  }, [items, itemsLoading]);
+
   // Функция полного сброса фильтров
   const resetAllFilters = useCallback(() => {
     setFilters({});
@@ -373,15 +380,33 @@ function InventoryList({ isDarkMode }) {
                   </tr>
                 </thead>
                 <tbody style={{ color: 'var(--table-text)', borderColor: 'var(--table-border)' }}>
-                  {itemsLoading && items.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="px-4 py-12 text-center">
-                        <div className="flex flex-col items-center gap-3">
-                          <RefreshCw size={32} className="animate-spin text-blue-500" />
-                          <span className="text-gray-500">Загрузка данных...</span>
-                        </div>
-                      </td>
-                    </tr>
+                  {itemsLoading ? (
+                    // 🟢 СКЕЛЕТОН - 5 строк-заглушек
+                    [...Array(5)].map((_, index) => (
+                      <tr key={index} className="animate-pulse">
+                        <td className="px-4 py-4">
+                          <div className="h-4 bg-gray-300/20 rounded w-6"></div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 bg-gray-300/20 rounded w-32"></div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 bg-gray-300/20 rounded w-24"></div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 bg-gray-300/20 rounded w-20"></div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-6 bg-gray-300/20 rounded-full w-20"></div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 bg-gray-300/20 rounded w-24"></div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="h-4 bg-gray-300/20 rounded w-24"></div>
+                        </td>
+                      </tr>
+                    ))
                   ) : paginatedItems.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-12 text-center">
