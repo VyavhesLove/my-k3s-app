@@ -83,8 +83,8 @@ const QuickActions = ({ isDarkMode }) => {
             count={stats.issued} 
             colorClass="bg-sky-500 text-white border-sky-600 shadow-sky-500/20 shadow-lg"
             onClick={() => {
-              navigate('/?filter=issued,at_work');
-              toast.info("Фильтр: Контроль ТМЦ в работе");
+              navigate('/?filter=issued');
+              toast.info("Фильтр: ТМЦ выдано");
             }}
           />
         </div>

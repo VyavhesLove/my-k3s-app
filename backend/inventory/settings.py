@@ -116,13 +116,24 @@ USE_X_FORWARDED_PORT = True
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
-        'django.security.csrf': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'items': {
             'handlers': ['console'],
             'level': 'DEBUG',
         },

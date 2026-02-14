@@ -20,7 +20,7 @@ class ItemTransitions:
     # | Создание ТМЦ         | Created            | available     |     -доступно
     # | Распределение         | available          | confirm        |   -подтвердить ТМЦ
     # | Подтверждение         | confirm            | issued         |   -выдано
-    # | Выдача в бригаду      | available, confirm | at_work       |    -в работе
+    # | Выдача в бригаду      | issued             | at_work       |    -в работе
     # | Возврат с работы     | at_work            | issued         |    -выдано
     # | Отправка в ремонт    | issued, at_work    | confirm_repair|     -подтвердить ремонт
     # | Подтверждение ремонта | confirm_repair     | in_repair     |    -в ремонте
@@ -35,48 +35,36 @@ class ItemTransitions:
         # Распределение: available → confirm
         ItemStatus.AVAILABLE: [
             ItemStatus.CONFIRM,      # Распределение
-            ItemStatus.AT_WORK,       # Выдача в бригаду напрямую
         ],
 
-        # Подтверждение ТМЦ: confirm → issued (подтверждение) или at_work (выдача)
+        # Подтверждение ТМЦ: confirm → issued (подтверждение)
         ItemStatus.CONFIRM: [
             ItemStatus.ISSUED,        # Подтверждение
-            ItemStatus.AT_WORK,       # Выдача в бригаду
         ],
 
-        # Выдано в работу: at_work → issued (возврат) или confirm_repair (в ремонт)
-        ItemStatus.AT_WORK: [
-            ItemStatus.ISSUED,        # Возврат с работы
-            ItemStatus.CONFIRM_REPAIR, # Отправка в ремонт
-        ],
-
-        # Выдано: issued → confirm_repair (в ремонт) или confirm (перераспределение)
+        # Выдано: issued → at_work (выдача в работу), confirm_repair (в ремонт), confirm (перераспределение), written_off (списание)
         ItemStatus.ISSUED: [
-            ItemStatus.CONFIRM_REPAIR, # Отправка в ремонт
-            ItemStatus.CONFIRM,        # Перераспределение
+            ItemStatus.AT_WORK,          # Выдача в работу
+            ItemStatus.CONFIRM_REPAIR,   # Отправка в ремонт
+            ItemStatus.CONFIRM,          # Перераспределение
+            ItemStatus.WRITTEN_OFF,      # Списание
         ],
 
-        # Ожидает подтверждения ремонта: confirm_repair → in_repair (подтверждение)
+        # Ожидает подтверждения ремонта: confirm_repair → in_repair (подтверждение) или written_off (списание)
         ItemStatus.CONFIRM_REPAIR: [
-            ItemStatus.IN_REPAIR,      # Подтверждение ремонта
+            ItemStatus.IN_REPAIR,        # Подтверждение ремонта
+            ItemStatus.WRITTEN_OFF,      # Списание из подтверждения ремонта
         ],
 
         # В ремонте: in_repair → issued (возврат из ремонта) или written_off (списание)
         ItemStatus.IN_REPAIR: [
-            ItemStatus.ISSUED,         # Возврат из ремонта
-            ItemStatus.WRITTEN_OFF,    # Списание
+            ItemStatus.ISSUED,           # Возврат из ремонта
+            ItemStatus.WRITTEN_OFF,      # Списание
         ],
 
-        # Выдано: issued → confirm_repair (в ремонт) или confirm (перераспределение) или written_off (списание)
-        ItemStatus.ISSUED: [
-            ItemStatus.CONFIRM_REPAIR,  # Отправка в ремонт
-            ItemStatus.CONFIRM,         # Перераспределение
-            ItemStatus.WRITTEN_OFF,     # Списание
-        ],
-
-        # Выдано в работу: at_work → issued (возврат) или confirm_repair (в ремонт) или written_off (списание)
+        # Выдано в работу: at_work → issued (возврат), confirm_repair (в ремонт), written_off (списание)
         ItemStatus.AT_WORK: [
-            ItemStatus.ISSUED,          # Возврат с работы
+            ItemStatus.ISSUED,           # Возврат с работы
             ItemStatus.CONFIRM_REPAIR,   # Отправка в ремонт
             ItemStatus.WRITTEN_OFF,      # Списание
         ],
@@ -92,6 +80,7 @@ class ItemTransitions:
         ItemStatus.ISSUED,
         ItemStatus.AT_WORK,
         ItemStatus.IN_REPAIR,
+        ItemStatus.CONFIRM_REPAIR,
     ]
 
     # ========== КОНСТАНТЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ==========

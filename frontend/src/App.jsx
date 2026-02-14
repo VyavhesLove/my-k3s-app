@@ -43,7 +43,11 @@ function App() {
     if (mode === 'transfer') {
       useItemStore.getState().openTransferModal();
     } else if (mode === 'confirm') {
+      // Подтверждение ТМЦ со статуса confirm -> открываем ConfirmTMCModal
       useItemStore.getState().openConfirmTMCModal();
+    } else if (mode === 'service_confirm') {
+      // Подтверждение ремонта / списание со статуса confirm_repair -> открываем ServiceModal
+      useItemStore.getState().openServiceModal('confirm');
     } else {
       useItemStore.getState().openServiceModal(mode);
     }

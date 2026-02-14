@@ -96,10 +96,10 @@ const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
       api.put(`/items/${item.id}/`, {
         location: formData.targetLocation,
         responsible: formData.responsible,
-        status: 'issued'
+        status: 'confirm'
       }),
       {
-        loading: 'Обновление данных о местоположении...',
+        loading: 'Передача ТМЦ на подтверждение...',
         success: async () => {
           // Разблокируем перед закрытием
           await unlockItem(item.id);
@@ -110,7 +110,7 @@ const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
           setSelectedItem(null);
           
           handleClose();
-          return `ТМЦ "${item.name}" успешно передано в "${formData.targetLocation}"`;
+          return `ТМЦ "${item.name}" передано на подтверждение`;
         },
         error: 'Ошибка при передаче. Попробуйте еще раз.',
       }

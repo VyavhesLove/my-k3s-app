@@ -37,7 +37,8 @@ class ReturnFromServiceCommand:
         Args:
             item_id: ID ТМЦ
             action: "confirm_repair" - подтвердить начало ремонта,
-                   "return" - вернуть из сервиса
+                   "return" - вернуть из сервиса,
+                   "write_off" - списать ТМЦ
             user: Пользователь (объект User)
 
         Returns:
@@ -54,6 +55,8 @@ class ReturnFromServiceCommand:
             ReturnFromServiceCommand._confirm_repair(item, user)
         elif action == "return":
             ReturnFromServiceCommand._return(item, user)
+        elif action == "write_off":
+            ReturnFromServiceCommand._write_off(item, user)
         else:
             raise DomainValidationError(f"Неподдерживаемое действие: {action}")
 
@@ -80,7 +83,7 @@ class ReturnFromServiceCommand:
         HistoryService.repair_confirmed(
             item=item,
             user=user,
-            location_name=item.location,
+            location=item.location,
         )
 
         # История смены статуса
@@ -115,7 +118,7 @@ class ReturnFromServiceCommand:
         HistoryService.returned_from_service(
             item=item,
             user=user,
-            location_name=item.location,
+            location=item.location,
         )
 
         # История смены статуса
@@ -124,6 +127,43 @@ class ReturnFromServiceCommand:
             user=user,
             old_status=old_status,
             new_status=ItemStatus.ISSUED,
+            location=item.location,
+        )
+
+        return item
+
+    @staticmethod
+    def _write_off(item, user):
+        """
+        Списание ТМЦ из статуса "Подтвердить ремонт".
+
+        ТМЦ переходит из статуса confirm_repair в written_off.
+
+        Args:
+            item: Объект ТМЦ (уже заблокирован)
+            user: Пользователь
+        """
+        # Валидация: можно списывать только из статуса CONFIRM_REPAIR
+        old_status = item.status
+        ItemTransitions.validate_transition(item.status, ItemStatus.WRITTEN_OFF)
+
+        item.status = ItemStatus.WRITTEN_OFF
+        item.save()
+
+        HistoryService.written_off(
+            item=item,
+            user=user,
+            reason="Списание из подтверждения ремонта",
+            amount=0,
+            location=item.location,
+        )
+
+        # История смены статуса
+        HistoryService.status_changed(
+            item=item,
+            user=user,
+            old_status=old_status,
+            new_status=ItemStatus.WRITTEN_OFF,
             location=item.location,
         )
 

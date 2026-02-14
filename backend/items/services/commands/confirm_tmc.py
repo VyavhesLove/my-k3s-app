@@ -44,7 +44,7 @@ class ConfirmTMCCommand:
 
         # 2. Выполняем действие
         if action == "accept":
-            # accept: CREATED → AVAILABLE
+            # accept: CONFIRM → ISSUED
             ConfirmTMCCommand._validate_accept(item.status)
             ConfirmTMCCommand._accept(item, user)
         elif action == "reject":
@@ -58,7 +58,7 @@ class ConfirmTMCCommand:
 
     @staticmethod
     def _validate_accept(status: ItemStatus) -> None:
-        """Валидация принятия ТМЦ (CONFIRM → AVAILABLE)."""
+        """Валидация принятия ТМЦ (CONFIRM → ISSUED)."""
         if status != ItemStatus.CONFIRM:
             raise DomainValidationError(
                 f"Невозможно принять ТМЦ. Статус должен быть 'confirm', а не '{status}'"
@@ -83,7 +83,7 @@ class ConfirmTMCCommand:
         """
         old_status = item.status
         
-        item.status = ItemStatus.AVAILABLE
+        item.status = ItemStatus.ISSUED
         item.responsible = user.username if hasattr(user, 'username') else str(user)
         item.save()
 
@@ -98,47 +98,35 @@ class ConfirmTMCCommand:
             item=item,
             user=user,
             old_status=old_status,
-            new_status=ItemStatus.AVAILABLE,
+            new_status=ItemStatus.ISSUED,
             location=item.location,
         )
 
     @staticmethod
     def _reject(item, user) -> None:
         """
-        Отклонение ТМЦ — возврат на исходную локацию.
+        Отклонение ТМЦ — возврат в статус "Доступно".
+
+        При отклонении ТМЦ возвращается в исходное состояние "Доступно",
+        ответственный и локация очищаются, статус меняется на AVAILABLE.
 
         Args:
             item: Объект ТМЦ (уже заблокирован транзакцией)
             user: Пользователь
-
-        Raises:
-            DomainValidationError: Если невозможно восстановить исходное состояние
         """
-        # Восстанавливаем из первой записи истории
-        first_operation = HistoryService.get_first_assignment(item)
-
-        if not first_operation:
-            raise DomainValidationError("Невозможно восстановить исходное состояние")
-
         old_status = item.status
+        old_location = item.location
         
-        item.status = ItemStatus.ISSUED
-        item.location = (
-            first_operation.location.name
-            if first_operation.location
-            else item.location
-        )
-        item.responsible = (
-            first_operation.user.username
-            if first_operation.user
-            else None
-        )
+        # Возвращаем в статус "Доступно"
+        item.status = ItemStatus.AVAILABLE
+        item.responsible = None
+        item.location = None  # Очищаем локацию
         item.save()
 
         HistoryService.rejected(
             item=item,
             user=user,
-            location=item.location,
+            location=old_location,
         )
 
         # История смены статуса
@@ -146,6 +134,6 @@ class ConfirmTMCCommand:
             item=item,
             user=user,
             old_status=old_status,
-            new_status=ItemStatus.ISSUED,
-            location=item.location,
+            new_status=ItemStatus.AVAILABLE,
+            location=old_location,
         )

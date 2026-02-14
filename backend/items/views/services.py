@@ -69,6 +69,24 @@ def confirm_repair(request, item_id):
 
 @extend_schema(request=None, responses=ItemSerializer)
 @api_view(['POST'])
+def write_off_from_confirm_repair(request, item_id):
+    """
+    Списание ТМЦ из статуса "Подтвердить ремонт" (confirm_repair → written_off).
+    """
+    item_id = ReturnFromServiceCommand.execute(
+        item_id=item_id,
+        action="write_off",
+        user=request.user
+    )
+    item = GetItemQuery.by_id(item_id)
+    return api_response(
+        data=ItemSerializer(item).data,
+        message="ТМЦ списано"
+    )
+
+
+@extend_schema(request=None, responses=ItemSerializer)
+@api_view(['POST'])
 @permission_classes([IsStorekeeper])
 def confirm_item(request, item_id):
     """

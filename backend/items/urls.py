@@ -7,6 +7,7 @@ urlpatterns = [
     path('items/<int:item_id>/send-to-service/', views.send_to_service, name='send_to_service'),
     path('items/<int:item_id>/return-from-service/', views.return_from_service, name='return_from_service'),
     path('items/<int:item_id>/confirm-repair/', views.confirm_repair, name='confirm_repair'),
+    path('items/<int:item_id>/write-off-from-confirm-repair/', views.write_off_from_confirm_repair, name='write_off_from_confirm_repair'),
     path('items/<int:item_id>/confirm/', views.confirm_item, name='confirm_item'),
     path('items/<int:item_id>/confirm-tmc/', views.ConfirmTMCAPIView.as_view(), name='confirm_tmc'),
     path('items/<int:item_id>/write-off/', views.write_off_item, name='write_off_item'),

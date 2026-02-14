@@ -19,6 +19,13 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
   // ✅ Загрузка бригад и попытка блокировки только при открытии
   useEffect(() => {
     if (isOpen && selectedItem) {
+      // Проверяем, что ТМЦ в статусе "issued" (выдано)
+      if (selectedItem.status !== 'issued') {
+        toast.error("ТМЦ можно передать в работу только из статуса 'Выдано'");
+        onClose();
+        return;
+      }
+
       const doLock = async () => {
         try {
           await lockItem(selectedItem.id);

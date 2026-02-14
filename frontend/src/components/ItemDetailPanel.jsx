@@ -147,10 +147,10 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
                 </button>
               )}
 
-              {/* Ждет подтверждения ремонта -> Подтвердить */}
+              {/* Ждет подтверждения ремонта -> Подтвердить ремонт или Списать */}
               {item.status === 'confirm_repair' && (
                 <button
-                  onClick={() => handleActionClick('confirm')}
+                  onClick={() => handleActionClick('service_confirm')}
                   disabled={isItemLocked}
                   className={`w-full py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-xl font-bold transition-all shadow-lg shadow-amber-900/20 active:scale-95 ${
                     isItemLocked ? 'opacity-50 cursor-not-allowed' : ''

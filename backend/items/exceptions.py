@@ -1,10 +1,17 @@
 """Доменные исключения и глобальный Exception Handler."""
+import logging
+import traceback
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
 
+from django.conf import settings
 from .services.domain.exceptions import DomainError, DomainValidationError, DomainConflictError, DomainNotFoundError
 from .utils import api_response, api_error
+
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -73,6 +80,18 @@ def custom_exception_handler(exc, context):
         )
     
     # Необработанные исключения - 500 Internal Server Error
+    # Логируем полный traceback для отладки
+    logger.error(
+        f"Unhandled exception: {exc}\n{traceback.format_exc()}"
+    )
+    
+    if settings.DEBUG:
+        # В режиме DEBUG возвращаем полный traceback
+        return api_error(
+            error=f"Внутренняя ошибка сервера\n\n{traceback.format_exc()}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
     return api_error(
         error="Внутренняя ошибка сервера",
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
