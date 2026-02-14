@@ -1,82 +1,99 @@
-"""DRF Exception Handlers и доменные исключения."""
+"""Доменные исключения и глобальный Exception Handler."""
+import logging
+import traceback
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.exceptions import APIException
 
-from .services.domain.exceptions import DomainError, DomainValidationError, DomainConflictError
+from django.conf import settings
+from .services.domain.exceptions import DomainError, DomainValidationError, DomainConflictError, DomainNotFoundError
+from .utils import api_response, api_error
 
 
-class DomainException(APIException):
+# Настройка логирования
+logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Глобальный Exception Handler
+# =============================================================================
+
+def custom_exception_handler(exc, context):
     """
-    Базовый класс для доменных исключений в DRF.
+    Глобальный обработчик исключений для DRF.
     
-    Этот класс используется для преобразования доменных исключений
-    в HTTP-ответы. Сам доменный слой (DomainError) НЕ знает про HTTP.
-    """
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = 'Ошибка бизнес-логики'
-    default_code = 'domain_error'
-
-
-class DomainValidationException(DomainException):
-    """Ошибка валидации бизнес-правил (400)."""
-    status_code = status.HTTP_400_BAD_REQUEST
-    default_detail = 'Ошибка валидации'
-    default_code = 'domain_validation_error'
-
-
-class DomainConflictException(DomainException):
-    """Ошибка конфликта состояния (409)."""
-    status_code = status.HTTP_409_CONFLICT
-    default_detail = 'Конфликт состояния'
-    default_code = 'domain_conflict_error'
-
-
-def domain_exception_handler(exc, context):
-    """
-    Кастомный обработчик исключений для DRF.
+    Поддерживает:
+    - DRF исключения (ValidationError, NotFound, PermissionDenied, etc.)
+    - Доменные исключения (DomainValidationError, DomainConflictError, DomainNotFoundError)
+    - Стандартные Python исключения
     
-    Преобразует DomainError в понятные HTTP-ответы.
-    
-    Args:
-        exc: Исключение
-        context: Контекст запроса
-        
     Returns:
-        Response: HTTP-ответ с ошибкой
+        Response: Унифицированный ответ в формате:
+            Успех: {"success": true, "data": {...}, "message": "..."}
+            Ошибка: {"success": false, "data": null, "error": "..."}
     """
     # Сначала вызываем стандартный обработчик DRF
     response = exception_handler(exc, context)
     
-    # Если это доменное исключение - преобразуем в нужный формат
+    # Обработка DRF исключений (ValidationError, NotFound, PermissionDenied, etc.)
+    if response is not None:
+        # Получаем текст ошибки
+        if hasattr(exc, 'detail'):
+            if isinstance(exc.detail, dict):
+                error_text = str(exc.detail)
+            elif isinstance(exc.detail, list):
+                error_text = ", ".join(str(d) for d in exc.detail)
+            else:
+                error_text = str(exc.detail)
+        else:
+            error_text = str(exc)
+        
+        return api_error(
+            error=error_text,
+            status_code=response.status_code
+        )
+    
+    # Доменные исключения
+    
     if isinstance(exc, DomainValidationError):
-        return Response(
-            {
-                'error': 'validation_error',
-                'message': str(exc),
-            },
-            status=status.HTTP_400_BAD_REQUEST
+        return api_error(
+            error=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST
         )
     
     if isinstance(exc, DomainConflictError):
-        return Response(
-            {
-                'error': 'conflict_error',
-                'message': str(exc),
-            },
-            status=status.HTTP_409_CONFLICT
+        return api_error(
+            error=str(exc),
+            status_code=status.HTTP_409_CONFLICT
+        )
+    
+    if isinstance(exc, DomainNotFoundError):
+        return api_error(
+            error=str(exc),
+            status_code=status.HTTP_404_NOT_FOUND
         )
     
     if isinstance(exc, DomainError):
-        return Response(
-            {
-                'error': 'domain_error',
-                'message': str(exc),
-            },
-            status=status.HTTP_400_BAD_REQUEST
+        return api_error(
+            error=str(exc),
+            status_code=status.HTTP_400_BAD_REQUEST
         )
     
-    # Для остальных исключений возвращаем стандартный ответ
-    return response
+    # Необработанные исключения - 500 Internal Server Error
+    # Логируем полный traceback для отладки
+    logger.error(
+        f"Unhandled exception: {exc}\n{traceback.format_exc()}"
+    )
+    
+    if settings.DEBUG:
+        # В режиме DEBUG возвращаем полный traceback
+        return api_error(
+            error=f"Внутренняя ошибка сервера\n\n{traceback.format_exc()}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+    
+    return api_error(
+        error="Внутренняя ошибка сервера",
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+    )
 

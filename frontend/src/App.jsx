@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
-import Sidebar from './Sidebar';
-import InventoryList from './components/InventoryList';
-import ItemCreate from './components/ItemCreate';
-import Analytics from './components/Analytics';
-import QuickActions from './components/QuickActions';
-import LoginPage from './components/LoginPage';
-import ItemDetailPanel from './components/ItemDetailPanel';
-import ServiceModal from './components/modals/ServiceModal';
-import AtWorkModal from './components/modals/AtWorkModal';
-import ConfirmTMCModal from './components/modals/ConfirmTMCModal';
-import api from './api/axios';
-import { useItemStore } from './store/useItemStore';
+import { Toaster, toast } from 'sonner';
+import Sidebar from '@/components/sidebar/Sidebar';
+import InventoryList from '@/components/InventoryList';
+import ItemCreate from '@/components/ItemCreate';
+import Analytics from '@/components/Analytics';
+import QuickActions from '@/components/QuickActions';
+import LoginPage from '@/components/LoginPage';
+import ItemDetailPanel from '@/components/ItemDetailPanel';
+import ServiceModal from '@/components/modals/ServiceModal';
+import AtWorkModal from '@/components/modals/AtWorkModal';
+import ConfirmTMCModal from '@/components/modals/ConfirmTMCModal';
+import ScrapPage from '@/pages/ScrapPage';
+import api from '@/api/axios';
+import { useItemStore } from '@/store/useItemStore';
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -23,7 +24,7 @@ function App() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
-  const { selectedItem, serviceMode, isServiceModalOpen } = useItemStore();
+  const { selectedItem, serviceMode, isServiceModalOpen, refreshItems } = useItemStore();
   
   // ✅ Состояние для AtWorkModal
   const [isAtWorkModalOpen, setIsAtWorkModalOpen] = useState(false);
@@ -42,7 +43,11 @@ function App() {
     if (mode === 'transfer') {
       useItemStore.getState().openTransferModal();
     } else if (mode === 'confirm') {
+      // Подтверждение ТМЦ со статуса confirm -> открываем ConfirmTMCModal
       useItemStore.getState().openConfirmTMCModal();
+    } else if (mode === 'service_confirm') {
+      // Подтверждение ремонта / списание со статуса confirm_repair -> открываем ServiceModal
+      useItemStore.getState().openServiceModal('confirm');
     } else {
       useItemStore.getState().openServiceModal(mode);
     }
@@ -56,10 +61,10 @@ function App() {
       
       await api.post(`/items/${itemId}/${endpoint}/`, payload);
       
-      Toaster.success(serviceMode === 'send' ? "Отправлено в сервис" : "Принято из сервиса");
+      toast.success(serviceMode === 'send' ? "Отправлено в сервис" : "Принято из сервиса");
       useItemStore.getState().closeServiceModal();
     } catch (error) {
-      Toaster.error("Ошибка при выполнении операции");
+      toast.error("Ошибка при выполнении операции");
     }
   };
 
@@ -68,6 +73,14 @@ function App() {
     const storedToken = localStorage.getItem('accessToken');
     setToken(storedToken);
   }, []);
+
+  // ✅ КРИТИЧЕСКИ ВАЖНО: Загружаем ТМЦ при наличии токена
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      refreshItems();
+    }
+  }, [token, refreshItems]);
 
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark' : 'light'}`}>
@@ -131,6 +144,7 @@ function App() {
                     } />
                     <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
+                    <Route path="/writeoffs" element={<ScrapPage isDarkMode={isDarkMode} />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </main>

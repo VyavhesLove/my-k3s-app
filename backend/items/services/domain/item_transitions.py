@@ -17,16 +17,16 @@ class ItemTransitions:
     # Матрица переходов:
     # | Операция              | Из статуса         | В статус      |
     # |-----------------------|--------------------|---------------|
-    # | Создание ТМЦ         | Created            | available     |
-    # | Распределение         | available          | confirm        |
-    # | Подтверждение         | confirm            | issued         |
-    # | Выдача в бригаду      | available, confirm | at_work       |
-    # | Возврат с работы     | at_work            | issued         |
-    # | Отправка в ремонт    | issued, at_work    | confirm_repair|
-    # | Подтверждение ремонта | confirm_repair     | in_repair     |
-    # | Возврат из ремонта   | in_repair          | issued         |
-    # | Списание              | Любой статус       | written_off   |
-    # | Отмена списания       | written_off        | available      |
+    # | Создание ТМЦ         | Created            | available     |     -доступно
+    # | Распределение         | available          | confirm        |   -подтвердить ТМЦ
+    # | Подтверждение         | confirm            | issued         |   -выдано
+    # | Выдача в бригаду      | issued             | at_work       |    -в работе
+    # | Возврат с работы     | at_work            | issued         |    -выдано
+    # | Отправка в ремонт    | issued, at_work    | confirm_repair|     -подтвердить ремонт
+    # | Подтверждение ремонта | confirm_repair     | in_repair     |    -в ремонте
+    # | Возврат из ремонта   | in_repair          | issued         |    -выдано
+    # | Списание              | Любой статус       | written_off   |    -списано
+    # | Отмена списания       | written_off        | available      |   -доступно
     #
     ALLOWED_TRANSITIONS = {
         # Создание: created → available
@@ -35,42 +35,53 @@ class ItemTransitions:
         # Распределение: available → confirm
         ItemStatus.AVAILABLE: [
             ItemStatus.CONFIRM,      # Распределение
-            ItemStatus.AT_WORK,       # Выдача в бригаду напрямую
         ],
 
-        # Подтверждение ТМЦ: confirm → issued (подтверждение) или at_work (выдача)
+        # Подтверждение ТМЦ: confirm → issued (подтверждение)
         ItemStatus.CONFIRM: [
             ItemStatus.ISSUED,        # Подтверждение
-            ItemStatus.AT_WORK,       # Выдача в бригаду
         ],
 
-        # Выдано в работу: at_work → issued (возврат) или confirm_repair (в ремонт)
-        ItemStatus.AT_WORK: [
-            ItemStatus.ISSUED,        # Возврат с работы
-            ItemStatus.CONFIRM_REPAIR, # Отправка в ремонт
-        ],
-
-        # Выдано: issued → confirm_repair (в ремонт) или confirm (перераспределение)
+        # Выдано: issued → at_work (выдача в работу), confirm_repair (в ремонт), confirm (перераспределение), written_off (списание)
         ItemStatus.ISSUED: [
-            ItemStatus.CONFIRM_REPAIR, # Отправка в ремонт
-            ItemStatus.CONFIRM,        # Перераспределение
+            ItemStatus.AT_WORK,          # Выдача в работу
+            ItemStatus.CONFIRM_REPAIR,   # Отправка в ремонт
+            ItemStatus.CONFIRM,          # Перераспределение
+            ItemStatus.WRITTEN_OFF,      # Списание
         ],
 
-        # Ожидает подтверждения ремонта: confirm_repair → in_repair (подтверждение)
+        # Ожидает подтверждения ремонта: confirm_repair → in_repair (подтверждение) или written_off (списание)
         ItemStatus.CONFIRM_REPAIR: [
-            ItemStatus.IN_REPAIR,      # Подтверждение ремонта
+            ItemStatus.IN_REPAIR,        # Подтверждение ремонта
+            ItemStatus.WRITTEN_OFF,      # Списание из подтверждения ремонта
         ],
 
-        # В ремонте: in_repair → issued (возврат из ремонта)
+        # В ремонте: in_repair → issued (возврат из ремонта) или written_off (списание)
         ItemStatus.IN_REPAIR: [
-            ItemStatus.ISSUED,         # Возврат из ремонта
+            ItemStatus.ISSUED,           # Возврат из ремонта
+            ItemStatus.WRITTEN_OFF,      # Списание
+        ],
+
+        # Выдано в работу: at_work → issued (возврат), confirm_repair (в ремонт), written_off (списание)
+        ItemStatus.AT_WORK: [
+            ItemStatus.ISSUED,           # Возврат с работы
+            ItemStatus.CONFIRM_REPAIR,   # Отправка в ремонт
+            ItemStatus.WRITTEN_OFF,      # Списание
         ],
 
         # Списано: written_off → available (отмена списания)
         ItemStatus.WRITTEN_OFF: [
-            ItemStatus.AVAILABLE,      # Отмена списания
+            ItemStatus.AVAILABLE,       # Отмена списания
         ],
     }
+
+    # Статусы из которых допустимо списание
+    WRITE_OFF_ALLOWED_FROM = [
+        ItemStatus.ISSUED,
+        ItemStatus.AT_WORK,
+        ItemStatus.IN_REPAIR,
+        ItemStatus.CONFIRM_REPAIR,
+    ]
 
     # ========== КОНСТАНТЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ==========
     # Статус после подтверждения
@@ -100,9 +111,9 @@ class ItemTransitions:
     def can_write_off(cls, current_status: ItemStatus) -> bool:
         """
         Можно ли списать ТМЦ.
-        Списание возможно из любого статуса.
+        Списание возможно только из статусов ISSUED, AT_WORK, IN_REPAIR.
         """
-        return True  # Списание допустимо из любого статуса
+        return current_status in cls.WRITE_OFF_ALLOWED_FROM
 
     @classmethod
     def validate_transition(
@@ -125,9 +136,16 @@ class ItemTransitions:
     def validate_write_off(cls, current_status: ItemStatus) -> None:
         """
         Валидация списания.
-        Списание допустимо из любого статуса.
+        Списание допустимо только из статусов ISSUED, AT_WORK, IN_REPAIR.
+
+        Raises:
+            DomainValidationError: Если списание из текущего статуса недопустимо
         """
-        pass  # Списание всегда допустимо
+        if not cls.can_write_off(current_status):
+            raise DomainValidationError(
+                f"ТМЦ со статусом '{current_status}' нельзя списать. "
+                f"Списание допустимо из статусов: {cls.WRITE_OFF_ALLOWED_FROM}"
+            )
 
     # ========== МЕТОДЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ==========
 

@@ -3,11 +3,35 @@ import axios from 'axios';
 // Создаем экземпляр axios с базовыми настройками
 const api = axios.create({
     baseURL: 'http://k8s.local/api/',
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
-// Автоматическое добавление слеша в конец URL
+// ✅ Отдельный экземпляр для refresh токена (без интерцепторов, чтобы избежать цикла)
+const refreshApi = axios.create({
+    baseURL: 'http://k8s.local/api/',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+});
+
+// ✅ Защита от использования чистого axios в проекте
+if (process.env.NODE_ENV === 'development') {
+    const originalPost = axios.post;
+    axios.post = function(...args) {
+        console.warn(
+            '⚠️ Используй import api from "../api/axios", а не чистый axios!\n',
+            'URL:', args[0]
+        );
+        return originalPost.apply(this, args);
+    };
+}
+
+// Автоматическое добавление слеша в конец URL (только если слеша нет)
 api.interceptors.request.use((config) => {
     // Проверяем, что в конце URL нет слеша и это не запрос с параметрами (типа ?search=...)
+    // Добавляем слеш только если его нет в конце
     if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
         config.url += '/';
     }
@@ -44,8 +68,8 @@ api.interceptors.response.use(
             
             try {
                 const refreshToken = localStorage.getItem('refreshToken');
-                // Запрашиваем новый access токен
-                const res = await axios.post('http://k8s.local/api/token/refresh/', {
+                // ✅ Используем refreshApi для обновления токена (без интерцепторов)
+                const res = await refreshApi.post('token/refresh/', {
                     refresh: refreshToken,
                 });
 

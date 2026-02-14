@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
 import { Filter, FileText, Download } from 'lucide-react';
-import api from '../api/axios';
-import { statusMap, getStatusStyles } from '../constants/statusConfig';
+import api from '@/api/axios';
+import { statusMap, getStatusStyles } from '@/constants/statusConfig';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 

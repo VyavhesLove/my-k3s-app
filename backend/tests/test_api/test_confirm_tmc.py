@@ -12,11 +12,12 @@ from django.contrib.auth import get_user_model
 from items.models import Item, ItemHistory, Location
 from items.enums import ItemStatus, HistoryAction
 from users.models import UserRole
+from tests.utils import APITestCase as HelperAPITestCase
 
 User = get_user_model()
 
 
-class ConfirmTMCAPITestCase(APITestCase):
+class ConfirmTMCAPITestCase(HelperAPITestCase):
     """Интеграционные тесты для ConfirmTMC API."""
 
     def setUp(self):
@@ -66,9 +67,8 @@ class ConfirmTMCAPITestCase(APITestCase):
             format="json"
         )
         
-        # Проверяем ответ
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["success"], True)
+        # Проверяем ответ через helper
+        self.assert_api_success(response)
         
         # Проверяем изменения в базе
         self.item.refresh_from_db()
@@ -100,9 +100,8 @@ class ConfirmTMCAPITestCase(APITestCase):
             format="json"
         )
         
-        # Проверяем ответ
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["success"], True)
+        # Проверяем ответ через helper
+        self.assert_api_success(response)
         
         # Проверяем изменения в базе
         self.item.refresh_from_db()
@@ -118,7 +117,9 @@ class ConfirmTMCAPITestCase(APITestCase):
             format="json"
         )
         
-        self.assertEqual(response.status_code, 200)
+        # Проверяем ответ через helper
+        self.assert_api_success(response)
+        
         self.item.refresh_from_db()
         self.assertEqual(self.item.status, ItemStatus.AVAILABLE)
 
@@ -185,7 +186,7 @@ class ConfirmTMCAPITestCase(APITestCase):
         self.assertEqual(response.status_code, 400)
 
 
-class ConfirmItemAPITestCase(APITestCase):
+class ConfirmItemAPITestCase(HelperAPITestCase):
     """Интеграционные тесты для confirm_item API (статус confirm -> available)."""
 
     def setUp(self):
@@ -213,7 +214,8 @@ class ConfirmItemAPITestCase(APITestCase):
             format="json"
         )
         
-        self.assertEqual(response.status_code, 200)
+        # Проверяем ответ через helper
+        self.assert_api_success(response)
         
         self.item.refresh_from_db()
         self.assertEqual(self.item.status, ItemStatus.AVAILABLE)

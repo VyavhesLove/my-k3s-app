@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Users, PlusCircle, Lock } from 'lucide-react';
 import BrigadeModal from './BrigadeModal';
-import api from '../../api/axios';
+import api from '@/api/axios';
 import { toast } from 'sonner';
-import { useItemStore } from '../../store/useItemStore';
+import { useItemStore } from '@/store/useItemStore';
 
 // ✅ Props-based подход вместо прямого доступа к store
 const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
@@ -19,6 +19,13 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
   // ✅ Загрузка бригад и попытка блокировки только при открытии
   useEffect(() => {
     if (isOpen && selectedItem) {
+      // Проверяем, что ТМЦ в статусе "issued" (выдано)
+      if (selectedItem.status !== 'issued') {
+        toast.error("ТМЦ можно передать в работу только из статуса 'Выдано'");
+        onClose();
+        return;
+      }
+
       const doLock = async () => {
         try {
           await lockItem(selectedItem.id);
@@ -38,7 +45,9 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
       const fetchBrigades = async () => {
         try {
           const response = await api.get('/brigades/');
-          setBrigades(response.data.brigades || []);
+          // Бэкенд возвращает { success: true, data: { brigades: [...] } }
+          const brigadesData = response.data.data?.brigades || response.data.brigades || [];
+          setBrigades(brigadesData);
         } catch (err) {
           console.error('Ошибка загрузки бригад:', err);
           toast.error('Не удалось загрузить список бригад');
@@ -69,7 +78,9 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
   const handleSaveBrigade = useCallback(async (newBrigade) => {
     try {
       const response = await api.post('/brigades/', newBrigade);
-      setBrigades(prev => [...prev, response.data]);
+      // Бэкенд возвращает { success: true, data: {...} }
+      const newBrigadeData = response.data.data || response.data;
+      setBrigades(prev => [...prev, newBrigadeData]);
       toast.success("Бригада создана");
     } catch (err) {
       console.error('Ошибка сохранения бригады:', err);

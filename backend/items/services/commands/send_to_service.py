@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from django.db import transaction
 from items.enums import ItemStatus
-from ..lock_service import LockService
+from ...models import Item
 from ..history_service import HistoryService
 from ..domain.item_transitions import ItemTransitions
 
@@ -14,6 +14,11 @@ class SendToServiceCommand:
 
     Переводит ТМЦ в статус "Ожидает подтверждения ремонта" (confirm_repair).
     Далее ремонтник должен подтвердить, что взял в работу (in_repair).
+
+    Требования:
+    - Полная транзакционная безопасность (@transaction.atomic)
+    - Использование select_for_update() для защиты от race condition
+    - Без использования LockService
 
     Command — изменяет состояние системы.
     Returns:
@@ -37,30 +42,36 @@ class SendToServiceCommand:
         Raises:
             ValueError: При некорректном статусе ТМЦ
         """
-        # Блокируем и проверяем права
-        item = LockService.lock(item_id, user)
+        # 1. Блокируем строку через select_for_update()
+        item = Item.objects.select_for_update().get(id=item_id)
 
-        try:
-            # Валидация перехода
-            ItemTransitions.validate_send_to_service(item.status)
+        # 2. Валидация перехода
+        ItemTransitions.validate_send_to_service(item.status)
 
-            # Логика изменения
-            if item.brigade:
-                item.brigade = None
+        # 3. Логика изменения
+        old_status = item.status
+        
+        if item.brigade:
+            item.brigade = None
 
-            # Переводим в статус "Ожидает подтверждения ремонта"
-            item.status = ItemStatus.CONFIRM_REPAIR
-            item.save()
+        # Переводим в статус "Ожидает подтверждения ремонта"
+        item.status = ItemStatus.CONFIRM_REPAIR
+        item.save()
 
-            # Записываем в историю
-            HistoryService.sent_to_service(
-                item=item,
-                user=user,
-                reason=reason,
-            )
+        # 4. Записываем в историю
+        HistoryService.sent_to_service(
+            item=item,
+            user=user,
+            reason=reason,
+        )
 
-            return item.id
+        # История смены статуса
+        HistoryService.status_changed(
+            item=item,
+            user=user,
+            old_status=old_status,
+            new_status=ItemStatus.CONFIRM_REPAIR,
+            location=item.location,
+        )
 
-        finally:
-            # Всегда разблокируем после изменения
-            LockService.unlock(item_id, user)
+        return item.id

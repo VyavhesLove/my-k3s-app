@@ -6,6 +6,7 @@
 - HistoryService.create_*(): все методы создания записей истории
 - Edge cases: KeyError handling, payload=None, отсутствующие ключи в шаблоне
 """
+from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 
@@ -306,6 +307,55 @@ class HistoryActionBuildTestCase(TestCase):
         
         self.assertEqual(action_type, "confirmed")
         self.assertIn("{comment}", action_text)
+
+    def test_written_off_build_with_reason_and_amount(self):
+        """WRITTEN_OFF.build() с reason и amount."""
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build(
+            reason="Износ", amount=1500
+        )
+        
+        self.assertEqual(action_type, "written_off")
+        self.assertIn("Износ", action_text)
+        self.assertIn("1500", action_text)
+        self.assertEqual(payload, {"reason": "Износ", "amount": 1500})
+
+    def test_written_off_build_missing_reason_and_amount(self):
+        """WRITTEN_OFF.build() БЕЗ reason и amount - KeyError защищён."""
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build()
+        
+        self.assertEqual(action_type, "written_off")
+        self.assertIn("{reason}", action_text)
+        self.assertIn("{amount}", action_text)
+        self.assertEqual(payload, {"reason": "", "amount": 0})
+
+    def test_written_off_build_empty_reason(self):
+        """WRITTEN_OFF.build() с пустым reason."""
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build(
+            reason="", amount=0
+        )
+
+        self.assertEqual(action_type, "written_off")
+        # При пустом reason плейсхолдер заменяется на пустую строку
+        self.assertIn("Списание ТМЦ. Причина: . Сумма: 0", action_text)
+        self.assertEqual(payload, {"reason": "", "amount": 0})
+
+    def test_cancelled_write_off_build_with_id(self):
+        """CANCELLED_WRITE_OFF.build() с write_off_id."""
+        action_type, action_text, payload = HistoryAction.CANCELLED_WRITE_OFF.build(
+            write_off_id=123
+        )
+        
+        self.assertEqual(action_type, "cancelled_write_off")
+        self.assertIn("123", action_text)
+        self.assertEqual(payload, {"write_off_id": "123"})
+
+    def test_cancelled_write_off_build_missing_id(self):
+        """CANCELLED_WRITE_OFF.build() БЕЗ write_off_id."""
+        action_type, action_text, payload = HistoryAction.CANCELLED_WRITE_OFF.build()
+        
+        self.assertEqual(action_type, "cancelled_write_off")
+        self.assertIn("{write_off_id}", action_text)
+        self.assertEqual(payload, {"write_off_id": ""})
 
 
 class HistoryServiceCreateMethodTestCase(TestCase):
@@ -724,6 +774,85 @@ class HistoryServiceCreateMethodsTestCase(TestCase):
 
         self.assertEqual(history.location.name, "Warehouse B")
 
+    def test_written_off_basic(self):
+        """written_off() списание ТМЦ с причиной и суммой."""
+        history = HistoryService.written_off(
+            item=self.item,
+            user=self.user,
+            reason="Физический износ",
+            amount=5000
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.WRITTEN_OFF)
+        self.assertIn("Списание", history.action)
+        self.assertIn("Физический износ", history.action)
+        self.assertIn("5000", history.action)
+        self.assertEqual(history.payload["reason"], "Физический износ")
+        self.assertEqual(history.payload["amount"], 5000)
+
+    def test_written_off_empty_reason(self):
+        """written_off() списание ТМЦ с пустой причиной."""
+        history = HistoryService.written_off(
+            item=self.item,
+            user=self.user,
+            reason="",
+            amount=0
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.WRITTEN_OFF)
+        self.assertIn("Списание", history.action)
+        # При пустой причине плейсхолдер заменяется на пустую строку
+        self.assertIn("Списание ТМЦ. Причина: . Сумма: 0", history.action)
+        self.assertEqual(history.payload["reason"], "")
+
+    def test_written_off_with_location(self):
+        """written_off() с локацией."""
+        history = HistoryService.written_off(
+            item=self.item,
+            user=self.user,
+            reason="Устарел",
+            amount=1000,
+            location="Main warehouse"
+        )
+
+        self.assertEqual(history.location.name, "Main warehouse")
+
+    def test_cancelled_write_off_basic(self):
+        """cancelled_write_off() отмена списания ТМЦ."""
+        history = HistoryService.cancelled_write_off(
+            item=self.item,
+            user=self.user,
+            write_off_id=42
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.CANCELLED_WRITE_OFF)
+        self.assertIn("Отмена списания", history.action)
+        self.assertIn("42", history.action)
+        self.assertEqual(history.payload["write_off_id"], "42")
+
+    def test_cancelled_write_off_empty_id(self):
+        """cancelled_write_off() с пустым write_off_id."""
+        history = HistoryService.cancelled_write_off(
+            item=self.item,
+            user=self.user,
+            write_off_id=""
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.CANCELLED_WRITE_OFF)
+        self.assertIn("{write_off_id}", history.action)
+        self.assertEqual(history.payload["write_off_id"], "")
+
+    def test_cancelled_write_off_with_location(self):
+        """cancelled_write_off() с локацией."""
+        history = HistoryService.cancelled_write_off(
+            item=self.item,
+            user=self.user,
+            write_off_id=123,
+            location="Warehouse A"
+        )
+
+        self.assertEqual(history.location.name, "Warehouse A")
+
 
 class HistoryServiceEdgeCasesTestCase(TestCase):
     """Edge cases тесты для HistoryService."""
@@ -871,6 +1000,95 @@ class HistoryServiceEdgeCasesTestCase(TestCase):
         HistoryService.accepted(item=self.item, user=self.user, location="W1")
 
         first_assignment = HistoryService.get_first_assignment(self.item)
-        
+
         self.assertIsNone(first_assignment)
+
+
+class HistoryActionDecimalTestCase(TestCase):
+    """Тесты для корректной работы HistoryAction.build() с Decimal."""
+
+    def test_written_off_build_with_decimal_amount(self):
+        """WRITTEN_OFF.build() с Decimal amount - amount не должен превращаться в float."""
+        amount = Decimal("1500.50")
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build(
+            reason="Износ", amount=amount
+        )
+
+        self.assertEqual(action_type, "written_off")
+        self.assertIn("1500.50", action_text)
+        self.assertIn("Износ", action_text)
+        # amount остаётся как Decimal (не превращается в float)
+        self.assertIsInstance(payload["amount"], Decimal)
+        self.assertEqual(payload["amount"], amount)
+
+    def test_written_off_build_with_decimal_zero(self):
+        """WRITTEN_OFF.build() с Decimal('0') - значение по умолчанию."""
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build()
+
+        self.assertEqual(action_type, "written_off")
+        self.assertIn("{reason}", action_text)
+        self.assertIn("{amount}", action_text)
+        # amount должен быть Decimal("0"), а не int 0
+        self.assertIsInstance(payload["amount"], Decimal)
+        self.assertEqual(payload["amount"], Decimal("0"))
+
+    def test_written_off_build_with_int_still_works(self):
+        """WRITTEN_OFF.build() с int amount - для обратной совместимости."""
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build(
+            reason="Тест", amount=100
+        )
+
+        self.assertEqual(action_type, "written_off")
+        self.assertIn("100", action_text)
+        # int работает и конвертируется в строку при форматировании
+        self.assertEqual(payload["amount"], 100)
+
+    def test_written_off_build_preserves_decimal_precision(self):
+        """WRITTEN_OFF.build() сохраняет точность Decimal."""
+        amount = Decimal("12345.6789")
+        action_type, action_text, payload = HistoryAction.WRITTEN_OFF.build(
+            reason="Ремонт", amount=amount
+        )
+
+        self.assertIn("12345.6789", action_text)
+        self.assertEqual(payload["amount"], amount)
+
+    def test_history_service_written_off_with_decimal(self):
+        """HistoryService.written_off() с Decimal amount."""
+        from decimal import Decimal
+
+        item = Item.objects.create(name="Test", serial="SN123", status=ItemStatus.CREATED)
+        user = User.objects.create_user(username="test_user", password="test123")
+
+        amount = Decimal("2500.75")
+        history = HistoryService.written_off(
+            item=item,
+            user=user,
+            reason="Физический износ",
+            amount=amount
+        )
+
+        self.assertEqual(history.action_type, HistoryAction.WRITTEN_OFF)
+        self.assertIn("2500.75", history.action)
+        self.assertIn("Физический износ", history.action)
+        # В сохранённом payload amount будет строкой (JSON serialization)
+        self.assertEqual(history.payload["reason"], "Физический износ")
+        # amount сериализуется в строку при сохранении в JSONField
+        self.assertEqual(history.payload["amount"], "2500.75")
+
+    def test_history_service_written_off_default_decimal(self):
+        """HistoryService.written_off() без amount использует Decimal('0')."""
+        from decimal import Decimal
+
+        item = Item.objects.create(name="Test", serial="SN123", status=ItemStatus.CREATED)
+        user = User.objects.create_user(username="test_user", password="test123")
+
+        history = HistoryService.written_off(
+            item=item,
+            user=user,
+            reason="Тест"
+        )
+
+        # amount по умолчанию Decimal("0") -> сериализуется в "0"
+        self.assertEqual(history.payload["amount"], "0")
 

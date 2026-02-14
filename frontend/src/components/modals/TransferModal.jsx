@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Send, MapPin, User as UserIcon, Lock } from 'lucide-react';
-import api from '../../api/axios';
+import api from '@/api/axios';
 import { toast } from 'sonner';
-import { useItemStore } from '../../store/useItemStore';
+import { useItemStore } from '@/store/useItemStore';
 
 const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
   const { selectedItem, setSelectedItem, lockItem, unlockItem, refreshItems, lockedItems } = useItemStore();
@@ -21,8 +21,10 @@ const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
     setLoading(true);
     try {
       const response = await api.get('/locations');
-      setLocations(response.data.locations || []);
-      if (!response.data.locations || response.data.locations.length === 0) {
+      // Бэкенд возвращает { success: true, data: { locations: [...] } }
+      const locationsData = response.data.data?.locations || response.data.locations || [];
+      setLocations(locationsData);
+      if (!locationsData || locationsData.length === 0) {
         setLocationWarning(true);
       } else {
         setLocationWarning(false);
@@ -94,10 +96,10 @@ const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
       api.put(`/items/${item.id}/`, {
         location: formData.targetLocation,
         responsible: formData.responsible,
-        status: 'issued'
+        status: 'confirm'
       }),
       {
-        loading: 'Обновление данных о местоположении...',
+        loading: 'Передача ТМЦ на подтверждение...',
         success: async () => {
           // Разблокируем перед закрытием
           await unlockItem(item.id);
@@ -108,7 +110,7 @@ const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
           setSelectedItem(null);
           
           handleClose();
-          return `ТМЦ "${item.name}" успешно передано в "${formData.targetLocation}"`;
+          return `ТМЦ "${item.name}" передано на подтверждение`;
         },
         error: 'Ошибка при передаче. Попробуйте еще раз.',
       }

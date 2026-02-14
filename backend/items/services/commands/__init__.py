@@ -4,6 +4,8 @@ from .send_to_service import SendToServiceCommand
 from .return_from_service import ReturnFromServiceCommand
 from .update_item import UpdateItemCommand
 from .confirm_item import ConfirmItemCommand
+from .write_off import WriteOffCommand
+from .cancel_write_off import CancelWriteOffCommand
 
 __all__ = [
     'ConfirmTMCCommand',
@@ -11,5 +13,7 @@ __all__ = [
     'ReturnFromServiceCommand',
     'UpdateItemCommand',
     'ConfirmItemCommand',
+    'WriteOffCommand',
+    'CancelWriteOffCommand',
 ]
 

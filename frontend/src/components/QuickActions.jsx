@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Bell, ChevronDown, ChevronUp, PackageCheck, Wrench, Send } from 'lucide-react';
-import api from '../api/axios';
+import api from '@/api/axios';
 
 const QuickActions = ({ isDarkMode }) => {
   const navigate = useNavigate();
@@ -14,10 +14,12 @@ const QuickActions = ({ isDarkMode }) => {
     const fetchStats = async () => {
       try {
         const response = await api.get('/status-counters');
+        // Бэкенд возвращает { success: true, data: {...} }
+        const statsData = response.data.data || response.data;
         setStats({
-          to_receive: response.data.to_receive || 0,
-          to_repair: response.data.to_repair || 0,
-          issued: response.data.issued || 0
+          to_receive: statsData.to_receive || 0,
+          to_repair: statsData.to_repair || 0,
+          issued: statsData.issued || 0
         });
       } catch (error) {
         console.error('Ошибка загрузки счетчиков:', error);
@@ -81,8 +83,8 @@ const QuickActions = ({ isDarkMode }) => {
             count={stats.issued} 
             colorClass="bg-sky-500 text-white border-sky-600 shadow-sky-500/20 shadow-lg"
             onClick={() => {
-              navigate('/?filter=issued,at_work');
-              toast.info("Фильтр: Контроль ТМЦ в работе");
+              navigate('/?filter=issued');
+              toast.info("Фильтр: ТМЦ выдано");
             }}
           />
         </div>

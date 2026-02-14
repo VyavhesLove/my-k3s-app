@@ -118,6 +118,14 @@ class ItemTransitionsTestCase(TestCase):
             )
         )
 
+    def test_written_off_to_available_validates(self):
+        """WRITTEN_OFF → AVAILABLE: Валидация отмены списания."""
+        # Не должно выбросить исключение
+        ItemTransitions.validate_transition(
+            ItemStatus.WRITTEN_OFF,
+            ItemStatus.AVAILABLE
+        )
+
     # ========== ТЕСТЫ ЗАПРЕЩЁННЫХ ПЕРЕХОДОВ ==========
 
     def test_forbidden_transition_raises_error(self):
@@ -196,19 +204,83 @@ class ItemTransitionsTestCase(TestCase):
 
     # ========== ТЕСТЫ СПИСАНИЯ ==========
 
-    def test_write_off_always_allowed(self):
-        """Списание допустимо из любого статуса."""
-        for status in ItemStatus.values:
-            self.assertTrue(
-                ItemTransitions.can_write_off(status),  # type: ignore
-                f"Списание должно быть допустимо из статуса {status}"
-            )
+    def test_write_off_from_issued(self):
+        """Списание допустимо из ISSUED."""
+        self.assertTrue(
+            ItemTransitions.can_write_off(ItemStatus.ISSUED)
+        )
 
-    def test_validate_write_off_never_raises(self):
-        """Валидация списания не выбрасывает ошибку."""
-        for status in ItemStatus.values:
-            # Не должно выбросить исключение
-            ItemTransitions.validate_write_off(status)  # type: ignore
+    def test_write_off_from_at_work(self):
+        """Списание допустимо из AT_WORK."""
+        self.assertTrue(
+            ItemTransitions.can_write_off(ItemStatus.AT_WORK)
+        )
+
+    def test_write_off_from_in_repair(self):
+        """Списание допустимо из IN_REPAIR."""
+        self.assertTrue(
+            ItemTransitions.can_write_off(ItemStatus.IN_REPAIR)
+        )
+
+    def test_write_off_from_available_forbidden(self):
+        """Списание НЕ допустимо из AVAILABLE."""
+        self.assertFalse(
+            ItemTransitions.can_write_off(ItemStatus.AVAILABLE)
+        )
+
+    def test_write_off_from_created_forbidden(self):
+        """Списание НЕ допустимо из CREATED."""
+        self.assertFalse(
+            ItemTransitions.can_write_off(ItemStatus.CREATED)
+        )
+
+    def test_write_off_from_confirm_forbidden(self):
+        """Списание НЕ допустимо из CONFIRM."""
+        self.assertFalse(
+            ItemTransitions.can_write_off(ItemStatus.CONFIRM)
+        )
+
+    def test_write_off_from_confirm_repair_forbidden(self):
+        """Списание НЕ допустимо из CONFIRM_REPAIR."""
+        self.assertFalse(
+            ItemTransitions.can_write_off(ItemStatus.CONFIRM_REPAIR)
+        )
+
+    def test_write_off_from_written_off_forbidden(self):
+        """Списание НЕ допустимо из WRITTEN_OFF."""
+        self.assertFalse(
+            ItemTransitions.can_write_off(ItemStatus.WRITTEN_OFF)
+        )
+
+    def test_write_off_allowed_statuses_constant(self):
+        """WRITE_OFF_ALLOWED_FROM содержит правильные статусы."""
+        self.assertEqual(
+            ItemTransitions.WRITE_OFF_ALLOWED_FROM,
+            [
+                ItemStatus.ISSUED,
+                ItemStatus.AT_WORK,
+                ItemStatus.IN_REPAIR,
+            ]
+        )
+
+    def test_validate_write_off_valid_status(self):
+        """Валидация списания с допустимым статусом не выбрасывает ошибку."""
+        # Не должно выбросить исключение для ISSUED
+        ItemTransitions.validate_write_off(ItemStatus.ISSUED)
+        # Не должно выбросить исключение для AT_WORK
+        ItemTransitions.validate_write_off(ItemStatus.AT_WORK)
+        # Не должно выбросить исключение для IN_REPAIR
+        ItemTransitions.validate_write_off(ItemStatus.IN_REPAIR)
+
+    def test_validate_write_off_invalid_status_raises_error(self):
+        """Валидация списания с недопустимым статусом выбрасывает DomainValidationError."""
+        with self.assertRaises(DomainValidationError):
+            ItemTransitions.validate_write_off(ItemStatus.AVAILABLE)
+
+    def test_write_off_always_allowed(self):
+        """УДАЛЁН: Списание допустимо из любого статуса."""
+        # Этот тест больше не актуален после исправления бизнес-логики
+        pass
 
     # ========== ТЕСТЫ ОБРАТНОЙ СОВМЕСТИМОСТИ ==========
 

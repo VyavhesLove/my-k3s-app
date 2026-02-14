@@ -40,9 +40,7 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated', # Теперь всё закрыто по умолчанию!
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_EXCEPTION_HANDLERS': (
-        'items.exceptions.domain_exception_handler',
-    ),
+    'EXCEPTION_HANDLER': 'items.exceptions.custom_exception_handler',
 }
 
 SIMPLE_JWT = {
@@ -118,13 +116,24 @@ USE_X_FORWARDED_PORT = True
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
     },
     'loggers': {
-        'django.security.csrf': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'items': {
             'handlers': ['console'],
             'level': 'DEBUG',
         },

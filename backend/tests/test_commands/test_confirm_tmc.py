@@ -102,24 +102,22 @@ class ConfirmItemCommandTestCase(TestCase):
         self.assertEqual(result, self.item.id)
         self.assertIsInstance(result, int)
 
-    def test_confirm_item_unlocks_after_error(self):
-        """Проверка что ТМЦ разблокируется после ошибки."""
-        # Arrange
-        self.item.status = ItemStatus.AVAILABLE
-        self.item.save()
+    def test_confirm_item_creates_status_history(self):
+        """Проверка что создаётся история смены статуса."""
+        # Act
+        self.command.execute(
+            item_id=self.item.id,
+            comment="Test comment",
+            user=self.user,
+        )
         
-        # Act - пытаемся подтвердить с неверным статусом
-        try:
-            self.command.execute(
-                item_id=self.item.id,
-                comment="Test comment",
-                user=self.user,
-            )
-        except DomainValidationError:
-            pass
+        # Assert - проверяем историю смены статуса
+        history_status = ItemHistory.objects.filter(
+            item=self.item,
+            action_type=HistoryAction.STATUS_CHANGED
+        ).first()
         
-        # Assert - ТМЦ должен быть разблокирован
-        self.item.refresh_from_db()
-        self.assertIsNone(self.item.locked_by)
-        self.assertIsNone(self.item.locked_at)
+        self.assertIsNotNone(history_status)
+        self.assertEqual(history_status.payload['old_status'], ItemStatus.CONFIRM)
+        self.assertEqual(history_status.payload['new_status'], ItemStatus.AVAILABLE)
 

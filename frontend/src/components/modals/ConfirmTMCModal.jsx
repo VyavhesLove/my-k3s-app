@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, CheckCircle, XCircle, Lock, Unlock } from 'lucide-react';
-import api from '../../api/axios';
+import api from '@/api/axios';
 import { toast } from 'sonner';
-import { useItemStore } from '../../store/useItemStore';
+import { useItemStore } from '@/store/useItemStore';
 
 const ConfirmTMCModal = ({ isDarkMode }) => {
   const {
@@ -72,11 +72,11 @@ const ConfirmTMCModal = ({ isDarkMode }) => {
       toast.success(
         action === 'accept'
           ? 'ТМЦ принято'
-          : 'ТМЦ отклонено и возвращено',
+          : 'ТМЦ отклонено',
         {
           description: action === 'accept'
             ? 'Статус изменён на "Выдано"'
-            : 'Восстановлено исходное состояние'
+            : 'ТМЦ возвращено в статус "Доступно"'
         }
       );
 
