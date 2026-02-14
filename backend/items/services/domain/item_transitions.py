@@ -17,16 +17,16 @@ class ItemTransitions:
     # Матрица переходов:
     # | Операция              | Из статуса         | В статус      |
     # |-----------------------|--------------------|---------------|
-    # | Создание ТМЦ         | Created            | available     |
-    # | Распределение         | available          | confirm        |
-    # | Подтверждение         | confirm            | issued         |
-    # | Выдача в бригаду      | available, confirm | at_work       |
-    # | Возврат с работы     | at_work            | issued         |
-    # | Отправка в ремонт    | issued, at_work    | confirm_repair|
-    # | Подтверждение ремонта | confirm_repair     | in_repair     |
-    # | Возврат из ремонта   | in_repair          | issued         |
-    # | Списание              | Любой статус       | written_off   |
-    # | Отмена списания       | written_off        | available      |
+    # | Создание ТМЦ         | Created            | available     |     -доступно
+    # | Распределение         | available          | confirm        |   -подтвердить ТМЦ
+    # | Подтверждение         | confirm            | issued         |   -выдано
+    # | Выдача в бригаду      | available, confirm | at_work       |    -в работе
+    # | Возврат с работы     | at_work            | issued         |    -выдано
+    # | Отправка в ремонт    | issued, at_work    | confirm_repair|     -подтвердить ремонт
+    # | Подтверждение ремонта | confirm_repair     | in_repair     |    -в ремонте
+    # | Возврат из ремонта   | in_repair          | issued         |    -выдано
+    # | Списание              | Любой статус       | written_off   |    -списано
+    # | Отмена списания       | written_off        | available      |   -доступно
     #
     ALLOWED_TRANSITIONS = {
         # Создание: created → available

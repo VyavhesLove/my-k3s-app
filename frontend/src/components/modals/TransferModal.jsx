@@ -21,8 +21,10 @@ const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
     setLoading(true);
     try {
       const response = await api.get('/locations');
-      setLocations(response.data.locations || []);
-      if (!response.data.locations || response.data.locations.length === 0) {
+      // Бэкенд возвращает { success: true, data: { locations: [...] } }
+      const locationsData = response.data.data?.locations || response.data.locations || [];
+      setLocations(locationsData);
+      if (!locationsData || locationsData.length === 0) {
         setLocationWarning(true);
       } else {
         setLocationWarning(false);

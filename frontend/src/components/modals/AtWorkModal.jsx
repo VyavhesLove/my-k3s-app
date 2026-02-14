@@ -38,7 +38,9 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
       const fetchBrigades = async () => {
         try {
           const response = await api.get('/brigades/');
-          setBrigades(response.data.brigades || []);
+          // Бэкенд возвращает { success: true, data: { brigades: [...] } }
+          const brigadesData = response.data.data?.brigades || response.data.brigades || [];
+          setBrigades(brigadesData);
         } catch (err) {
           console.error('Ошибка загрузки бригад:', err);
           toast.error('Не удалось загрузить список бригад');
@@ -69,7 +71,9 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
   const handleSaveBrigade = useCallback(async (newBrigade) => {
     try {
       const response = await api.post('/brigades/', newBrigade);
-      setBrigades(prev => [...prev, response.data]);
+      // Бэкенд возвращает { success: true, data: {...} }
+      const newBrigadeData = response.data.data || response.data;
+      setBrigades(prev => [...prev, newBrigadeData]);
       toast.success("Бригада создана");
     } catch (err) {
       console.error('Ошибка сохранения бригады:', err);

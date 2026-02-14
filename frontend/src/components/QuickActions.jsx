@@ -14,10 +14,12 @@ const QuickActions = ({ isDarkMode }) => {
     const fetchStats = async () => {
       try {
         const response = await api.get('/status-counters');
+        // Бэкенд возвращает { success: true, data: {...} }
+        const statsData = response.data.data || response.data;
         setStats({
-          to_receive: response.data.to_receive || 0,
-          to_repair: response.data.to_repair || 0,
-          issued: response.data.issued || 0
+          to_receive: statsData.to_receive || 0,
+          to_repair: statsData.to_repair || 0,
+          issued: statsData.issued || 0
         });
       } catch (error) {
         console.error('Ошибка загрузки счетчиков:', error);
