@@ -58,10 +58,10 @@ class ConfirmTMCCommand:
 
     @staticmethod
     def _validate_accept(status: ItemStatus) -> None:
-        """Валидация принятия ТМЦ (CREATED → AVAILABLE)."""
-        if status != ItemStatus.CREATED:
+        """Валидация принятия ТМЦ (CONFIRM → AVAILABLE)."""
+        if status != ItemStatus.CONFIRM:
             raise DomainValidationError(
-                f"Невозможно принять ТМЦ. Статус должен быть 'created', а не '{status}'"
+                f"Невозможно принять ТМЦ. Статус должен быть 'confirm', а не '{status}'"
             )
 
     @staticmethod

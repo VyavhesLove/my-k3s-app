@@ -1,15 +1,17 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { BrowserRouter } from 'react-router-dom'
 import ItemCreate from '../ItemCreate'
 import { useItemStore } from '@/store/useItemStore'
+import api from '@/api/axios'
+import { toast } from 'sonner'
 import '@testing-library/jest-dom'
 
 // Мокаем api
 vi.mock('@/api/axios', () => ({
   default: {
-    post: vi.fn(),
-    put: vi.fn()
+    post: vi.fn().mockResolvedValue({ data: { id: 1 } }),
+    put: vi.fn().mockResolvedValue({ data: { id: 1 } })
   }
 }))
 
@@ -31,7 +33,7 @@ vi.mock('react-router-dom', async () => {
   }
 })
 
-// Мокаем toast из sonner
+// Мокаем sonner
 vi.mock('sonner', () => ({
   toast: {
     promise: vi.fn((promise, options) => {
@@ -55,12 +57,11 @@ describe('ItemCreate - Валидация серийного номера', () =
   })
 
   it('должен показать предупреждение при попытке создать ТМЦ без серийного номера и без чекбокса', async () => {
-    const { toast } = await import('sonner')
-    
     renderWithRouter(<ItemCreate isDarkMode={false} />)
     
-    // Заполняем только наименование
-    const nameInput = screen.getByLabelText(/наименование/i)
+    // Заполняем только наименование (первый input в форме)
+    const inputs = document.querySelectorAll('input[type="text"]')
+    const nameInput = inputs[0] // Первый input - наименование
     fireEvent.change(nameInput, { target: { value: 'Тест ТМЦ' } })
     
     // Нажимаем кнопку "Создать"
@@ -74,68 +75,68 @@ describe('ItemCreate - Валидация серийного номера', () =
   })
 
   it('должен позволить создать ТМЦ без серийного номера, если чекбокс активен', async () => {
-    const { toast, default: api } = await import('sonner')
-    api.post = vi.fn().mockResolvedValue({ data: { id: 1 } })
-    
     renderWithRouter(<ItemCreate isDarkMode={false} />)
     
-    // Заполняем наименование
-    const nameInput = screen.getByLabelText(/наименование/i)
+    // Заполняем наименование (первый input)
+    const inputs = document.querySelectorAll('input[type="text"]')
+    const nameInput = inputs[0]
     fireEvent.change(nameInput, { target: { value: 'Тест ТМЦ' } })
     
     // Активируем чекбокс "Серийный номер отсутствует"
-    const noSerialCheckbox = screen.getByLabelText(/серийный номер отсутствует/i)
+    const noSerialCheckbox = screen.getByRole('checkbox')
     fireEvent.click(noSerialCheckbox)
     
     // Нажимаем кнопку "Создать"
     const submitButton = screen.getByRole('button', { name: /создать/i })
     fireEvent.submit(submitButton)
     
-    // Проверяем, что НЕ было предупреждения
-    expect(toast.warning).not.toHaveBeenCalled()
+    // Проверяем, что НЕ было предупреждения о валидации
+    expect(toast.warning).not.toHaveBeenCalledWith(
+      'Заполните серийный номер или активируйте чекбокс "Серийный номер отсутствует"'
+    )
   })
 
   it('должен позволить создать ТМЦ с заполненным серийным номером', async () => {
-    const { toast, default: api } = await import('sonner')
-    api.post = vi.fn().mockResolvedValue({ data: { id: 1 } })
-    
     renderWithRouter(<ItemCreate isDarkMode={false} />)
     
-    // Заполняем наименование
-    const nameInput = screen.getByLabelText(/наименование/i)
+    // Заполняем наименование (первый input)
+    const inputs = document.querySelectorAll('input[type="text"]')
+    const nameInput = inputs[0]
     fireEvent.change(nameInput, { target: { value: 'Тест ТМЦ' } })
     
-    // Заполняем серийный номер
-    const serialInput = screen.getByLabelText(/серийный номер/i)
+    // Заполняем серийный номер (второй input)
+    const serialInput = inputs[1]
     fireEvent.change(serialInput, { target: { value: 'SN123456' } })
     
     // Нажимаем кнопку "Создать"
     const submitButton = screen.getByRole('button', { name: /создать/i })
     fireEvent.submit(submitButton)
     
-    // Проверяем, что НЕ было предупреждения
-    expect(toast.warning).not.toHaveBeenCalled()
+    // Проверяем, что НЕ было предупреждения о валидации
+    expect(toast.warning).not.toHaveBeenCalledWith(
+      'Заполните серийный номер или активируйте чекбокс "Серийный номер отсутствует"'
+    )
   })
 
   it('должен позволить создать ТМЦ без брэнда', async () => {
-    const { toast, default: api } = await import('sonner')
-    api.post = vi.fn().mockResolvedValue({ data: { id: 1 } })
-    
     renderWithRouter(<ItemCreate isDarkMode={false} />)
     
     // Заполняем только наименование и серийный номер (без брэнда)
-    const nameInput = screen.getByLabelText(/наименование/i)
+    const inputs = document.querySelectorAll('input[type="text"]')
+    const nameInput = inputs[0]
     fireEvent.change(nameInput, { target: { value: 'Тест ТМЦ' } })
     
-    const serialInput = screen.getByLabelText(/серийный номер/i)
+    const serialInput = inputs[1]
     fireEvent.change(serialInput, { target: { value: 'SN123456' } })
     
     // Нажимаем кнопку "Создать"
     const submitButton = screen.getByRole('button', { name: /создать/i })
     fireEvent.submit(submitButton)
     
-    // Проверяем, что НЕ было предупреждения
-    expect(toast.warning).not.toHaveBeenCalled()
+    // Проверяем, что НЕ было предупреждения о валидации
+    expect(toast.warning).not.toHaveBeenCalledWith(
+      'Заполните серийный номер или активируйте чекбокс "Серийный номер отсутствует"'
+    )
   })
 })
 

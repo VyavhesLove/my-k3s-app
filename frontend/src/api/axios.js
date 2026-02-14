@@ -3,11 +3,17 @@ import axios from 'axios';
 // Создаем экземпляр axios с базовыми настройками
 const api = axios.create({
     baseURL: 'http://k8s.local/api/',
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
 // ✅ Отдельный экземпляр для refresh токена (без интерцепторов, чтобы избежать цикла)
 const refreshApi = axios.create({
     baseURL: 'http://k8s.local/api/',
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
 // ✅ Защита от использования чистого axios в проекте
@@ -22,9 +28,10 @@ if (process.env.NODE_ENV === 'development') {
     };
 }
 
-// Автоматическое добавление слеша в конец URL
+// Автоматическое добавление слеша в конец URL (только если слеша нет)
 api.interceptors.request.use((config) => {
     // Проверяем, что в конце URL нет слеша и это не запрос с параметрами (типа ?search=...)
+    // Добавляем слеш только если его нет в конце
     if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
         config.url += '/';
     }
