@@ -12,8 +12,13 @@ const TableHeader = ({
   filters,
   handleFilterChange
 }) => {
-  const filterValue = filters[sortKey] || '';
-  const hasValue = filterValue.length > 0;
+  // Для status - массив, для остальных - строка
+  const filterValue = sortKey === 'status' 
+    ? (filters[sortKey] || []) 
+    : (filters[sortKey] || '');
+  const hasValue = sortKey === 'status' 
+    ? (Array.isArray(filterValue) && filterValue.length > 0) 
+    : (typeof filterValue === 'string' && filterValue.length > 0);
   const sortDirection = sortConfig.find(c => c.key === sortKey)?.direction;
   const isPrimary = sortConfig.length > 0 && sortConfig[0].key === sortKey;
   
