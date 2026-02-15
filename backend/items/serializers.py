@@ -127,32 +127,72 @@ class WriteOffCreateSerializer(serializers.Serializer):
 
 
 class WriteOffRecordSerializer(serializers.ModelSerializer):
-    """Сериализатор для записи о списании ТМЦ"""
-    item_name = serializers.CharField(source='item.name', read_only=True)
-    item_serial = serializers.CharField(source='item.serial', read_only=True)
+    """Сериализатор для ТМЦ со статусом WRITTEN_OFF (списано)"""
+    # Алиасы для обратной совместимости с фронтендом
+    item_name = serializers.CharField(source='name', read_only=True)
+    item_serial = serializers.CharField(source='serial', read_only=True)
+    item_brand = serializers.CharField(source='brand', read_only=True)
     location_name = serializers.SerializerMethodField()
     created_by_username = serializers.SerializerMethodField()
+    # Поля из связанной записи WriteOffRecord (если есть)
+    repair_cost = serializers.SerializerMethodField()
+    invoice_number = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    date_to_service = serializers.SerializerMethodField()
+    date_written_off = serializers.SerializerMethodField()
+    is_cancelled = serializers.SerializerMethodField()
 
     class Meta:
-        model = WriteOffRecord
+        model = Item
         fields = [
-            'id', 'item', 'item_name', 'item_serial', 'location', 'location_name',
+            'id', 'name', 'serial', 'brand', 'status',
+            'location', 'location_name',
+            'item_name', 'item_serial', 'item_brand',
             'repair_cost', 'invoice_number', 'description',
             'date_to_service', 'date_written_off',
-            'created_by', 'created_by_username', 'created_at',
-            'is_cancelled', 'cancelled_at'
+            'created_by_username',
+            'is_cancelled'
         ]
-        read_only_fields = ["id", "created_at", "cancelled_at", "is_cancelled", "created_by"]
 
     def get_location_name(self, obj):
-        """Возвращает название локации, если FK существует"""
-        if obj.location:
-            return obj.location.name
-        return None
+        """Возвращает название локации"""
+        return obj.location
 
     def get_created_by_username(self, obj):
-        """Возвращает username создателя записи"""
-        if obj.created_by:
-            return obj.created_by.username
+        """Возвращает username создателя записи о списании"""
+        # Ищем связанную запись о списании
+        write_off = obj.write_off_records.filter(is_cancelled=False).first()
+        if write_off and write_off.created_by:
+            return write_off.created_by.username
         return None
+
+    def get_repair_cost(self, obj):
+        """Возвращает стоимость ремонта"""
+        write_off = obj.write_off_records.filter(is_cancelled=False).first()
+        return str(write_off.repair_cost) if write_off else None
+
+    def get_invoice_number(self, obj):
+        """Возвращает номер накладной"""
+        write_off = obj.write_off_records.filter(is_cancelled=False).first()
+        return write_off.invoice_number if write_off else None
+
+    def get_description(self, obj):
+        """Возвращает описание"""
+        write_off = obj.write_off_records.filter(is_cancelled=False).first()
+        return write_off.description if write_off else None
+
+    def get_date_to_service(self, obj):
+        """Возвращает дату поступления в ремонт"""
+        write_off = obj.write_off_records.filter(is_cancelled=False).first()
+        return str(write_off.date_to_service) if write_off else None
+
+    def get_date_written_off(self, obj):
+        """Возвращает дату списания"""
+        write_off = obj.write_off_records.filter(is_cancelled=False).first()
+        return str(write_off.date_written_off) if write_off else None
+
+    def get_is_cancelled(self, obj):
+        """Возвращает статус отмены"""
+        write_off = obj.write_off_records.filter(is_cancelled=False).first()
+        return write_off.is_cancelled if write_off else False
 

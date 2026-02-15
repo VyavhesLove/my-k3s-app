@@ -1,18 +1,22 @@
-"""Query слой для получения списка записей о списании ТМЦ."""
+"""Query слой для получения списка списаний ТМЦ."""
 from datetime import date
 from typing import Optional
-from django.db.models import QuerySet
-from ...models import WriteOffRecord, Location
+from django.db.models import QuerySet, Q
+from ...models import WriteOffRecord, Item, Location
+from ...enums import ItemStatus
 
 
 class ListWriteOffsQuery:
     """
-    Query для получения списка записей о списании с фильтрацией.
+    Query для получения списка списаний ТМЦ.
     
     Поддерживает фильтрацию по:
     - status (is_cancelled): активные/отменённые записи
     - location: название локации
     - date: дата списания (date_written_off)
+    - search: поиск по названию или серийному номеру ТМЦ
+    
+    ВАЖНО: Теперь ищет ТМЦ со статусом WRITTEN_OFF, а не записи WriteOffRecord.
     """
     
     @staticmethod
@@ -20,52 +24,55 @@ class ListWriteOffsQuery:
         is_cancelled: Optional[bool] = None,
         location: Optional[str] = None,
         date_written_off: Optional[date] = None,
-    ) -> QuerySet[WriteOffRecord]:
+        search: Optional[str] = None,
+    ) -> QuerySet:
         """
-        Получить список записей о списании с фильтрацией.
+        Получить список ТМЦ со статусом WRITTEN_OFF (списано).
         
         Args:
-            is_cancelled: Фильтр по статусу отмены (None = все, True = отменённые, False = активные)
+            is_cancelled: Фильтр по статусу отмены записи списания (None = все, True = отменённые, False = активные)
             location: Фильтр по названию локации (частичное совпадение)
             date_written_off: Фильтр по дате списания
+            search: Поиск по названию или серийному номеру ТМЦ
             
         Returns:
-            QuerySet с отфильтрованными записями о списании
+            QuerySet с ТМЦ со статусом WRITTEN_OFF
         """
-        queryset = WriteOffRecord.objects.select_related(
-            'item', 'location', 'created_by'
-        ).order_by('-created_at')
+        # Начинаем с ТМЦ со статусом WRITTEN_OFF
+        queryset = Item.objects.filter(
+            status=ItemStatus.WRITTEN_OFF
+        ).select_related(
+            'brigade'
+        ).prefetch_related(
+            'write_off_records'
+        ).order_by('-id')
         
-        # Фильтрация по is_cancelled
-        # По умолчанию (is_cancelled=None) показываем все записи (активные + отменённые)
-        if is_cancelled is not None:
-            queryset = queryset.filter(is_cancelled=is_cancelled)
+        # Фильтрация по поиску (название или серийный номер)
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | 
+                Q(serial__icontains=search)
+            )
         
-        # Фильтрация по location (частичное совпадение по названию)
+        # Фильтрация по локации
         if location:
-            queryset = queryset.filter(location__name__icontains=location)
-        
-        # Фильтрация по дате списания
-        if date_written_off:
-            queryset = queryset.filter(date_written_off=date_written_off)
+            queryset = queryset.filter(location__icontains=location)
         
         return queryset
     
     @staticmethod
-    def by_id(write_off_id: int) -> WriteOffRecord:
+    def by_id(write_off_id: int) -> Item:
         """
-        Получить запись о списании по ID.
+        Получить ТМЦ со статусом WRITTEN_OFF по ID.
         
         Args:
-            write_off_id: ID записи о списании
+            write_off_id: ID ТМЦ
             
         Returns:
-            Запись о списании
+            ТМЦ со статусом WRITTEN_OFF
             
         Raises:
-            WriteOffRecord.DoesNotExist: Если запись не найдена
+            Item.DoesNotExist: Если ТМЦ не найдено или не имеет статуса WRITTEN_OFF
         """
-        return WriteOffRecord.objects.select_related(
-            'item', 'location', 'created_by'
-        ).get(id=write_off_id)
+        return Item.objects.get(id=write_off_id, status=ItemStatus.WRITTEN_OFF)
 

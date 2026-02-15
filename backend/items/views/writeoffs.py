@@ -30,13 +30,14 @@ from ..models import Location, Item
 @permission_classes([IsStorekeeper])
 def write_off_list(request):
     """
-    GET: список записей о списании с фильтрацией
+    GET: список ТМЦ со статусом 'written_off' (списано) с фильтрацией
     POST: создать запись о списании ТМЦ
     
     Фильтры (GET query params):
-    - is_cancelled: true/false (активные/отменённые)
+    - is_cancelled: true/false (активные/отменённые записи)
     - location: частичное совпадение по названию локации
     - date: дата списания (date_written_off)
+    - search: поиск по названию или серийному номеру ТМЦ
     
     Только для кладовщиков и администраторов.
     """
@@ -47,6 +48,7 @@ def write_off_list(request):
             is_cancelled = is_cancelled.lower() == 'true'
         
         location = request.GET.get('location')
+        search = request.GET.get('search')
         date_str = request.GET.get('date')
         date_written_off = None
         if date_str:
@@ -55,10 +57,12 @@ def write_off_list(request):
             except ValueError:
                 pass
         
+        # Получаем ТМЦ со статусом written_off
         queryset = ListWriteOffsQuery.all(
             is_cancelled=is_cancelled,
             location=location,
-            date_written_off=date_written_off
+            date_written_off=date_written_off,
+            search=search
         )
         
         serializer = WriteOffRecordSerializer(queryset, many=True)

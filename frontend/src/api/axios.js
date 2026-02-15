@@ -31,9 +31,13 @@ if (process.env.NODE_ENV === 'development') {
 // Автоматическое добавление слеша в конец URL (только если слеша нет)
 api.interceptors.request.use((config) => {
     // Проверяем, что в конце URL нет слеша и это не запрос с параметрами (типа ?search=...)
-    // Добавляем слеш только если его нет в конце
+    // Добавляем слеш только если его нет в конце и URL не пустой
     if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
         config.url += '/';
+    }
+    // Убираем двойной слеш, если он образовался
+    if (config.url && config.url.includes('//') && !config.url.includes('?')) {
+        config.url = config.url.replace(/\/+$/, '') + '/';
     }
     return config;
 }, (error) => {
@@ -43,6 +47,7 @@ api.interceptors.request.use((config) => {
 // 1. Перехватчик ЗАПРОСОВ: подкладываем токен в каждый запрос
 api.interceptors.request.use(
     (config) => {
+        console.log('[AXIOS REQUEST]', config.method?.toUpperCase(), config.url, config.params);
         const token = localStorage.getItem('accessToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -54,8 +59,12 @@ api.interceptors.request.use(
 
 // 2. Перехватчик ОТВЕТОВ: ловим 401 и обновляем токен
 api.interceptors.response.use(
-    (response) => response, // Если всё ок, просто возвращаем ответ
+    (response) => {
+        console.log('[AXIOS RESPONSE]', response.config.url, response.status);
+        return response;
+    },
     async (error) => {
+        console.error('[AXIOS ERROR]', error.config?.url, error.response?.status, error.response?.data);
         const originalRequest = error.config;
 
         // Если ошибка 401 и мы еще не пробовали обновиться (_retry)
