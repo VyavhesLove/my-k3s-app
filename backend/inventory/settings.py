@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'drf_spectacular',
+    'auditlog',
     'users',
     'items',
 ]
@@ -145,3 +146,6 @@ USE_TZ = True
 
 # часовой пояс (Екатеринбург +5)
 TIME_ZONE = 'Asia/Yekaterinburg'
+
+# django-auditlog настройки
+AUDITLOG_USE_TZ = True  # Использовать часовой пояс для записей аудита

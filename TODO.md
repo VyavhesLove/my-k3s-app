@@ -1,10 +1,11 @@
-# TODO: Множественный выбор статусов
+# TODO: Интеграция django-auditlog
 
 ## Этапы реализации:
-- [x] 1. Изменить InventoryList.jsx - useState, handleFilterChange, sortedAndFilteredItems, resetAllFilters
-- [x] 2. Изменить StatusFilter.jsx - multiselect с чекбоксами
-- [x] 3. Изменить TableHeader.jsx - поддержка массива для status
-- [x] 4. Протестировать изменения (тесты ConfirmTMCModal были сломаны до изменений)
+- [x] 1. Добавить django-auditlog в requirements.txt
+- [x] 2. Добавить 'auditlog' в INSTALLED_APPS (settings.py)
+- [x] 3. Запустить миграции (python manage.py migrate)
+- [x] 4. Интегрировать в модель Item (добавить auditlog.register(Item))
+- [x] 5. Протестировать - работает!
 
 
 

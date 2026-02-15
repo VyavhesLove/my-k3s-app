@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from auditlog.registry import auditlog
 from .enums import ItemStatus, HistoryAction
 
 
@@ -59,6 +60,11 @@ class Item(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.serial})"
+
+
+# Регистрация модели Item в django-auditlog
+auditlog.register(Item)
+
 
 class ItemHistory(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='history')

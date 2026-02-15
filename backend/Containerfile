@@ -1,5 +1,5 @@
 FROM python:3.11-slim
-RUN pip install --no-cache-dir django django-cors-headers djangorestframework-simplejwt gunicorn whitenoise drf-spectacular
+RUN pip install --no-cache-dir django django-cors-headers djangorestframework-simplejwt gunicorn whitenoise drf-spectacular django-auditlog
 WORKDIR /app
 COPY . .
 #RUN mkdir -p /data && python manage.py migrate --run-syncdb && python manage.py collectstatic --noinput

@@ -1,4 +1,7 @@
 from django.contrib import admin
+from django.utils.html import format_html
+from django.utils import timezone
+from auditlog.models import LogEntry
 from .models import Item, Location, Brigade, ItemHistory
 
 
@@ -7,6 +10,44 @@ class ItemAdmin(admin.ModelAdmin):
     list_display = ('name', 'serial', 'brand', 'status', 'responsible', 'location', 'brigade', 'locked_at', 'locked_by')
     search_fields = ('name', 'serial', 'responsible')
     list_filter = ('status', 'brand', 'location', 'brigade')
+    readonly_fields = ('locked_by', 'locked_at')
+
+    def get_readonly_fields(self, request, obj=None):
+        """Добавляем auditlog_history в readonly поля только для просмотра"""
+        readonly = list(super().get_readonly_fields(request, obj))
+        if obj:  # Только при редактировании существующего объекта
+            readonly.append('auditlog_history')
+        return readonly
+
+    def auditlog_history(self, obj):
+        if not obj:
+            return ""
+        
+        logs = LogEntry.objects.filter(object_id=str(obj.id)).order_by('-timestamp')[:10]
+        if not logs:
+            return "Нет записей"
+        
+        html_parts = []
+        for log in logs:
+            actor = log.actor.username if log.actor else "Система"
+            changes_dict = log.changes
+            if changes_dict:
+                # Форматируем изменения в читаемый вид
+                changes_str = ", ".join([
+                    f"{k}: {v[0]} → {v[1]}" 
+                    for k, v in changes_dict.items()
+                ])
+            else:
+                changes_str = ""
+            # Конвертируем время в локальный часовой пояс
+            local_time = timezone.localtime(log.timestamp)
+            html_parts.append(
+                f"<b>{actor}</b> {log.get_action_display()} - {local_time.strftime('%d.%m.%Y %H:%M')}<br>"
+                f"<span style='color: gray;'>{changes_str}</span><br>"
+            )
+        return format_html('<br>'.join(html_parts))
+    
+    auditlog_history.short_description = 'История изменений (auditlog)'
 
 
 @admin.register(Location)
