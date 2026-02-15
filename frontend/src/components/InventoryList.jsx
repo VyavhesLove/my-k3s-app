@@ -176,7 +176,7 @@ function InventoryList({ isDarkMode }) {
               borderColor: 'var(--table-border)'
             }}>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" style={{ minHeight: '520px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--table-header-bg)' }}>
                     <th className="px-4 py-3 text-left text-xs font-bold border-b w-12"
