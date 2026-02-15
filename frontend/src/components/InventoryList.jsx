@@ -195,23 +195,31 @@ function InventoryList({ isDarkMode }) {
                   ) : paginatedItems.length === 0 ? (
                     <EmptyState searchQuery={searchQuery} onClearSearch={() => handleSearch('')} />
                   ) : (
-                    paginatedItems.map((item, index) => {
-                      const isLocked = lockedItems[item.id];
-                      return (
-                        <TableRow
-                          key={item.id}
-                          item={item}
-                          index={index}
-                          isSelected={selectedItem?.id === item.id}
-                          isLocked={isLocked}
-                          lockedItems={lockedItems}
-                          onSelect={setSelectedItem}
-                          isDarkMode={isDarkMode}
-                          currentPage={currentPage}
-                          pageSize={pageSize}
-                        />
-                      );
-                    })
+                    <>
+                      {paginatedItems.map((item, index) => {
+                        const isLocked = lockedItems[item.id];
+                        return (
+                          <TableRow
+                            key={item.id}
+                            item={item}
+                            index={index}
+                            isSelected={selectedItem?.id === item.id}
+                            isLocked={isLocked}
+                            lockedItems={lockedItems}
+                            onSelect={setSelectedItem}
+                            isDarkMode={isDarkMode}
+                            currentPage={currentPage}
+                            pageSize={pageSize}
+                          />
+                        );
+                      })}
+                      {/* Пустые строки-распорки для поддержания минимальной высоты */}
+                      {Array.from({ length: Math.max(0, pageSize - paginatedItems.length) }).map((_, index) => (
+                        <tr key={`spacer-${index}`} className="h-[52px]">
+                          <td colSpan={7} />
+                        </tr>
+                      ))}
+                    </>
                   )}
                 </tbody>
               </table>
