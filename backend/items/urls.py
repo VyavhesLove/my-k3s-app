@@ -1,9 +1,11 @@
 from django.urls import path
 from . import views
+from .views import history
 
 urlpatterns = [
     path('items/', views.item_list, name='item_list'),
     path('items/<int:item_id>/', views.item_detail, name='item_detail'),
+    path('items/<int:item_id>/history/', history.item_history, name='item_history'),
     path('items/<int:item_id>/send-to-service/', views.send_to_service, name='send_to_service'),
     path('items/<int:item_id>/return-from-service/', views.return_from_service, name='return_from_service'),
     path('items/<int:item_id>/confirm-repair/', views.confirm_repair, name='confirm_repair'),

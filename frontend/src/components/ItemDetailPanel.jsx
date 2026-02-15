@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, History, Lock } from 'lucide-react';
 import { statusMap, getStatusStyles } from '@/constants/statusConfig';
 import TransferModal from './modals/TransferModal';
 import ConfirmTMCModal from './modals/ConfirmTMCModal';
+import HistoryModal from './modals/HistoryModal';
 import { useItemStore } from '@/store/useItemStore';
 import { toast } from 'sonner';
 
@@ -17,6 +18,7 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
     lockedItems 
   } = useItemStore();
   const isOpen = !!item;
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
   // Проверка, заблокирован ли ТМЦ
   const isItemLocked = item ? lockedItems[item.id] : false;
@@ -180,7 +182,10 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
 
             {/* СКРОЛЛИРУЕМЫЙ БЛОК: История */}
             <section className="flex-1 flex flex-col min-h-0 border-t border-gray-500/10 pt-4">
-              <div className="flex items-center gap-2 text-sm text-gray-500 uppercase font-semibold mb-4">
+              <div 
+                className="flex items-center gap-2 text-sm text-gray-500 uppercase font-semibold mb-4 cursor-pointer hover:text-blue-500 transition-colors"
+                onClick={() => setIsHistoryModalOpen(true)}
+              >
                 <History size={16} /> Последние операции
               </div>
               
@@ -227,6 +232,16 @@ const ItemDetailPanel = ({ item, onClose, isDarkMode, onActionClick, onAtWorkCli
       {/* Модалка подтверждения ТМЦ */}
       {isConfirmTMCModalOpen && item && (
         <ConfirmTMCModal isDarkMode={isDarkMode} />
+      )}
+
+      {/* Модалка истории */}
+      {isHistoryModalOpen && item && (
+        <HistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          item={item}
+          isDarkMode={isDarkMode}
+        />
       )}
     </>
   );
