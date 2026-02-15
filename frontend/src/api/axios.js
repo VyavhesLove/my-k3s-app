@@ -47,7 +47,6 @@ api.interceptors.request.use((config) => {
 // 1. Перехватчик ЗАПРОСОВ: подкладываем токен в каждый запрос
 api.interceptors.request.use(
     (config) => {
-        console.log('[AXIOS REQUEST]', config.method?.toUpperCase(), config.url, config.params);
         const token = localStorage.getItem('accessToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -59,12 +58,8 @@ api.interceptors.request.use(
 
 // 2. Перехватчик ОТВЕТОВ: ловим 401 и обновляем токен
 api.interceptors.response.use(
-    (response) => {
-        console.log('[AXIOS RESPONSE]', response.config.url, response.status);
-        return response;
-    },
+    (response) => response,
     async (error) => {
-        console.error('[AXIOS ERROR]', error.config?.url, error.response?.status, error.response?.data);
         const originalRequest = error.config;
 
         // Если ошибка 401 и мы еще не пробовали обновиться (_retry)

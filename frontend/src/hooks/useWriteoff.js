@@ -66,19 +66,13 @@ export const useWriteoffList = (filters, page = 1) => {
           params.date = filters.date;
         }
 
-        console.log('[useWriteoffList] Making request to /writeoffs/ with params:', params);
-
         const response = await api.get('/writeoffs/', {
           params,
           signal: controller.signal
         });
 
-        console.log('[useWriteoffList] Response received:', response.data);
-
         // Обрабатываем формат ответа от api_response: {success: true, data: {write_offs: [...]}}
         const writeOffs = response.data.data?.write_offs || response.data.write_offs || response.data.results || [];
-        
-        console.log('[useWriteoffList] Parsed writeoffs:', writeOffs);
 
         setState({
           items: writeOffs,
@@ -87,7 +81,6 @@ export const useWriteoffList = (filters, page = 1) => {
           error: null
         });
       } catch (err) {
-        console.error('[useWriteoffList] Error:', err);
         if (err.name !== 'CanceledError') {
           setState(prev => ({ 
             ...prev, 

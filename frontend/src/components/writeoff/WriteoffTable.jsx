@@ -1,5 +1,4 @@
 import React from 'react';
-import api from '@/api/axios';
 
 const WriteoffTable = ({ 
   data, 
@@ -12,23 +11,11 @@ const WriteoffTable = ({
   selectedIds = [],
   onToggleSelection,
   onToggleAllSelection,
-  isDarkMode = false
+  isDarkMode = false,
+  onRestoreClick
 }) => {
   const itemsPerPage = 20;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
-
-  const handleCancelWriteoff = async (writeOffId) => {
-    if (!window.confirm('Вы уверены, что хотите отменить это списание?')) {
-      return;
-    }
-    
-    try {
-      await api.post(`/writeoffs/${writeOffId}/cancel/`);
-      window.location.reload();
-    } catch (err) {
-      alert(err.response?.data?.error || 'Ошибка при отмене списания');
-    }
-  };
 
   const allSelected = data.length > 0 && selectedIds.length === data.length;
   const someSelected = selectedIds.length > 0 && selectedIds.length < data.length;
@@ -93,9 +80,8 @@ const WriteoffTable = ({
                 <input 
                   type="checkbox" 
                   checked={selectedIds.includes(item.id)} 
-                  onChange={() => {}}
+                  onChange={() => onToggleSelection?.(item.id)}
                   onClick={(e) => e.stopPropagation()}
-                  readOnly 
                 />
               </td>
               <td className={`px-4 py-4 font-mono text-xs ${isDarkMode ? 'opacity-50' : 'text-gray-500'}`}>
@@ -125,7 +111,7 @@ const WriteoffTable = ({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleCancelWriteoff(item.id);
+                      onRestoreClick?.(item);
                     }}
                     className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
                   >

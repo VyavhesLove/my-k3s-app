@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
 from auditlog.models import LogEntry
-from .models import Item, Location, Brigade, ItemHistory
+from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord
 
 
 @admin.register(Item)
@@ -77,4 +77,18 @@ class ItemHistoryAdmin(admin.ModelAdmin):
         return obj.location.name if obj.location else obj.location
     get_location.short_description = 'Локация'
     get_location.admin_order_field = 'location__name'
+
+
+@admin.register(WriteOffRecord)
+class WriteOffRecordAdmin(admin.ModelAdmin):
+    list_display = ('id', 'item', 'invoice_number', 'repair_cost', 'date_written_off', 'created_by', 'is_cancelled')
+    list_filter = ('is_cancelled', 'date_written_off', 'location')
+    search_fields = ('item__name', 'item__serial', 'invoice_number', 'description')
+    raw_id_fields = ('item', 'location', 'created_by')
+    readonly_fields = ('created_at',)
+
+    def created_by(self, obj):
+        return obj.created_by.username if obj.created_by else None
+    created_by.short_description = 'Создал'
+    created_by.admin_order_field = 'created_by__username'
 

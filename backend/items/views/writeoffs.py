@@ -140,6 +140,79 @@ def write_off_cancel(request, write_off_id):
 
 
 @extend_schema(
+    methods=['POST'],
+    description="Массовое восстановление ТМЦ из списания",
+    request={
+        "type": "object",
+        "properties": {
+            "ids": {"type": "array", "items": {"type": "integer"}}
+        },
+        "required": ["ids"]
+    },
+    responses={200: {"type": "object", "properties": {"message": {"type": "string"}}}}
+)
+@api_view(['POST'])
+@permission_classes([IsStorekeeper])
+def write_off_bulk_restore(request):
+    """
+    Массовое восстановление ТМЦ из списания (возврат в работу).
+    
+    Принимает массив ID ТМЦ и для каждого:
+    - Отменяет запись о списании (is_cancelled=True)
+    - Возвращает ТМЦ в статус AVAILABLE
+    
+    Только для кладовщиков и администраторов.
+    """
+    from ..models import Item
+    from ..services.commands import CancelWriteOffCommand
+    from ..enums import ItemStatus
+    
+    ids = request.data.get('ids', [])
+    
+    if not ids:
+        return api_error(error="Не переданы ID ТМЦ", status_code=400)
+    
+    if not isinstance(ids, list):
+        return api_error(error="IDs должны быть массивом", status_code=400)
+    
+    restored_count = 0
+    errors = []
+    
+    for item_id in ids:
+        try:
+            # Проверяем, что ТМЦ существует и имеет статус WRITTEN_OFF
+            item = Item.objects.get(id=item_id)
+            if item.status != ItemStatus.WRITTEN_OFF:
+                errors.append(f"ТМЦ ID {item_id} не находится в статусе списано")
+                continue
+            
+            # Выполняем отмену списания
+            CancelWriteOffCommand.execute(
+                item_id=item_id,
+                user=request.user
+            )
+            restored_count += 1
+        except Item.DoesNotExist:
+            errors.append(f"ТМЦ с ID {item_id} не найдено")
+        except DomainValidationError as e:
+            errors.append(str(e))
+        except Exception as e:
+            errors.append(f"Ошибка при обработке ТМЦ {item_id}: {str(e)}")
+    
+    if restored_count == 0:
+        return api_error(
+            error="Не удалось восстановить ни одного ТМЦ: " + "; ".join(errors),
+            status_code=400
+        )
+    
+    message = f"Восстановлено {restored_count} ТМЦ"
+    if errors:
+        message += f". Ошибки: {'; '.join(errors)}"
+    
+    return api_response(message=message)
+
+
+@extend_schema(
     methods=['GET'],
     description="Получить доступные опции для фильтрации списаний",
     responses={200: {

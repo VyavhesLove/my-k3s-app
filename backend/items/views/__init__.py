@@ -13,7 +13,7 @@ from .common import (
     get_status_counters, hello
 )
 from .confirm_tmc import ConfirmTMCAPIView
-from .writeoffs import write_off_list, write_off_cancel, write_off_filter_options
+from .writeoffs import write_off_list, write_off_cancel, write_off_filter_options, write_off_bulk_restore
 
 # Alias для обратной совместимости с urls.py
 # items/urls.py использует views.item_list и т.д.

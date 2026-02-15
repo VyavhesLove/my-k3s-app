@@ -25,4 +25,5 @@ urlpatterns = [
     path('writeoffs/', views.write_off_list, name='write_off_list'),
     path('writeoffs/filters/', views.write_off_filter_options, name='write_off_filter_options'),
     path('writeoffs/<int:write_off_id>/cancel/', views.write_off_cancel, name='write_off_cancel'),
+    path('writeoffs/bulk-restore/', views.write_off_bulk_restore, name='write_off_bulk_restore'),
 ]

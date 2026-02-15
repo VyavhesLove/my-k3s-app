@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, RotateCcw, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/api/axios';
 import { useWriteoffList, useWriteoffFilterOptions } from '@/hooks/useWriteoff';
 import WriteoffFilters from '@/components/writeoff/WriteoffFilters';
 import WriteoffTable from '@/components/writeoff/WriteoffTable';
+import BulkRestoreModal from '@/components/writeoff/BulkRestoreModal';
 
 const ScrapPage = ({ isDarkMode = false }) => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState([]);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+  const [restoreModalItems, setRestoreModalItems] = useState([]);
   
   const [filters, setFilters] = useState({
     search: '',
@@ -19,16 +22,8 @@ const ScrapPage = ({ isDarkMode = false }) => {
     is_cancelled: false
   });
 
-  useEffect(() => {
-    console.log('[ScrapPage] Component mounted, filters:', filters);
-  }, []);
-
   const { options, loading: optionsLoading } = useWriteoffFilterOptions();
   const { items, totalCount, loading, error } = useWriteoffList(filters, page);
-
-  useEffect(() => {
-    console.log('[ScrapPage] State updated - items:', items?.length, 'loading:', loading, 'error:', error);
-  }, [items, loading, error]);
 
   // Toggle для фильтров
   const toggleFilter = (type, value) => {
@@ -74,16 +69,25 @@ const ScrapPage = ({ isDarkMode = false }) => {
     }
   };
 
-  // Массовое действие: Возврат в работу
-  const handleBulkRestore = async () => {
-    if (window.confirm(`Вернуть в работу выбранные ТМЦ (${selectedIds.length} шт.)?`)) {
-      try {
-        await api.post('/writeoffs/bulk-restore/', { ids: selectedIds });
-        window.location.reload();
-      } catch (err) {
-        alert(err.response?.data?.error || 'Ошибка при выполнении операции');
-      }
+  // Массовое действие: Возврат в работу - открыть модальное окно
+  const handleBulkRestore = () => {
+    if (selectedIds.length > 0) {
+      setRestoreModalItems(items.filter(item => selectedIds.includes(item.id)));
+      setIsRestoreModalOpen(true);
     }
+  };
+
+  // Восстановление одного ТМЦ из строки таблицы
+  const handleRestoreSingleClick = (item) => {
+    setRestoreModalItems([item]);
+    setIsRestoreModalOpen(true);
+  };
+
+  // Обработчик успешного восстановления
+  const handleRestoreSuccess = () => {
+    setSelectedIds([]);
+    // Перезагрузить данные - просто сбросим фильтры чтобы триггернуть обновление
+    setFilters(prev => ({ ...prev }));
   };
 
   return (
@@ -94,14 +98,20 @@ const ScrapPage = ({ isDarkMode = false }) => {
       }`}>
         {/* Верхняя часть: Кнопки навигации и действия */}
         <div className="flex justify-between items-center">
-          <button 
-            onClick={() => navigate('/')} 
-            className={`flex items-center gap-2 font-bold transition-opacity ${
-              isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <ArrowLeft size={20} /> Назад
-          </button>
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => navigate('/')} 
+              className={`flex items-center gap-2 font-bold transition-opacity ${
+                isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <ArrowLeft size={20} /> Назад
+            </button>
+            
+            {selectedIds.length > 0 && (
+              <div className="text-blue-400 font-bold text-sm">Выбрано: {selectedIds.length}</div>
+            )}
+          </div>
 
           <div className="flex gap-3">
             <button 
@@ -115,10 +125,6 @@ const ScrapPage = ({ isDarkMode = false }) => {
               <FileText size={18} /> Отчет
             </button>
           </div>
-          
-          {selectedIds.length > 0 && (
-            <div className="text-blue-400 font-bold text-sm">Выбрано: {selectedIds.length}</div>
-          )}
         </div>
 
         {/* Фильтры - горизонтально */}
@@ -140,7 +146,7 @@ const ScrapPage = ({ isDarkMode = false }) => {
 
       {/* КОНТЕНТ - ТАБЛИЦА */}
       <main className="flex-1 overflow-auto p-6">
-      <WriteoffTable
+        <WriteoffTable
           data={items}
           loading={loading}
           error={error}
@@ -152,8 +158,18 @@ const ScrapPage = ({ isDarkMode = false }) => {
           onToggleSelection={toggleSelection}
           onToggleAllSelection={toggleAllSelection}
           isDarkMode={isDarkMode}
+          onRestoreClick={handleRestoreSingleClick}
         />
       </main>
+
+      {/* Модальное окно восстановления ТМЦ */}
+      <BulkRestoreModal
+        isOpen={isRestoreModalOpen}
+        onClose={() => setIsRestoreModalOpen(false)}
+        selectedItems={restoreModalItems}
+        onSuccess={handleRestoreSuccess}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };
