@@ -64,6 +64,7 @@ const StatusFilter = ({ isDarkMode, filterValue, onFilterChange }) => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="input-theme py-2 pl-7 pr-8 text-xs w-full rounded outline-none appearance-none cursor-pointer focus:ring-1 focus:ring-blue-500 text-left flex items-center justify-between"
+        style={{ minWidth: '180px' }}
       >
         <span className="truncate">{displayText}</span>
         <ChevronDown size={14} className={`pointer-events-none flex-shrink-0 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} ${isOpen ? 'rotate-180' : ''} transition-transform`} />
