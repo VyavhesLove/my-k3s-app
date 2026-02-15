@@ -35,7 +35,7 @@ class BrigadeSerializer(serializers.ModelSerializer):
 
 class ItemHistorySerializer(serializers.ModelSerializer):
     """Сериализатор для истории ТМЦ"""
-    date = serializers.DateTimeField(source='timestamp', format="%d.%m.%y")
+    date = serializers.DateTimeField(source='timestamp', format="%d.%m.%y %H:%M")
     user_username = serializers.SerializerMethodField()
     action_type_display = serializers.CharField(source='get_action_type_display', read_only=True)
 
