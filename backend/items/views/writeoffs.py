@@ -1,4 +1,6 @@
 """API views для CRUD операций списания ТМЦ (writeoffs)."""
+import logging
+import traceback
 from datetime import date
 from decimal import Decimal
 from drf_spectacular.utils import extend_schema
@@ -13,6 +15,10 @@ from ..services.commands import WriteOffCommand, CancelWriteOffCommand
 from ..utils import api_response, api_error
 from ..exceptions import DomainNotFoundError, DomainValidationError
 from ..models import Location, Item
+
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
 
 
 @extend_schema(
@@ -196,9 +202,13 @@ def write_off_bulk_restore(request):
         except Item.DoesNotExist:
             errors.append(f"ТМЦ с ID {item_id} не найдено")
         except DomainValidationError as e:
-            errors.append(str(e))
+            # Логируем подробности валидации на сервере
+            logger.warning(f"DomainValidationError при восстановлении ТМЦ {item_id}: {e}")
+            errors.append("Ошибка валидации при восстановлении ТМЦ")
         except Exception as e:
-            errors.append(f"Ошибка при обработке ТМЦ {item_id}: {str(e)}")
+            # Логируем полный traceback на сервере, клиенту возвращаем нейтральное сообщение
+            logger.error(f"Ошибка при восстановлении ТМЦ {item_id}: {e}\n{traceback.format_exc()}")
+            errors.append(f"Ошибка при обработке ТМЦ {item_id}: внутренняя ошибка сервера")
     
     if restored_count == 0:
         return api_error(
