@@ -3,6 +3,35 @@ import { X, ChevronLeft, ChevronRight, History } from 'lucide-react';
 import api from '@/api/axios';
 import { toast } from 'sonner';
 
+// Empty State для истории
+const EmptyHistoryState = ({ isDarkMode }) => (
+  <tr>
+    <td colSpan={3} className="p-12">
+      <div className={`flex flex-col items-center justify-center text-center rounded-xl py-8 mx-4 ${
+        isDarkMode 
+          ? 'bg-slate-800/30 border border-slate-700/50' 
+          : 'bg-gray-50 border border-gray-200'
+      }`}>
+        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${
+          isDarkMode ? 'bg-slate-700/50' : 'bg-gray-200'
+        }`}>
+          <History size={32} className={isDarkMode ? 'text-slate-400' : 'text-gray-400'} />
+        </div>
+        <h3 className={`text-lg font-semibold mb-2 ${
+          isDarkMode ? 'text-slate-300' : 'text-gray-700'
+        }`}>
+          Нет истории изменений
+        </h3>
+        <p className={`text-sm max-w-xs ${
+          isDarkMode ? 'text-slate-500' : 'text-gray-500'
+        }`}>
+          Для этого товара ещё не было зарегистрировано ни одной операции
+        </p>
+      </div>
+    </td>
+  </tr>
+);
+
 // Skeleton для истории
 const HistorySkeleton = () => (
   [...Array(5)].map((_, index) => (
@@ -124,11 +153,7 @@ const HistoryModal = ({ isOpen, onClose, item, isDarkMode }) => {
                   </tr>
                 ))
               ) : (
-                <tr>
-                  <td colSpan={3} className="p-8 text-center text-gray-500 italic">
-                    История операций пуста
-                  </td>
-                </tr>
+                <EmptyHistoryState isDarkMode={isDarkMode} />
               )}
             </tbody>
           </table>
