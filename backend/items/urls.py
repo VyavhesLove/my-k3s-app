@@ -16,6 +16,7 @@ urlpatterns = [
     path('items/<int:item_id>/cancel-write-off/', views.cancel_write_off_item, name='cancel_write_off_item'),
     path('items/<int:item_id>/lock/', views.lock_item, name='lock_item'),
     path('items/<int:item_id>/unlock/', views.unlock_item, name='unlock_item'),
+    path('items/<int:item_id>/qty/', views.get_item_qty, name='get_item_qty'),
     path('locations/', views.location_list, name='location_list'),
     path('hello/', views.hello, name='hello'),
     path('analytics-data/', views.get_analytics, name='get_analytics'),

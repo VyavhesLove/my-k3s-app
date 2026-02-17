@@ -1,7 +1,7 @@
 """Query слой для получения списка списаний ТМЦ."""
 from datetime import date
 from typing import Optional
-from django.db.models import QuerySet, Q
+from django.db.models import QuerySet, Q, Exists, OuterRef
 from ...models import WriteOffRecord, Item, Location
 from ...enums import ItemStatus
 
@@ -16,7 +16,7 @@ class ListWriteOffsQuery:
     - date: дата списания (date_written_off)
     - search: поиск по названию или серийному номеру ТМЦ
     
-    ВАЖНО: Теперь ищет ТМЦ со статусом WRITTEN_OFF, а не записи WriteOffRecord.
+    Возвращает WriteOffRecord для поддержки множественных записей на один item.
     """
     
     @staticmethod
@@ -27,7 +27,7 @@ class ListWriteOffsQuery:
         search: Optional[str] = None,
     ) -> QuerySet:
         """
-        Получить список ТМЦ со статусом WRITTEN_OFF (списано).
+        Получить список записей о списании.
         
         Args:
             is_cancelled: Фильтр по статусу отмены записи списания (None = все, True = отменённые, False = активные)
@@ -36,43 +36,51 @@ class ListWriteOffsQuery:
             search: Поиск по названию или серийному номеру ТМЦ
             
         Returns:
-            QuerySet с ТМЦ со статусом WRITTEN_OFF
+            QuerySet с записями WriteOffRecord
         """
-        # Начинаем с ТМЦ со статусом WRITTEN_OFF
-        queryset = Item.objects.filter(
-            status=ItemStatus.WRITTEN_OFF
-        ).select_related(
-            'brigade'
-        ).prefetch_related(
-            'write_off_records'
+        # Начинаем с WriteOffRecord
+        queryset = WriteOffRecord.objects.select_related(
+            'item', 'location', 'created_by'
         ).order_by('-id')
         
-        # Фильтрация по поиску (название или серийный номер)
-        if search:
+        # Фильтрация по is_cancelled
+        if is_cancelled is not None:
+            queryset = queryset.filter(is_cancelled=is_cancelled)
+        
+        # Фильтрация по локации (через связанную таблицу или поле item.location)
+        if location:
             queryset = queryset.filter(
-                Q(name__icontains=search) | 
-                Q(serial__icontains=search)
+                Q(location__name__icontains=location) |
+                Q(item__location__icontains=location)
             )
         
-        # Фильтрация по локации
-        if location:
-            queryset = queryset.filter(location__icontains=location)
+        # Фильтрация по дате списания
+        if date_written_off:
+            queryset = queryset.filter(date_written_off=date_written_off)
+        
+        # Фильтрация по поиску (название или серийный номер ТМЦ)
+        if search:
+            queryset = queryset.filter(
+                Q(item__name__icontains=search) | 
+                Q(item__serial__icontains=search)
+            )
         
         return queryset
     
     @staticmethod
     def by_id(write_off_id: int) -> Item:
         """
-        Получить ТМЦ со статусом WRITTEN_OFF по ID.
+        Получить ТМЦ по ID записи о списании.
         
         Args:
-            write_off_id: ID ТМЦ
+            write_off_id: ID записи WriteOffRecord
             
         Returns:
-            ТМЦ со статусом WRITTEN_OFF
+            ТМЦ с записью о списании
             
         Raises:
-            Item.DoesNotExist: Если ТМЦ не найдено или не имеет статуса WRITTEN_OFF
+            WriteOffRecord.DoesNotExist: Если запись о списании не найдена
         """
-        return Item.objects.get(id=write_off_id, status=ItemStatus.WRITTEN_OFF)
+        write_off = WriteOffRecord.objects.get(id=write_off_id)
+        return write_off.item
 

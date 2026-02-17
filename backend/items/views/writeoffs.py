@@ -65,7 +65,7 @@ def write_off_list(request):
             search=search
         )
         
-        serializer = WriteOffRecordSerializer(queryset, many=True)
+        serializer = WriteOffRecordSerializer(queryset, many=True, context={'request': request})
         return api_response(data={"write_offs": serializer.data})
     
     if request.method == 'POST':
@@ -86,7 +86,7 @@ def write_off_list(request):
         except ObjectDoesNotExist:
             return api_error(error="ТМЦ не найдено", status_code=400)
         
-        # Получаем созданную запись для ответа
+        # Получаем созданную запись WriteOffRecord для ответа
         from ..models import WriteOffRecord
         write_off_record = WriteOffRecord.objects.select_related(
             'item', 'location', 'created_by'
@@ -131,10 +131,11 @@ def write_off_cancel(request, write_off_id):
     except DomainNotFoundError as e:
         return api_error(error=str(e), status_code=404)
     
-    # Получаем обновлённую запись о списании для ответа
-    write_off_record.refresh_from_db()
+    # Получаем связанный Item для сериализации (сериализатор работает с Item)
+    item = write_off_record.item
+    
     return api_response(
-        data=WriteOffRecordSerializer(write_off_record).data,
+        data=WriteOffRecordSerializer(item).data,
         message="Списание отменено"
     )
 

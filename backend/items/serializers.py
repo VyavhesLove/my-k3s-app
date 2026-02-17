@@ -97,6 +97,10 @@ class WriteOffCreateSerializer(serializers.Serializer):
     Сериализатор для создания записи о списании ТМЦ через API.
     
     Используется в POST /writeoffs/ endpoint.
+    
+    Валидация:
+    - Проверяем, что ТМЦ существует
+    - Проверяем, что qty >= 1 (достаточно остатков для списания)
     """
     item_id = serializers.IntegerField(
         help_text="ID ТМЦ для списания"
@@ -125,29 +129,50 @@ class WriteOffCreateSerializer(serializers.Serializer):
         help_text="Описание причины списания"
     )
 
+    def validate_item_id(self, value):
+        """
+        Валидация: проверяем что ТМЦ существует и имеет достаточное количество для списания.
+        """
+        from .models import Item
+        
+        try:
+            item = Item.objects.get(id=value)
+        except Item.DoesNotExist:
+            raise serializers.ValidationError("ТМЦ с указанным ID не найдено")
+        
+        # Проверяем остатки (qty)
+        if item.qty < 1:
+            raise serializers.ValidationError(
+                f"Недостаточное количество на складе. Доступно: {item.qty}, требуется: 1"
+            )
+        
+        return value
+
 
 class WriteOffRecordSerializer(serializers.ModelSerializer):
-    """Сериализатор для ТМЦ со статусом WRITTEN_OFF (списано)"""
+    """Сериализатор для записей о списании WriteOffRecord"""
     # Алиасы для обратной совместимости с фронтендом
-    item_name = serializers.CharField(source='name', read_only=True)
-    item_serial = serializers.CharField(source='serial', read_only=True)
-    item_brand = serializers.CharField(source='brand', read_only=True)
+    item_name = serializers.CharField(source='item.name', read_only=True)
+    item_serial = serializers.CharField(source='item.serial', read_only=True)
+    item_brand = serializers.CharField(source='item.brand', read_only=True)
     location_name = serializers.SerializerMethodField()
     created_by_username = serializers.SerializerMethodField()
-    # Поля из связанной записи WriteOffRecord (если есть)
+    # Поля из модели WriteOffRecord
     repair_cost = serializers.SerializerMethodField()
     invoice_number = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
     date_to_service = serializers.SerializerMethodField()
     date_written_off = serializers.SerializerMethodField()
-    is_cancelled = serializers.SerializerMethodField()
+    is_cancelled = serializers.BooleanField()
 
     class Meta:
-        model = Item
+        model = WriteOffRecord
         fields = [
-            'id', 'name', 'serial', 'brand', 'status',
+            'id', 
+            # Item fields
+            'item', 'item_name', 'item_serial', 'item_brand',
+            # WriteOffRecord fields
             'location', 'location_name',
-            'item_name', 'item_serial', 'item_brand',
             'repair_cost', 'invoice_number', 'description',
             'date_to_service', 'date_written_off',
             'created_by_username',
@@ -156,43 +181,35 @@ class WriteOffRecordSerializer(serializers.ModelSerializer):
 
     def get_location_name(self, obj):
         """Возвращает название локации"""
-        return obj.location
+        if obj.location:
+            return obj.location.name
+        if obj.item and obj.item.location:
+            return obj.item.location
+        return None
 
     def get_created_by_username(self, obj):
         """Возвращает username создателя записи о списании"""
-        # Ищем связанную запись о списании
-        write_off = obj.write_off_records.filter(is_cancelled=False).first()
-        if write_off and write_off.created_by:
-            return write_off.created_by.username
+        if obj.created_by:
+            return obj.created_by.username
         return None
 
     def get_repair_cost(self, obj):
         """Возвращает стоимость ремонта"""
-        write_off = obj.write_off_records.filter(is_cancelled=False).first()
-        return str(write_off.repair_cost) if write_off else None
+        return str(obj.repair_cost) if obj.repair_cost else None
 
     def get_invoice_number(self, obj):
         """Возвращает номер накладной"""
-        write_off = obj.write_off_records.filter(is_cancelled=False).first()
-        return write_off.invoice_number if write_off else None
+        return obj.invoice_number
 
     def get_description(self, obj):
         """Возвращает описание"""
-        write_off = obj.write_off_records.filter(is_cancelled=False).first()
-        return write_off.description if write_off else None
+        return obj.description
 
     def get_date_to_service(self, obj):
         """Возвращает дату поступления в ремонт"""
-        write_off = obj.write_off_records.filter(is_cancelled=False).first()
-        return str(write_off.date_to_service) if write_off else None
+        return str(obj.date_to_service) if obj.date_to_service else None
 
     def get_date_written_off(self, obj):
         """Возвращает дату списания"""
-        write_off = obj.write_off_records.filter(is_cancelled=False).first()
-        return str(write_off.date_written_off) if write_off else None
-
-    def get_is_cancelled(self, obj):
-        """Возвращает статус отмены"""
-        write_off = obj.write_off_records.filter(is_cancelled=False).first()
-        return write_off.is_cancelled if write_off else False
+        return str(obj.date_written_off) if obj.date_written_off else None
 

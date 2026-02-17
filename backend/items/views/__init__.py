@@ -1,7 +1,7 @@
 # Импортируем ВСЁ для обратной совместимости
 # views.py удалён — все вьюхи теперь здесь
 
-from .items import item_list, item_detail
+from .items import item_list, item_detail, get_item_qty
 from .services import (
     send_to_service, return_from_service, confirm_repair,
     confirm_item, write_off_item, cancel_write_off_item,
@@ -19,6 +19,7 @@ from .writeoffs import write_off_list, write_off_cancel, write_off_filter_option
 # items/urls.py использует views.item_list и т.д.
 item_list = item_list
 item_detail = item_detail
+get_item_qty = get_item_qty
 send_to_service = send_to_service
 return_from_service = return_from_service
 confirm_repair = confirm_repair
@@ -38,7 +39,7 @@ write_off_cancel = write_off_cancel
 write_off_filter_options = write_off_filter_options
 
 __all__ = [
-    'item_list', 'item_detail',
+    'item_list', 'item_detail', 'get_item_qty',
     'send_to_service', 'return_from_service', 'confirm_repair',
     'confirm_item', 'write_off_item', 'cancel_write_off_item',
     'write_off_from_confirm_repair',

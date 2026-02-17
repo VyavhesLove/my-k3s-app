@@ -8,7 +8,41 @@ from ..serializers import ItemSerializer
 from ..services.queries import GetItemQuery, ListItemsQuery
 from ..services.commands import UpdateItemCommand
 from ..services import DomainValidationError, DomainNotFoundError
-from ..utils import api_response
+from ..utils import api_response, api_error
+
+
+@extend_schema(
+    methods=['GET'],
+    description="Получить количество (qty) конкретного ТМЦ",
+    responses={200: {
+        "type": "object",
+        "properties": {
+            "item_id": {"type": "integer"},
+            "qty": {"type": "integer"},
+            "name": {"type": "string"},
+            "status": {"type": "string"}
+        }
+    }}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_item_qty(request, item_id):
+    """
+    GET: получить количество ТМЦ для проверки остатков перед списанием.
+    
+    Используется на фронтенде для предварительной валидации формы списания.
+    """
+    try:
+        item = Item.objects.get(id=item_id)
+    except Item.DoesNotExist:
+        return api_error(error=f"ТМЦ с ID {item_id} не найдено", status_code=404)
+    
+    return api_response(data={
+        "item_id": item.id,
+        "qty": item.qty,
+        "name": item.name,
+        "status": item.status
+    })
 
 
 @extend_schema(
