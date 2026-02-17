@@ -33,7 +33,12 @@ class Item(models.Model):
     status = models.CharField(max_length=20, choices=ItemStatus.choices, default=ItemStatus.AVAILABLE, verbose_name="Статус")
     responsible = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ответственный")
     location = models.CharField(max_length=255, blank=True, null=True, verbose_name="Локация")
-    qty = models.IntegerField(default=1, verbose_name="Количество")
+    qty = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=1,
+        verbose_name="Количество"
+    )
 
     brigade = models.ForeignKey(
         'Brigade', 

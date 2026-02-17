@@ -18,7 +18,7 @@ from ..utils import api_response, api_error
         "type": "object",
         "properties": {
             "item_id": {"type": "integer"},
-            "qty": {"type": "integer"},
+            "qty": {"type": "number"},
             "name": {"type": "string"},
             "status": {"type": "string"}
         }

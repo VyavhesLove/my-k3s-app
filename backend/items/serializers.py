@@ -66,6 +66,9 @@ class ItemSerializer(serializers.ModelSerializer):
     # Комментарий для сервисных операций (write_only, не сохраняется в модель)
     service_comment = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
+    # Количество - DecimalField для поддержки дробных значений
+    qty = serializers.DecimalField(max_digits=10, decimal_places=2)
+
     class Meta:
         model = Item
         # Добавляем историю, детали и service_comment в общий список полей
