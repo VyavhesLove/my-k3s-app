@@ -67,7 +67,7 @@ class ItemSerializer(serializers.ModelSerializer):
     service_comment = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     # Количество - DecimalField для поддержки дробных значений
-    qty = serializers.DecimalField(max_digits=10, decimal_places=2)
+    qty = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=1)
 
     class Meta:
         model = Item

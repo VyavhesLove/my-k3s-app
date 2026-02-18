@@ -50,6 +50,7 @@ const ItemCreate = ({ isDarkMode }) => {
       name: formData.name,
       serial: formData.noSerial ? "отсутствует" : formData.serial,
       brand: formData.brand,
+      qty: 1,
     };
 
     // Используем toast.promise для автоматической смены состояний (загрузка -> успех/ошибка)
