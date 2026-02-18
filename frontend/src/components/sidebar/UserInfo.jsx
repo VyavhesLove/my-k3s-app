@@ -1,7 +1,6 @@
 import { Settings } from 'lucide-react';
-import { toast } from 'sonner';
 
-const UserInfo = ({ user, isCollapsed }) => {
+const UserInfo = ({ user, isCollapsed, onNavigateToProfile }) => {
   if (!user) return null;
 
   // Функция для получения текста роли
@@ -34,9 +33,9 @@ const UserInfo = ({ user, isCollapsed }) => {
 
   // Обработчик клика по профилю
   const handleProfileClick = () => {
-    toast.info('Настройки профиля скоро будут доступны', {
-      duration: 2000,
-    });
+    if (onNavigateToProfile) {
+      onNavigateToProfile();
+    }
   };
 
   const roleIndicatorClass = getRoleIndicatorClass(user.role);

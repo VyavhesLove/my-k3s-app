@@ -48,3 +48,8 @@ class User(AbstractUser):
     def is_foreman(self) -> bool:
         return self.role == UserRole.FOREMAN
 
+
+# Импорт модели сессий для избежания циклических импортов
+# Модель UserSession определена в models_session.py
+default_app_config = 'users.apps.UsersConfig'
+

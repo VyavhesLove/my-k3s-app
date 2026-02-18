@@ -152,6 +152,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         user={user}
+        onNavigateToProfile={() => navigate('/profile')}
       />
 
       <SidebarMenu
