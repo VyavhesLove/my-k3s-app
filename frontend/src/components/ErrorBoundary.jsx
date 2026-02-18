@@ -26,8 +26,9 @@ class ErrorBoundary extends React.Component {
     // При загрузке приложения узнаем режим работы у сервера
     try {
       const res = await api.get('/config');
+      // backend api_response возвращает { success, data: {...} }, поэтому берем вложенный data
       this.setState({ 
-        appConfig: res.data, 
+        appConfig: res.data.data, 
         isLoadingConfig: false 
       });
     } catch (e) {

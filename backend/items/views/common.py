@@ -120,8 +120,8 @@ def log_error(request):
     Сохранение лога ошибки с фронтенда.
     Анонимный endpoint - не требует аутентификации.
     """
-    from .models import ErrorLog
-    from .serializers import ErrorLogSerializer
+    from ..models import ErrorLog
+    from ..serializers import ErrorLogSerializer
 
     # Получаем данные из запроса
     message = request.data.get('message', '')
