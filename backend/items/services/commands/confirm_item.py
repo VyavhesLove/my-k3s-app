@@ -5,7 +5,7 @@ from django.db import transaction
 from items.enums import ItemStatus
 from ...models import Item
 from ..history_service import HistoryService
-from ..domain.exceptions import DomainValidationError
+from ..domain.exceptions import DomainValidationError, DomainNotFoundError
 
 
 class ConfirmItemCommand:
@@ -37,10 +37,13 @@ class ConfirmItemCommand:
             int: ID изменённого ТМЦ
 
         Raises:
-            ValueError: При некорректном статусе ТМЦ
+            DomainValidationError: При некорректном статусе ТМЦ или если ТМЦ не найдено
         """
         # 1. Блокируем строку через select_for_update()
-        item = Item.objects.select_for_update().get(id=item_id)
+        try:
+            item = Item.objects.select_for_update().get(id=item_id)
+        except Item.DoesNotExist:
+            raise DomainNotFoundError("ТМЦ не найдено")
 
         # 2. Валидация перехода: только CONFIRM -> AVAILABLE
         if item.status != ItemStatus.CONFIRM:

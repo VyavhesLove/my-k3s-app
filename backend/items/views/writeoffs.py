@@ -137,11 +137,13 @@ def write_off_cancel(request, write_off_id):
     except DomainNotFoundError as e:
         return api_error(error=str(e), status_code=404)
     
-    # Получаем связанный Item для сериализации (сериализатор работает с Item)
-    item = write_off_record.item
+    # Получаем обновлённую запись WriteOffRecord для сериализации
+    write_off_record = WriteOffRecord.objects.select_related(
+        'item', 'location', 'created_by'
+    ).get(id=write_off_id)
     
     return api_response(
-        data=WriteOffRecordSerializer(item).data,
+        data=WriteOffRecordSerializer(write_off_record).data,
         message="Списание отменено"
     )
 

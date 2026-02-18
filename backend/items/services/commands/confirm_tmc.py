@@ -5,7 +5,7 @@ from django.db import transaction
 from items.enums import ItemStatus
 from ...models import Item
 from ..history_service import HistoryService
-from ..domain.exceptions import DomainValidationError
+from ..domain.exceptions import DomainValidationError, DomainNotFoundError
 
 
 class ConfirmTMCCommand:
@@ -38,13 +38,17 @@ class ConfirmTMCCommand:
 
         Raises:
             DomainValidationError: При некорректном действии или статусе
+            Item.DoesNotExist: Если ТМЦ не найдено
         """
         # 1. Блокируем строку через select_for_update()
-        item = Item.objects.select_for_update().get(id=item_id)
+        try:
+            item = Item.objects.select_for_update().get(id=item_id)
+        except Item.DoesNotExist:
+            raise DomainNotFoundError("ТМЦ не найдено")
 
         # 2. Выполняем действие
         if action == "accept":
-            # accept: CONFIRM → ISSUED
+            # accept: CREATED → AVAILABLE
             ConfirmTMCCommand._validate_accept(item.status)
             ConfirmTMCCommand._accept(item, user)
         elif action == "reject":
@@ -58,10 +62,10 @@ class ConfirmTMCCommand:
 
     @staticmethod
     def _validate_accept(status: ItemStatus) -> None:
-        """Валидация принятия ТМЦ (CONFIRM → ISSUED)."""
-        if status != ItemStatus.CONFIRM:
+        """Валидация принятия ТМЦ (CREATED → AVAILABLE)."""
+        if status != ItemStatus.CREATED:
             raise DomainValidationError(
-                f"Невозможно принять ТМЦ. Статус должен быть 'confirm', а не '{status}'"
+                f"Невозможно принять ТМЦ. Статус должен быть 'created', а не '{status}'"
             )
 
     @staticmethod
@@ -83,7 +87,7 @@ class ConfirmTMCCommand:
         """
         old_status = item.status
         
-        item.status = ItemStatus.ISSUED
+        item.status = ItemStatus.AVAILABLE
         item.responsible = user.username if hasattr(user, 'username') else str(user)
         item.save()
 
@@ -98,17 +102,17 @@ class ConfirmTMCCommand:
             item=item,
             user=user,
             old_status=old_status,
-            new_status=ItemStatus.ISSUED,
+            new_status=ItemStatus.AVAILABLE,
             location=item.location,
         )
 
     @staticmethod
     def _reject(item, user) -> None:
         """
-        Отклонение ТМЦ — возврат в статус "Доступно".
+        Отклонение ТМЦ — возврат в статус "Выдано".
 
-        При отклонении ТМЦ возвращается в исходное состояние "Доступно",
-        ответственный и локация очищаются, статус меняется на AVAILABLE.
+        При отклонении ТМЦ возвращается в исходное состояние "Выдано",
+        ответственный устанавливается, статус меняется на ISSUED.
 
         Args:
             item: Объект ТМЦ (уже заблокирован транзакцией)
@@ -117,10 +121,9 @@ class ConfirmTMCCommand:
         old_status = item.status
         old_location = item.location
         
-        # Возвращаем в статус "Доступно"
-        item.status = ItemStatus.AVAILABLE
-        item.responsible = None
-        item.location = None  # Очищаем локацию
+        # Возвращаем в статус "Выдано"
+        item.status = ItemStatus.ISSUED
+        item.responsible = user.username if hasattr(user, 'username') else str(user)
         item.save()
 
         HistoryService.rejected(
@@ -134,6 +137,6 @@ class ConfirmTMCCommand:
             item=item,
             user=user,
             old_status=old_status,
-            new_status=ItemStatus.AVAILABLE,
+            new_status=ItemStatus.ISSUED,
             location=old_location,
         )
