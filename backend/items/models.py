@@ -118,6 +118,20 @@ class ItemHistory(models.Model):
         super().save(*args, **kwargs)
 
 
+class ServiceCenter(models.Model):
+    """Модель сервисного центра для ремонта ТМЦ."""
+    name = models.CharField(max_length=255, unique=True, verbose_name="Наименование")
+    address = models.TextField(verbose_name="Адрес")
+    city = models.CharField(max_length=255, verbose_name="Город")
+
+    class Meta:
+        verbose_name = 'Сервисный центр'
+        verbose_name_plural = 'Сервисные центры'
+
+    def __str__(self):
+        return f"{self.name} ({self.city})"
+
+
 class WriteOffRecord(models.Model):
     """
     Модель записи о списании ТМЦ.

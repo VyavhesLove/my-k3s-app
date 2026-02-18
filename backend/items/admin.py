@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
 from auditlog.models import LogEntry
-from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord
+from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord, ServiceCenter
 
 
 @admin.register(Item)
@@ -91,4 +91,10 @@ class WriteOffRecordAdmin(admin.ModelAdmin):
         return obj.created_by.username if obj.created_by else None
     created_by.short_description = 'Создал'
     created_by.admin_order_field = 'created_by__username'
+
+
+@admin.register(ServiceCenter)
+class ServiceCenterAdmin(admin.ModelAdmin):
+    list_display = ('name', 'city', 'address')
+    search_fields = ('name', 'city', 'address')
 
