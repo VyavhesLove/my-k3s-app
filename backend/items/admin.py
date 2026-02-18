@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
 from auditlog.models import LogEntry
-from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord, ServiceCenter
+from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord, ServiceCenter, ErrorLog
 
 
 @admin.register(Item)
@@ -97,4 +97,44 @@ class WriteOffRecordAdmin(admin.ModelAdmin):
 class ServiceCenterAdmin(admin.ModelAdmin):
     list_display = ('name', 'city', 'address')
     search_fields = ('name', 'city', 'address')
+
+
+@admin.register(ErrorLog)
+class ErrorLogAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'short_message', 'url_link', 'resolved_status', 'resolved')
+    list_filter = ('resolved', 'timestamp')
+    search_fields = ('message', 'stack_trace', 'url')
+    list_editable = ('resolved',)
+    readonly_fields = ('timestamp', 'url', 'message', 'user_agent', 'stack_trace_formatted')
+    exclude = ('stack_trace',)
+    date_hierarchy = 'timestamp'
+    
+    # Ссылка на страницу, где произошла ошибка
+    def url_link(self, obj):
+        return format_html('<a href="{0}" target="_blank">{1}</a>', obj.url, obj.url)
+    url_link.short_description = "URL"
+    
+    # Короткое сообщение для списка
+    def short_message(self, obj):
+        return obj.message[:100] + '...' if len(obj.message) > 100 else obj.message
+    short_message.short_description = "Сообщение"
+    
+    # Статус с цветовой индикацией
+    def resolved_status(self, obj):
+        color = '#22c55e' if obj.resolved else '#ef4444'
+        text = 'Исправлено' if obj.resolved else 'Критично'
+        return format_html('<span style="color: {0}; font-weight: bold;">{1}</span>', color, text)
+    resolved_status.short_description = "Статус"
+    
+    # Форматированный стек-трейс с подсветкой
+    def stack_trace_formatted(self, obj):
+        if not obj.stack_trace:
+            return "Нет данных"
+        return format_html(
+            '<pre style="background: #1e293b; color: #f1f5f9; padding: 15px; border-radius: 8px; '
+            'font-family: monospace; font-size: 12px; line-height: 1.5; overflow-x: auto; '
+            'border-left: 4px solid #ef4444;">{0}</pre>',
+            obj.stack_trace
+        )
+    stack_trace_formatted.short_description = "Stack Trace (Debug Info)"
 

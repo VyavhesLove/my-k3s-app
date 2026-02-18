@@ -1,6 +1,6 @@
 from decimal import Decimal
 from rest_framework import serializers
-from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord
+from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord, ErrorLog
 
 
 # class ItemSerializer(serializers.ModelSerializer):
@@ -215,4 +215,19 @@ class WriteOffRecordSerializer(serializers.ModelSerializer):
     def get_date_written_off(self, obj):
         """Возвращает дату списания"""
         return str(obj.date_written_off) if obj.date_written_off else None
+
+
+class ErrorLogSerializer(serializers.ModelSerializer):
+    """Сериализатор для логов ошибок фронтенда"""
+    user_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ErrorLog
+        fields = ['id', 'user', 'user_username', 'timestamp', 'url', 'message', 'stack_trace', 'user_agent']
+        read_only_fields = ['timestamp']
+
+    def get_user_username(self, obj):
+        if obj.user:
+            return obj.user.username
+        return None
 

@@ -10,7 +10,7 @@ from .services import (
 from .locks import lock_item, unlock_item
 from .common import (
     location_list, brigade_list, get_analytics,
-    get_status_counters, hello
+    get_status_counters, hello, get_config, log_error, ErrorLogView
 )
 from .confirm_tmc import ConfirmTMCAPIView
 from .writeoffs import write_off_list, write_off_cancel, write_off_filter_options, write_off_bulk_restore
@@ -34,6 +34,9 @@ brigade_list = brigade_list
 get_analytics = get_analytics
 get_status_counters = get_status_counters
 hello = hello
+get_config = get_config
+log_error = log_error
+ErrorLogView = ErrorLogView
 write_off_list = write_off_list
 write_off_cancel = write_off_cancel
 write_off_filter_options = write_off_filter_options
@@ -44,7 +47,7 @@ __all__ = [
     'confirm_item', 'write_off_item', 'cancel_write_off_item',
     'write_off_from_confirm_repair',
     'lock_item', 'unlock_item',
-    'location_list', 'brigade_list', 'get_analytics', 'get_status_counters', 'hello',
+    'location_list', 'brigade_list', 'get_analytics', 'get_status_counters', 'hello', 'get_config', 'log_error',
     'ConfirmTMCAPIView',
     'write_off_list', 'write_off_cancel', 'write_off_filter_options',
 ]

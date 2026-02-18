@@ -132,6 +132,33 @@ class ServiceCenter(models.Model):
         return f"{self.name} ({self.city})"
 
 
+class ErrorLog(models.Model):
+    """
+    Модель для логирования ошибок на фронтенде.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Пользователь"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Время ошибки")
+    url = models.CharField(max_length=255, verbose_name="URL")
+    message = models.TextField(verbose_name="Сообщение об ошибке")
+    stack_trace = models.TextField(verbose_name="Stack trace")
+    user_agent = models.CharField(max_length=255, verbose_name="User Agent")
+    resolved = models.BooleanField(default=False, verbose_name="Исправлено")
+
+    class Meta:
+        verbose_name = "Лог ошибки"
+        verbose_name_plural = "Логи ошибок"
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"Ошибка {self.timestamp} - {self.message[:50]}"
+
+
 class WriteOffRecord(models.Model):
     """
     Модель записи о списании ТМЦ.
