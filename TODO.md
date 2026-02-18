@@ -1,11 +1,11 @@
-# TODO: Интеграция django-auditlog
+# TODO - Исправление UX регресса в профиле
 
-## Этапы реализации:
-- [x] 1. Добавить django-auditlog в requirements.txt
-- [x] 2. Добавить 'auditlog' в INSTALLED_APPS (settings.py)
-- [x] 3. Запустить миграции (python manage.py migrate)
-- [x] 4. Интегрировать в модель Item (добавить auditlog.register(Item))
-- [x] 5. Протестировать - работает!
+## Основная задача
+- [x] 1. Проанализировать код и понять проблему
+- [x] 2. Изменить useProfile.js - возвращать boolean из handleProfileSubmit
+- [x] 3. Изменить ProfilePage.jsx - закрывать форму только при true
 
-
+## Дополнительные задачи (упомянуты пользователем)
+- [x] 4. Добавить toast.success при завершении сессии (useUserSessions)
+- [x] 5. Удалить неиспользуемый import useEffect (useUserSessions)
 

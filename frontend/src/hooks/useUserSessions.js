@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import api from '@/api/axios';
 
 /**
@@ -25,6 +26,7 @@ export const useUserSessions = () => {
   const terminateSession = useCallback(async (sessionId) => {
     try {
       await api.post('/users/me/sessions/terminate/', { session_id: sessionId });
+      toast.success('Сессия завершена');
       await fetchSessions();
     } catch (err) {
       throw new Error(err.response?.data?.error || 'Ошибка завершения сессии');

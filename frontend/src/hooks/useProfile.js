@@ -74,9 +74,11 @@ export const useProfile = () => {
       await api.put('/users/me/update/', profileForm);
       toast.success('Профиль обновлён');
       fetchUserData();
+      return true;
     } catch (error) {
       const errorMsg = error.response?.data?.error || 'Ошибка обновления профиля';
       toast.error(errorMsg);
+      return false;
     }
   }, [profileForm, fetchUserData]);
 

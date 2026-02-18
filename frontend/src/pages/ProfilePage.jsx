@@ -32,8 +32,10 @@ const ProfilePage = () => {
 
   // Обработчик завершения редактирования профиля
   const handleProfileUpdate = async (e) => {
-    await handleProfileSubmit(e);
-    setIsEditing(false);
+    const ok = await handleProfileSubmit(e);
+    if (ok) {
+      setIsEditing(false);
+    }
   };
 
   // Отмена редактирования
