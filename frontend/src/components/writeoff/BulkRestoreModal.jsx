@@ -14,12 +14,14 @@ const BulkRestoreModal = ({
   const { lockItem, unlockItem } = useItemStore();
   const [loading, setLoading] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
   const [lockedItems, setLockedItems] = useState({});
 
   // Блокировка ТМЦ при открытии
   useEffect(() => {
     if (isOpen && selectedItems.length > 0) {
       const doLock = async () => {
+        setIsLocking(true);
         const lockedResults = {};
         let allLocked = true;
         
@@ -40,11 +42,13 @@ const BulkRestoreModal = ({
         
         setLockedItems(lockedResults);
         setIsLocked(allLocked);
+        setIsLocking(false);
       };
       doLock();
     } else {
       // Сброс состояния при закрытии
       setIsLocked(false);
+      setIsLocking(false);
       setLockedItems({});
     }
   }, [isOpen, selectedItems, lockItem]);
@@ -118,7 +122,7 @@ const BulkRestoreModal = ({
         {/* Контент */}
         <div className="p-6">
           {/* Предупреждение о блокировке */}
-          {!isLocked && selectedItems.length > 0 && (
+          {!isLocked && !isLocking && selectedItems.length > 0 && (
             <div className="mb-4 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
               <Lock className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
               <div className="text-red-600 dark:text-red-400 text-sm">
@@ -177,9 +181,9 @@ const BulkRestoreModal = ({
             </button>
             <button
               onClick={handleRestore}
-              disabled={loading || !isLocked}
+              disabled={loading || !isLocked || isLocking}
               className={`flex-1 py-3 rounded-xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-2 ${
-                loading || !isLocked
+                loading || !isLocked || isLocking
                   ? 'bg-emerald-600/50 cursor-not-allowed'
                   : 'bg-emerald-600 hover:bg-emerald-500 active:scale-95 shadow-emerald-900/20'
               }`}
@@ -188,6 +192,11 @@ const BulkRestoreModal = ({
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Восстановление...
+                </>
+              ) : isLocking ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Блокировка...
                 </>
               ) : (
                 <>
