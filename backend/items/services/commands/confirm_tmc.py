@@ -38,7 +38,7 @@ class ConfirmTMCCommand:
 
         Raises:
             DomainValidationError: При некорректном действии или статусе
-            Item.DoesNotExist: Если ТМЦ не найдено
+            DomainNotFoundError: Если ТМЦ не найдено
         """
         # 1. Блокируем строку через select_for_update()
         try:

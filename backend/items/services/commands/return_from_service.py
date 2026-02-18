@@ -146,9 +146,10 @@ class ReturnFromServiceCommand:
             item: Объект ТМЦ (уже заблокирован)
             user: Пользователь
         """
-        # Валидация: можно списывать только из статуса CONFIRM_REPAIR
+        # Валидация: можно списывать ТМЦ из допустимых статусов
+        # (ISSUED, AT_WORK, IN_REPAIR - см. WRITE_OFF_ALLOWED_FROM)
         old_status = item.status
-        ItemTransitions.validate_transition(item.status, ItemStatus.WRITTEN_OFF)
+        ItemTransitions.validate_write_off(item.status)
 
         # Проверяем, что нет активной записи списания
         if WriteOffRecord.objects.filter(item=item, is_cancelled=False).exists():
