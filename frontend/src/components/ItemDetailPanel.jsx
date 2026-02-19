@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { X, History, Lock } from 'lucide-react';
 import { statusMap, getStatusStyles } from '@/constants/statusConfig';
-import TransferModal from './modals/TransferModal';
-import ConfirmTMCModal from './modals/ConfirmTMCModal';
-import HistoryModal from './modals/HistoryModal';
+import { TransferModal, ConfirmTMCModal, HistoryModal } from './modals';
 import { useItemStore } from '@/store/useItemStore';
 import { toast } from 'sonner';
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Home } from 'lucide-react'; // Используем иконку замка
 
-const ForbiddenPage = () => {
+export const ForbiddenPage = () => {
   const navigate = useNavigate();
 
   return (
@@ -36,5 +36,3 @@ const ForbiddenPage = () => {
     </div>
   );
 };
-
-export default ForbiddenPage;

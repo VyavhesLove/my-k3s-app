@@ -49,7 +49,7 @@ const HistorySkeleton = () => (
   ))
 );
 
-const HistoryModal = ({ isOpen, onClose, item, isDarkMode }) => {
+export const HistoryModal = ({ isOpen, onClose, item, isDarkMode }) => {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pagination, setPagination] = useState({
@@ -226,6 +226,4 @@ const HistoryModal = ({ isOpen, onClose, item, isDarkMode }) => {
     </div>
   );
 };
-
-export default HistoryModal;
 

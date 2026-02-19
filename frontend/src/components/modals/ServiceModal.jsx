@@ -4,7 +4,7 @@ import api from '@/api/axios';
 import { toast } from 'sonner';
 import { useItemStore } from '@/store/useItemStore';
 
-const ServiceModal = ({ isDarkMode }) => {
+export const ServiceModal = ({ isDarkMode }) => {
   const { 
     selectedItem, 
     serviceMode, 
@@ -488,4 +488,3 @@ const ServiceModal = ({ isDarkMode }) => {
   );
 };
 
-export default ServiceModal;

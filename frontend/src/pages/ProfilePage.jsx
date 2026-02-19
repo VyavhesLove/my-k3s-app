@@ -11,7 +11,7 @@ import HistoryList from './components/profile/HistoryList';
 import SessionsList from './components/profile/SessionsList';
 
 // Контейнер-оркестратор страницы профиля
-const ProfilePage = () => {
+export const ProfilePage = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
 
@@ -123,6 +123,4 @@ const ProfilePage = () => {
     </div>
   );
 };
-
-export default ProfilePage;
 

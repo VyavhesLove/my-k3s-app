@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Ghost, Home } from 'lucide-react';
 
-const NotFoundPage = () => {
+export const NotFoundPage = () => {
   const navigate = useNavigate();
 
   return (
@@ -36,5 +36,3 @@ const NotFoundPage = () => {
     </div>
   );
 };
-
-export default NotFoundPage;

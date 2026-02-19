@@ -1,7 +1,7 @@
-export { default as ServiceModal } from './ServiceModal';
-export { default as AtWorkModal } from './AtWorkModal';
-export { default as ConfirmTMCModal } from './ConfirmTMCModal';
-export { default as TransferModal } from './TransferModal';
-export { default as BrigadeModal } from './BrigadeModal';
-export { default as HistoryModal } from './HistoryModal';
+export { ServiceModal } from './ServiceModal';
+export { AtWorkModal } from './AtWorkModal';
+export { ConfirmTMCModal } from './ConfirmTMCModal';
+export { TransferModal } from './TransferModal';
+export { BrigadeModal } from './BrigadeModal';
+export { HistoryModal } from './HistoryModal';
 

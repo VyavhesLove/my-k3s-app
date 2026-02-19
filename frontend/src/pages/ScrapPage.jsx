@@ -7,7 +7,7 @@ import WriteoffFilters from '@/components/writeoff/WriteoffFilters';
 import WriteoffTable from '@/components/writeoff/WriteoffTable';
 import BulkRestoreModal from '@/components/writeoff/BulkRestoreModal';
 
-const ScrapPage = ({ isDarkMode = false }) => {
+export const ScrapPage = ({ isDarkMode = false }) => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -173,6 +173,4 @@ const ScrapPage = ({ isDarkMode = false }) => {
     </div>
   );
 };
-
-export default ScrapPage;
 

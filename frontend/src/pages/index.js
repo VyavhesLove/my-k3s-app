@@ -1,6 +1,6 @@
-export { default as ScrapPage } from './ScrapPage';
-export { default as ProfilePage } from './ProfilePage';
-export { default as NotFoundPage } from './NotFoundPage';
-export { default as ForbiddenPage } from './ForbiddenPage';
-export { default as AdminPanel } from './AdminPanel';
+export { ScrapPage } from './ScrapPage';
+export { ProfilePage } from './ProfilePage';
+export { NotFoundPage } from './NotFoundPage';
+export { ForbiddenPage } from './ForbiddenPage';
+export { AdminPanel } from './AdminPanel';
 

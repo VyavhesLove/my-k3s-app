@@ -1,7 +1,7 @@
 import React from 'react';
 import { Settings, Users, Database, Shield } from 'lucide-react';
 
-const AdminPanel = ({ isDarkMode }) => {
+export const AdminPanel = ({ isDarkMode }) => {
   return (
     <div className="space-y-6">
       {/* Заголовок */}
@@ -93,6 +93,4 @@ const AdminPanel = ({ isDarkMode }) => {
     </div>
   );
 };
-
-export default AdminPanel;
 
