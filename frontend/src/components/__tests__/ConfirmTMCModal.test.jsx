@@ -1,40 +1,16 @@
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConfirmTMCModal } from '../modals'
 import { useItemStore } from '@/store/useItemStore'
 import api from '@/api/axios'
 import { toast } from 'sonner'
 
-// Мокаем axios
 vi.mock('@/api/axios', () => ({
   default: {
     post: vi.fn()
   }
 }))
 
-// Мокаем useItemStore - возвращаем функцию которая принимает коллбэк
-const mockLockItem = vi.fn().mockResolvedValue({})
-const mockUnlockItem = vi.fn().mockResolvedValue({})
-const mockRefreshItems = vi.fn().mockResolvedValue({})
-const mockCloseConfirmTMCModal = vi.fn()
-const mockSetSelectedItem = vi.fn()
-
-// Создаём мок для useItemStore
-const createMockUseItemStore = () => ({
-  selectedItem: { id: 6, name: 'Test Item', status: 'created' },
-  isConfirmTMCModalOpen: true,
-  closeConfirmTMCModal: mockCloseConfirmTMCModal,
-  lockItem: mockLockItem,
-  unlockItem: mockUnlockItem,
-  refreshItems: mockRefreshItems,
-  setSelectedItem: mockSetSelectedItem
-})
-
-vi.mock('@/store/useItemStore', () => ({
-  useItemStore: vi.fn(() => createMockUseItemStore())
-}))
-
-// Мокаем sonner
 vi.mock('sonner', () => ({
   toast: {
     error: vi.fn(),
@@ -42,170 +18,175 @@ vi.mock('sonner', () => ({
   }
 }))
 
+const mockLockItem = vi.fn()
+const mockUnlockItem = vi.fn()
+const mockRefreshItems = vi.fn()
+const mockCloseConfirmTMCModal = vi.fn()
+const mockSetSelectedItem = vi.fn()
+
+let mockStoreState
+
+vi.mock('@/store/useItemStore', () => ({
+  useItemStore: vi.fn(() => mockStoreState)
+}))
+
+const createStoreState = (overrides = {}) => ({
+  selectedItem: { id: 6, name: 'Test Item', status: 'created' },
+  isConfirmTMCModalOpen: true,
+  closeConfirmTMCModal: mockCloseConfirmTMCModal,
+  lockItem: mockLockItem,
+  unlockItem: mockUnlockItem,
+  refreshItems: mockRefreshItems,
+  setSelectedItem: mockSetSelectedItem,
+  ...overrides
+})
+
+const renderModal = () => render(<ConfirmTMCModal isDarkMode={false} />)
+
+const getSubmitButtonByName = (name) =>
+  screen
+    .getAllByRole('button', { name })
+    .find((button) => button.getAttribute('type') !== 'button')
+
 describe('ConfirmTMCModal - Подтверждение ТМЦ', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+
+    mockLockItem.mockResolvedValue({})
+    mockUnlockItem.mockResolvedValue({})
+    mockRefreshItems.mockResolvedValue({})
+
+    mockStoreState = createStoreState()
   })
 
-  it('должен отображать модальное окно с заголовком "Подтверждение ТМЦ"', async () => {
-    render(<ConfirmTMCModal isDarkMode={false} />)
-    
+  it('рендерит заголовок и данные ТМЦ', async () => {
+    renderModal()
+
     await waitFor(() => {
       expect(screen.getByText('Подтверждение ТМЦ')).toBeInTheDocument()
     })
-  })
 
-  it('должен отображать название и ID ТМЦ', async () => {
-    render(<ConfirmTMCModal isDarkMode={false} />)
-    
-    await waitFor(() => {
-      expect(screen.getByText('Test Item')).toBeInTheDocument()
-    })
+    expect(screen.getByText('Test Item')).toBeInTheDocument()
     expect(screen.getByText('6')).toBeInTheDocument()
   })
 
-  it('должен иметь кнопки "Принять" и "Отклонить"', async () => {
-    render(<ConfirmTMCModal isDarkMode={false} />)
-    
+  it('вызывает lockItem при открытии модалки', async () => {
+    renderModal()
+
     await waitFor(() => {
-      expect(screen.getByText('Подтверждение ТМЦ')).toBeInTheDocument()
+      expect(mockLockItem).toHaveBeenCalledWith(6)
     })
-    
-    expect(screen.getByText('Принять')).toBeInTheDocument()
-    expect(screen.getByText('Отклонить')).toBeInTheDocument()
   })
 
-  it('должен вызывать lockItem при открытии модального окна', async () => {
-    render(<ConfirmTMCModal isDarkMode={false} />)
-    
+  it('отправляет accept по умолчанию при сабмите', async () => {
+    api.post.mockResolvedValueOnce({ data: { message: 'ok' } })
+
+    renderModal()
+
     await waitFor(() => {
-      expect(screen.getByText('Подтверждение ТМЦ')).toBeInTheDocument()
+      expect(mockLockItem).toHaveBeenCalledWith(6)
     })
-    
-    // Проверяем, что lockItem был вызван с правильным ID
-    expect(mockLockItem).toHaveBeenCalledWith(6)
+
+    const submitButton = getSubmitButtonByName('Принять')
+    fireEvent.click(submitButton)
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/items/6/confirm-tmc/', { action: 'accept' })
+    })
+
+    expect(mockRefreshItems).toHaveBeenCalled()
+    expect(mockSetSelectedItem).toHaveBeenCalledWith(null)
+    expect(mockUnlockItem).toHaveBeenCalledWith(6)
+    expect(mockCloseConfirmTMCModal).toHaveBeenCalled()
+    expect(toast.success).toHaveBeenCalled()
   })
 
-  it('должен отправить POST запрос при нажатии кнопки принятия', async () => {
-    // Настраиваем мок для успешного ответа
-    api.post.mockResolvedValueOnce({ 
-      data: { message: 'ТМЦ подтверждено' } 
-    })
+  it('отправляет reject после выбора действия Отклонить', async () => {
+    api.post.mockResolvedValueOnce({ data: { message: 'ok' } })
 
-    render(<ConfirmTMCModal isDarkMode={false} />)
+    renderModal()
 
     await waitFor(() => {
-      expect(screen.getByText('Подтверждение ТМЦ')).toBeInTheDocument()
+      expect(mockLockItem).toHaveBeenCalledWith(6)
     })
-    
-    // Ждём, пока lockItem выполнится и isLocked станет true
+
+    const rejectActionButton = screen
+      .getAllByRole('button', { name: 'Отклонить' })
+      .find((button) => button.getAttribute('type') === 'button')
+
+    fireEvent.click(rejectActionButton)
+
+    const submitButton = getSubmitButtonByName('Отклонить')
+    fireEvent.click(submitButton)
+
     await waitFor(() => {
-      expect(mockLockItem).toHaveBeenCalled()
+      expect(api.post).toHaveBeenCalledWith('/items/6/confirm-tmc/', { action: 'reject' })
     })
-
-    // Теперь кликаем на кнопку принятия
-    const buttons = screen.getAllByRole('button')
-    const acceptButton = buttons.find(b => b.textContent === 'Принять')
-    
-    await act(async () => {
-      fireEvent.click(acceptButton)
-    })
-
-    // Проверяем, что API был вызван
-    expect(api.post).toHaveBeenCalled()
   })
 
-  it('должен отправить правильные данные при accept', async () => {
-    api.post.mockResolvedValueOnce({ 
-      data: { message: 'ТМЦ подтверждено' } 
-    })
-
-    render(<ConfirmTMCModal isDarkMode={false} />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Подтверждение ТМЦ')).toBeInTheDocument()
-    })
-    
-    await waitFor(() => {
-      expect(mockLockItem).toHaveBeenCalled()
-    })
-
-    const buttons = screen.getAllByRole('button')
-    const acceptButton = buttons.find(b => b.textContent === 'Принять')
-    
-    await act(async () => {
-      fireEvent.click(acceptButton)
-    })
-
-    expect(api.post).toHaveBeenCalledWith(
-      '/items/6/confirm-tmc/',
-      { action: 'accept' }
-    )
-  })
-
-  it('должен отправить правильные данные при reject', async () => {
-    api.post.mockResolvedValueOnce({ 
-      data: { message: 'ТМЦ отклонено' } 
-    })
-
-    render(<ConfirmTMCModal isDarkMode={false} />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Подтверждение ТМЦ')).toBeInTheDocument()
-    })
-    
-    await waitFor(() => {
-      expect(mockLockItem).toHaveBeenCalled()
-    })
-
-    // Сначала выбираем опцию "Отклонить"
-    const buttons = screen.getAllByRole('button')
-    const rejectOptionButton = buttons.find(b => b.textContent === 'Отклонить')
-    
-    await act(async () => {
-      fireEvent.click(rejectOptionButton)
-    })
-
-    // Теперь нажимаем submit кнопку
-    const allButtons = screen.getAllByRole('button')
-    const rejectSubmitButton = allButtons.find(b => b.textContent === 'Отклонить')
-    
-    await act(async () => {
-      fireEvent.click(rejectSubmitButton)
-    })
-
-    expect(api.post).toHaveBeenCalledWith(
-      '/items/6/confirm-tmc/',
-      { action: 'reject' }
-    )
-  })
-
-  it('должен показать ошибку при неудачном запросе', async () => {
-    api.post.mockRejectedValueOnce({
+  it('показывает ошибку блокировки 423 и не отправляет POST', async () => {
+    mockLockItem.mockRejectedValueOnce({
       response: {
-        data: { detail: 'Ошибка валидации' },
-        status: 400
+        status: 423,
+        data: {
+          locked_by: 'Другой пользователь'
+        }
       }
     })
 
-    render(<ConfirmTMCModal isDarkMode={false} />)
+    renderModal()
 
     await waitFor(() => {
-      expect(screen.getByText('Подтверждение ТМЦ')).toBeInTheDocument()
+      expect(toast.error).toHaveBeenCalledWith('🔒 Другой пользователь', {
+        description: 'Этот ТМЦ уже редактируется другим пользователем'
+      })
     })
-    
+
+    const submitButton = getSubmitButtonByName('Принять')
+    expect(submitButton).toBeDisabled()
+    fireEvent.click(submitButton)
+
+    expect(api.post).not.toHaveBeenCalled()
+  })
+
+  it('показывает ошибку из API при неудачном подтверждении', async () => {
+    api.post.mockRejectedValueOnce({
+      response: {
+        data: { detail: 'Ошибка валидации' }
+      }
+    })
+
+    renderModal()
+
     await waitFor(() => {
-      expect(mockLockItem).toHaveBeenCalled()
+      expect(mockLockItem).toHaveBeenCalledWith(6)
     })
 
-    const buttons = screen.getAllByRole('button')
-    const acceptButton = buttons.find(b => b.textContent === 'Принять')
-    
-    await act(async () => {
-      fireEvent.click(acceptButton)
+    const submitButton = getSubmitButtonByName('Принять')
+    fireEvent.click(submitButton)
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Ошибка валидации')
+    })
+  })
+
+  it('не рендерится, если модалка закрыта', () => {
+    mockStoreState = createStoreState({
+      isConfirmTMCModalOpen: false
     })
 
-    expect(toast.error).toHaveBeenCalled()
+    renderModal()
+
+    expect(screen.queryByText('Подтверждение ТМЦ')).not.toBeInTheDocument()
+  })
+
+  it('не рендерится, если selectedItem отсутствует', () => {
+    mockStoreState = createStoreState({
+      selectedItem: null
+    })
+
+    renderModal()
+
+    expect(screen.queryByText('Подтверждение ТМЦ')).not.toBeInTheDocument()
   })
 })
-
