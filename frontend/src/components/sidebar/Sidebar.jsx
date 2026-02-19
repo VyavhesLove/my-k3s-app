@@ -52,6 +52,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
       'Создать ТМЦ': '/create',
       'Аналитика': '/analytics',
       'Списание/затраты': '/writeoffs',
+      'Администрирование': '/admin-panel',
     };
 
     // Проверяем pathname для маршрутов
@@ -113,6 +114,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
       navigate('/analytics');
     } else if (label === 'Списание/затраты') {
       navigate('/writeoffs');
+    } else if (label === 'Администрирование') {
+      navigate('/admin-panel');
     }
   };
   // --------------------------------

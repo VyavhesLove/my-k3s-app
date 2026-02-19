@@ -12,7 +12,7 @@ import ServiceModal from '@/components/modals/ServiceModal';
 import AtWorkModal from '@/components/modals/AtWorkModal';
 import ConfirmTMCModal from '@/components/modals/ConfirmTMCModal';
 import ScrapPage from '@/pages/ScrapPage';
-import { ProfilePage, NotFoundPage } from '@/pages';
+import { ProfilePage, NotFoundPage, ForbiddenPage, AdminPanel } from '@/pages';
 import api from '@/api/axios';
 import { useItemStore } from '@/store/useItemStore';
 
@@ -25,6 +25,7 @@ function App() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
+  const [userRole, setUserRole] = useState(() => localStorage.getItem('userRole') || 'user');
   const { selectedItem, serviceMode, isServiceModalOpen, refreshItems } = useItemStore();
   
   // ✅ Состояние для AtWorkModal
@@ -74,6 +75,24 @@ function App() {
     const storedToken = localStorage.getItem('accessToken');
     setToken(storedToken);
   }, []);
+
+  // Обновляем состояние userRole при изменении localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const role = localStorage.getItem('userRole') || 'user';
+      setUserRole(role);
+    };
+    
+    // Слушаем изменения storage из других компонентов
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Также проверяем при монтировании и изменениях токена
+    handleStorageChange();
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [token]);
 
   // ✅ КРИТИЧЕСКИ ВАЖНО: Загружаем ТМЦ при наличии токена
   useEffect(() => {
@@ -147,6 +166,19 @@ function App() {
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
                     <Route path="/writeoffs" element={<ScrapPage isDarkMode={isDarkMode} />} />
                     <Route path="/profile" element={<ProfilePage isDarkMode={isDarkMode} />} />
+                    
+                    {/* Роут для админ-панели с проверкой прав */}
+                    <Route 
+                      path="/admin-panel" 
+                      element={
+                        userRole === 'admin' ? (
+                          <AdminPanel isDarkMode={isDarkMode} />
+                        ) : (
+                          <ForbiddenPage isDarkMode={isDarkMode} />
+                        )
+                      } 
+                    />
+                    
                     <Route path="*" element={<NotFoundPage isDarkMode={isDarkMode} />} />
                   </Routes>
                 </main>

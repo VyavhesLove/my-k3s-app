@@ -17,7 +17,7 @@ const SidebarMenu = ({ isCollapsed, isActive, onMenuClick, stats }) => {
     { icon: <Wrench size={20} />, label: 'Подтвердить ремонт' },
     { icon: <BarChart3 size={20} />, label: 'Аналитика' },
     { icon: <Trash2 size={20} />, label: 'Списание/затраты' },
-    { icon: <User size={20} />, label: 'Профиль пользователя' },
+    { icon: <User size={20} />, label: 'Администрирование' },
   ];
 
   return (
