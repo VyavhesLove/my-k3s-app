@@ -1,21 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
-import Sidebar from '@/components/sidebar/Sidebar';
-import InventoryList from '@/components/InventoryList';
-import ItemCreate from '@/components/ItemCreate';
-import Analytics from '@/components/Analytics';
-import QuickActions from '@/components/QuickActions';
-import LoginPage from '@/components/LoginPage';
-import ItemDetailPanel from '@/components/ItemDetailPanel';
-import ServiceModal from '@/components/modals/ServiceModal';
-import AtWorkModal from '@/components/modals/AtWorkModal';
-import ConfirmTMCModal from '@/components/modals/ConfirmTMCModal';
-import ScrapPage from '@/pages/ScrapPage';
-import { ProfilePage, NotFoundPage, ForbiddenPage, AdminPanel } from '@/pages';
+
+// Core (всегда грузится)
+import { Sidebar, InventoryList, ItemCreate, Analytics, QuickActions, LoginPage, ItemDetailPanel } from '@/components/core';
+import { ServiceModal, AtWorkModal, ConfirmTMCModal } from '@/components/modals';
+import AppLoader from '@/components/AppLoader';
 import api from '@/api/axios';
 import { useItemStore } from '@/store/useItemStore';
 import useUserRole from '@/hooks/useUserRole';
+
+// Lazy (по требованию)
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
+const ScrapPage = lazy(() => import('@/pages/ScrapPage'));
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
+const ForbiddenPage = lazy(() => import('@/pages/ForbiddenPage'));
+const AdminPanel = lazy(() => import('@/pages/AdminPanel'));
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -97,7 +97,8 @@ function App() {
         theme={isDarkMode ? 'dark' : 'light'}
       />
       
-      <Routes>
+      <Suspense fallback={<AppLoader />}>
+        <Routes>
         {/* Маршрут логина - доступен без токена */}
         <Route 
           path="/login" 
@@ -176,6 +177,7 @@ function App() {
           } 
         />
       </Routes>
+      </Suspense>
     </div>
   );
 }
