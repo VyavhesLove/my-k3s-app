@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 
 import { useItemStore } from '@/store/useItemStore';
 import api from '@/api/axios';
+import useUserRole from '@/hooks/useUserRole';
 
 import SidebarHeader from './SidebarHeader';
 import SidebarMenu from './SidebarMenu';
@@ -15,6 +16,9 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
   const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // ✅ Используем хук для получения роли с бэкенда
+  const { isAdmin } = useUserRole();
 
   // Достаем selectedItem из Zustand
   const { selectedItem } = useItemStore();
@@ -163,6 +167,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
         isActive={isActive}
         onMenuClick={handleMenuClick}
         stats={stats}
+        isAdmin={isAdmin}
       />
 
       <SidebarFooter
