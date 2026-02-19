@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from ..models import Location, Brigade, ErrorLog
+from ..permissions import IsAdmin
 from ..serializers import LocationSerializer, BrigadeSerializer, StatusCounterSerializer, ErrorLogSerializer
 from ..services.queries import GetStatusCountersQuery, GetAnalyticsQuery
 from ..exceptions import DomainValidationError
@@ -84,7 +85,7 @@ def hello(request):
     responses={200: dict}
 )
 @api_view(['GET'])
-@permission_classes([AllowAny])
+@permission_classes([IsAdmin])
 def get_config(request):
     """Конфигурация приложения для клиента"""
     from django.conf import settings
