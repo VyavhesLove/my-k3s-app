@@ -13,9 +13,6 @@ import { getRoleText } from '@/utils/role';
 import { useUserStore } from '@/store/useUserStore';
 
 function UsersList({ isDarkMode }) {
-  // Локальный state для searchQuery (как в InventoryList)
-  const [searchQuery, setSearchQuery] = useState('');
-  
   // Используем Zustand store
   const {
     users,
@@ -24,11 +21,12 @@ function UsersList({ isDarkMode }) {
     currentPage,
     pageSize,
     filters,
+    searchQuery,
     refreshUsers,
-    searchUsers,
     setCurrentPage,
     setPageSize,
     setFilters,
+    setSearchQuery,
   } = useUserStore();
 
   const [sortConfig, setSortConfig] = useState([]);
@@ -47,23 +45,22 @@ function UsersList({ isDarkMode }) {
     setFilters({ role: [] });
     setSearchQuery('');
     setCurrentPage(1);
-    setSortConfig([]);
     refreshUsers({ page: 1, page_size: pageSize });
   }, [pageSize, refreshUsers, setFilters, setSearchQuery, setCurrentPage]);
 
-  // Функция поиска - используем store
+  // Функция поиска
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
-    
-    if (query.trim()) {
-      searchUsers(query, pageSize);
-    } else {
-      refreshUsers({ page: 1, page_size: pageSize });
-    }
     setCurrentPage(1);
-    setFilters({ role: [] });
-    setSortConfig([]);
-  }, [pageSize, searchUsers, refreshUsers, setCurrentPage, setFilters]);
+    
+    // Делаем серверный поиск
+    refreshUsers({
+      page: 1,
+      page_size: pageSize,
+      search: query.trim(),
+      role: filters.role
+    });
+  }, [pageSize, refreshUsers, setCurrentPage, setSearchQuery, filters.role]);
 
   const handleFilterChange = useCallback((key, value) => {
     if (key === 'role') {
@@ -77,9 +74,10 @@ function UsersList({ isDarkMode }) {
     refreshUsers({ 
       page: 1, 
       page_size: pageSize,
+      search: searchQuery.trim(),
       role: key === 'role' ? value : filters.role
     });
-  }, [pageSize, filters.role, refreshUsers, setFilters, setCurrentPage]);
+  }, [pageSize, filters.role, refreshUsers, setFilters, setCurrentPage, searchQuery]);
 
   // Клиентская фильтрация и сортировка
   const sortedAndFilteredUsers = useMemo(() => {
@@ -87,10 +85,12 @@ function UsersList({ isDarkMode }) {
     const rolesArray = filters?.role || [];
     let result = [...usersArray];
     
+    // Фильтрация по ролям (если сервер не отфильтровал)
     if (rolesArray.length > 0) {
       result = result.filter(user => rolesArray.includes(user.role));
     }
-    
+
+    // Сортировка
     if (sortConfig?.length > 0) {
       result.sort((a, b) => {
         for (const { key, direction } of sortConfig) {
@@ -152,7 +152,8 @@ function UsersList({ isDarkMode }) {
               <SearchBar 
                 searchQuery={searchQuery} 
                 onSearch={handleSearch} 
-                isDarkMode={isDarkMode} 
+                isDarkMode={isDarkMode}
+                disabled={usersLoading}
               />
               <button 
                 onClick={resetAllFilters}

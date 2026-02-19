@@ -155,7 +155,11 @@ export const useUserStore = create((set, get) => ({
   setCurrentPage: (page) => set({ currentPage: page }),
   setPageSize: (size) => set({ pageSize: size }),
   setSearchQuery: (query) => set({ searchQuery: query }),
-  setFilters: (filters) => set({ filters }),
+  setFilters: (filtersOrUpdater) => set((state) => ({
+    filters: typeof filtersOrUpdater === 'function'
+      ? filtersOrUpdater(state.filters)
+      : filtersOrUpdater,
+  })),
 
   // ✅ НОВЫЙ МЕТОД: ПОЛНЫЙ СБРОС СТОРА
   reset: () => set({
