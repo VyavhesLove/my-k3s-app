@@ -1,7 +1,10 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Settings, Users, Database, Shield } from 'lucide-react';
 
 export const AdminPanel = ({ isDarkMode }) => {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-6">
       {/* Заголовок */}
@@ -18,7 +21,9 @@ export const AdminPanel = ({ isDarkMode }) => {
       {/* Карточки управления */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Пользователи */}
-        <div className={`p-6 rounded-2xl border transition-all hover:scale-[1.02] cursor-pointer ${
+        <div 
+          onClick={() => navigate('/admin-panel/users')}
+          className={`p-6 rounded-2xl border transition-all hover:scale-[1.02] cursor-pointer ${
           isDarkMode 
             ? 'bg-slate-800 border-slate-700 hover:border-blue-500' 
             : 'bg-white border-gray-200 hover:border-blue-500'

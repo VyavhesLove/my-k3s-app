@@ -17,6 +17,7 @@ const ScrapPage = lazy(() => import('@/pages/ScrapPage').then((m) => ({ default:
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 const ForbiddenPage = lazy(() => import('@/pages/ForbiddenPage').then((m) => ({ default: m.ForbiddenPage })));
 const AdminPanel = lazy(() => import('@/pages/AdminPanel').then((m) => ({ default: m.AdminPanel })));
+const UsersList = lazy(() => import('@/pages/UsersList').then((m) => ({ default: m.default })));
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -161,6 +162,18 @@ function App() {
                       element={
                         isAdmin ? (
                           <AdminPanel isDarkMode={isDarkMode} />
+                        ) : (
+                          <ForbiddenPage isDarkMode={isDarkMode} />
+                        )
+                      } 
+                    />
+                    
+                    {/* Роут для списка пользователей */}
+                    <Route 
+                      path="/admin-panel/users" 
+                      element={
+                        isAdmin ? (
+                          <UsersList isDarkMode={isDarkMode} />
                         ) : (
                           <ForbiddenPage isDarkMode={isDarkMode} />
                         )

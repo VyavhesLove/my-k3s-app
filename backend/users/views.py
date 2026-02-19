@@ -5,8 +5,82 @@ from rest_framework import status
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth import get_user_model
+from django.db.models import Q
 
 from .models_session import UserSession
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_list(request):
+    """
+    Возвращает список пользователей с поиском и фильтрацией.
+    """
+    User = get_user_model()
+    
+    # Проверяем, что пользователь - админ
+    if not request.user.is_admin():
+        return Response(
+            {'error': 'Доступ запрещён'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Параметры запроса
+    search = request.query_params.get('search', '')
+    role = request.query_params.get('role', '')
+    page = int(request.query_params.get('page', 1))
+    page_size = int(request.query_params.get('page_size', 10))
+    
+    # Базовый queryset
+    queryset = User.objects.all()
+    
+    # Поиск по username, email, first_name, last_name
+    if search:
+        queryset = queryset.filter(
+            Q(username__icontains=search) |
+            Q(email__icontains=search) |
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search)
+        )
+    
+    # Фильтр по роли (может быть несколько ролей через запятую)
+    if role:
+        roles_list = [r.strip() for r in role.split(',') if r.strip()]
+        if roles_list:
+            queryset = queryset.filter(role__in=roles_list)
+    
+    # Сортировка по username
+    queryset = queryset.order_by('username')
+    
+    # Пагинация
+    total_count = queryset.count()
+    start = (page - 1) * page_size
+    end = start + page_size
+    users_data = queryset[start:end]
+    
+    # Формируем ответ
+    users = []
+    for user in users_data:
+        users.append({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'role': user.role,
+            'is_active': user.is_active,
+            'date_joined': user.date_joined.isoformat() if user.date_joined else None,
+            'last_login': user.last_login.isoformat() if user.last_login else None,
+        })
+    
+    return Response({
+        'users': users,
+        'total_count': total_count,
+        'page': page,
+        'page_size': page_size,
+        'total_pages': (total_count + page_size - 1) // page_size if total_count > 0 else 0,
+    })
 
 
 @api_view(['GET'])

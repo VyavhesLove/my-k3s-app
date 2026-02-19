@@ -10,7 +10,8 @@ const TableHeader = ({
   sortConfig,
   handleSortClick,
   filters,
-  handleFilterChange
+  handleFilterChange,
+  customFilter
 }) => {
   // Для status - массив, для остальных - строка
   const filterValue = sortKey === 'status' 
@@ -46,8 +47,11 @@ const TableHeader = ({
           )}
         </div>
 
-        {/* Для колонки статуса используем select */}
-        {sortKey === 'status' ? (
+        {/* Если передан кастомный фильтр - используем его */}
+        {customFilter ? (
+          customFilter
+        ) : sortKey === 'status' ? (
+          /* Для колонки статуса используем StatusFilter */
           <StatusFilter 
             isDarkMode={isDarkMode} 
             filterValue={filterValue} 
