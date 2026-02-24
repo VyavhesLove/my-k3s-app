@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, X } from 'lucide-react';
 import StatusFilter from './StatusFilter';
 
@@ -13,6 +13,16 @@ const TableHeader = ({
   handleFilterChange,
   customFilter
 }) => {
+  // Локальное состояние для input-а - предотвращает потерю фокуса
+  const [localValue, setLocalValue] = useState('');
+  const debounceRef = useRef(null);
+  
+  // Синхронизируем локальное значение с глобальным фильтром
+  useEffect(() => {
+    const globalValue = filters[sortKey] || '';
+    setLocalValue(globalValue);
+  }, [filters, sortKey]);
+
   // Для status - массив, для остальных - строка
   const filterValue = sortKey === 'status' 
     ? (filters[sortKey] || []) 
@@ -22,6 +32,30 @@ const TableHeader = ({
     : (typeof filterValue === 'string' && filterValue.length > 0);
   const sortDirection = sortConfig.find(c => c.key === sortKey)?.direction;
   const isPrimary = sortConfig.length > 0 && sortConfig[0].key === sortKey;
+  
+  // Обработчик изменения с debounce
+  const handleInputChange = (value) => {
+    setLocalValue(value);
+    
+    // Очищаем предыдущий таймер
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    // Debounce 300ms - отправляем только после паузы
+    debounceRef.current = setTimeout(() => {
+      handleFilterChange(sortKey, value);
+    }, 300);
+  };
+
+  // Очистка таймера при размонтировании
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
   
   return (
     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b"
@@ -60,9 +94,9 @@ const TableHeader = ({
         ) : (
           /* Для остальных колонок используем input */
           <div className="relative">
-            {hasValue ? (
+            {localValue ? (
               <button
-                onClick={() => handleFilterChange(sortKey, '')}
+                onClick={() => handleInputChange('')}
                 className="absolute left-2 top-1.5 text-gray-400 hover:text-white transition-colors"
               >
                 <X size={14} />
@@ -73,8 +107,8 @@ const TableHeader = ({
             <input
               type="text"
               placeholder="Поиск..."
-              value={filterValue}
-              onChange={(e) => handleFilterChange(sortKey, e.target.value)}
+              value={localValue}
+              onChange={(e) => handleInputChange(e.target.value)}
               className="input-theme pl-7 pr-2 py-2 text-xs w-full rounded outline-none transition-colors focus:ring-1 focus:ring-blue-500"
             />
           </div>

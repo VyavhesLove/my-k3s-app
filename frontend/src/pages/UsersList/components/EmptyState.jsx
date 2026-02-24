@@ -1,6 +1,6 @@
 import { Search } from 'lucide-react';
 
-export const EmptyState = ({ searchQuery, onClearSearch }) => {
+const EmptyState = ({ searchQuery, onClearSearch }) => {
   return (
     <tr>
       <td colSpan={6} className="px-4 py-12 text-center">
@@ -22,4 +22,6 @@ export const EmptyState = ({ searchQuery, onClearSearch }) => {
     </tr>
   );
 };
+
+export default EmptyState;
 

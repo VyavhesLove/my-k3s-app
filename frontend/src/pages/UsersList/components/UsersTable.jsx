@@ -119,3 +119,5 @@ export const UsersTable = ({
   );
 };
 
+export default UsersTable;
+

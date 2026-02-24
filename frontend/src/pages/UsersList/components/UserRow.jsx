@@ -15,7 +15,7 @@ const getRoleStyles = (role, isDarkMode) => {
   return styles[role] || (isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-gray-100 text-gray-500');
 };
 
-export const UserRow = ({ user, index, currentPage, pageSize, isDarkMode }) => {
+const UserRow = ({ user, index, currentPage, pageSize, isDarkMode }) => {
   const rowNumber = (currentPage - 1) * pageSize + index + 1;
   
   return (
@@ -38,3 +38,4 @@ export const UserRow = ({ user, index, currentPage, pageSize, isDarkMode }) => {
   );
 };
 
+export default UserRow;

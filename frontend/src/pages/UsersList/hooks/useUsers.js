@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useUserStore } from '@/store/useUserStore';
+import api from '@/api/axios';
 
 export const useUsers = (isDarkMode) => {
   const {
@@ -9,17 +11,69 @@ export const useUsers = (isDarkMode) => {
     currentPage,
     pageSize,
     filters,
-    searchQuery,
     searchField,
-    refreshUsers,
     setCurrentPage,
     setPageSize,
     setFilters,
-    setSearchQuery,
     setSearchField,
   } = useUserStore();
 
+  // Локальное состояние для поиска - как в InventoryList
+  const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState([]);
+
+  // Ref для debounce
+  const debounceRef = useRef(null);
+
+  // Функция обновления списка пользователей
+  const refreshUsers = useCallback(async (params = {}) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) return;
+
+      const state = useUserStore.getState();
+      const search = params.search ?? state.searchQuery;
+      const role = params.role ?? state.filters.role;
+      const search_field = params.search_field ?? '';
+
+      const urlParams = new URLSearchParams();
+      if (params.page) urlParams.append('page', params.page);
+      if (params.page_size) urlParams.append('page_size', params.page_size);
+      
+      if (search && search.trim().length > 0) {
+        urlParams.append('search', search.trim().toLowerCase());
+      }
+      
+      if (search_field) {
+        urlParams.append('search_field', search_field);
+      }
+      
+      if (Array.isArray(role) && role.length > 0) {
+        urlParams.append('role', role.join(','));
+      }
+
+      const response = await api.get(`/users/list/?${urlParams.toString()}`);
+      
+      let usersArray = [];
+      let totalCount = 0;
+
+      if (response.data?.data?.users && Array.isArray(response.data.data.users)) {
+        usersArray = response.data.data.users;
+        totalCount = response.data.data.total_count || 0;
+      }
+      else if (response.data?.users && Array.isArray(response.data.users)) {
+        usersArray = response.data.users;
+        totalCount = response.data.total_count || 0;
+      }
+
+      useUserStore.setState({
+        users: usersArray,
+        totalCount: totalCount,
+      });
+    } catch (err) {
+      console.error('Ошибка загрузки пользователей:', err);
+    }
+  }, []);
 
   // Загружаем при монтировании (только один раз)
   useEffect(() => {
@@ -28,6 +82,15 @@ export const useUsers = (isDarkMode) => {
       refreshUsers({ page: 1, page_size: 10 });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Очистка таймера при размонтировании
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
   }, []);
 
   // Функция полного сброса
@@ -39,21 +102,31 @@ export const useUsers = (isDarkMode) => {
     refreshUsers({ page: 1, page_size: pageSize });
   }, [pageSize, refreshUsers, setFilters, setSearchQuery, setSearchField, setCurrentPage]);
 
-  // Функция поиска
+  // Функция поиска - с debounce как в TableHeader
   const handleSearch = useCallback((query) => {
+    // Сразу обновляем локальное состояние - фокус не теряется
     setSearchQuery(query);
     setSearchField('');
     setCurrentPage(1);
-    refreshUsers({
-      page: 1,
-      page_size: pageSize,
-      search: query.trim(),
-      search_field: '',
-      role: filters.role
-    });
-  }, [pageSize, refreshUsers, setCurrentPage, setSearchQuery, setSearchField, filters.role]);
+    
+    // Debounce - отправляем запрос после паузы
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    debounceRef.current = setTimeout(() => {
+      const state = useUserStore.getState();
+      refreshUsers({
+        page: 1,
+        page_size: state.pageSize || pageSize,
+        search: query.trim(),
+        search_field: '',
+        role: state.filters.role
+      });
+    }, 300);
+  }, [pageSize, refreshUsers, setCurrentPage, setSearchQuery, setSearchField]);
 
-  // Изменение фильтра
+  // Изменение фильтра - для текстовых полей используем debounce
   const handleFilterChange = useCallback((key, value) => {
     const newFilters = key === 'role' ? value : (value ? value.toLowerCase() : '');
     setFilters(prev => ({ ...prev, [key]: newFilters }));
@@ -67,24 +140,52 @@ export const useUsers = (isDarkMode) => {
     
     setCurrentPage(1);
     
-    const currentFilters = useUserStore.getState().filters;
-    const currentRole = key === 'role' ? value : currentFilters.role;
-    const currentSearchField = useUserStore.getState().searchField;
-    
-    const columnSearch = columnSearchFields.includes(key) 
-      ? newFilters 
-      : (currentSearchField ? currentFilters[currentSearchField] : '');
-    const globalSearch = useUserStore.getState().searchQuery;
-    const searchValue = columnSearch || globalSearch;
-    
-    refreshUsers({
-      page: 1, 
-      page_size: pageSize,
-      search: searchValue ? searchValue.trim() : '',
-      search_field: currentSearchField,
-      role: Array.isArray(currentRole) ? currentRole : []
-    });
-  }, [pageSize, refreshUsers, setFilters, setSearchField, setCurrentPage]);
+    // Для текстовых полей (поиск по колонкам) используем debounce
+    if (columnSearchFields.includes(key)) {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      
+      debounceRef.current = setTimeout(() => {
+        const state = useUserStore.getState();
+        const currentFilters = state.filters;
+        const currentRole = currentFilters.role;
+        const currentSearchField = state.searchField;
+        
+        const columnSearch = currentSearchField ? currentFilters[currentSearchField] : '';
+        const globalSearch = searchQuery;
+        const searchValue = columnSearch || globalSearch;
+        
+        refreshUsers({
+          page: 1, 
+          page_size: state.pageSize || pageSize,
+          search: searchValue ? searchValue.trim() : '',
+          search_field: currentSearchField,
+          role: Array.isArray(currentRole) ? currentRole : []
+        });
+      }, 300);
+    } else {
+      // Для role и других нетекстовых фильтров - сразу
+      const state = useUserStore.getState();
+      const currentFilters = state.filters;
+      const currentRole = key === 'role' ? value : currentFilters.role;
+      const currentSearchField = state.searchField;
+      
+      const columnSearch = columnSearchFields.includes(key) 
+        ? newFilters 
+        : (currentSearchField ? currentFilters[currentSearchField] : '');
+      const globalSearch = searchQuery;
+      const searchValue = columnSearch || globalSearch;
+      
+      refreshUsers({
+        page: 1, 
+        page_size: state.pageSize || pageSize,
+        search: searchValue ? searchValue.trim() : '',
+        search_field: currentSearchField,
+        role: Array.isArray(currentRole) ? currentRole : []
+      });
+    }
+  }, [pageSize, refreshUsers, setFilters, setSearchField, setCurrentPage, searchQuery]);
 
   // Клик по заголовку для сортировки
   const handleSortClick = useCallback((key) => {

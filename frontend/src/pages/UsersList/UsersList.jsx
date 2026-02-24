@@ -39,7 +39,6 @@ function UsersList({ isDarkMode }) {
                 searchQuery={searchQuery} 
                 onSearch={handleSearch} 
                 isDarkMode={isDarkMode}
-                disabled={usersLoading}
               />
               <button 
                 onClick={resetAllFilters}

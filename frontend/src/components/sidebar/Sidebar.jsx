@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useItemStore } from '@/store/useItemStore';
-import { useUserRole } from '@/store/useUserRole';
+import { useUserRoleStore } from '@/store/useUserRoleStore';
 import api from '@/api/axios';
 
 import SidebarHeader from './SidebarHeader';
@@ -18,7 +18,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
   const navigate = useNavigate();
   
   // ✅ Используем Zustand store для получения роли с бэкенда
-  const role = useUserRole((state) => state.role);
+  const role = useUserRoleStore((state) => state.role);
   const isAdmin = role === 'admin';
 
   // Достаем selectedItem из Zustand
@@ -136,7 +136,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
 
     // 2. Сбрасываем Zustand store в начальное состояние
     useItemStore.getState().reset();
-    useUserRole.getState().reset();
+    useUserRoleStore.getState().reset();
 
     // 3. Уведомление
     toast.success('Выход выполнен');
