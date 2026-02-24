@@ -10,6 +10,7 @@ export const useUserStore = create((set, get) => ({
   // Универсальная функция обновления списка пользователей
   refreshUsers: async (params = {}) => {
     set({ usersLoading: true });
+    
     try {
       const token = localStorage.getItem('accessToken');
       if (!token) {
@@ -17,12 +18,29 @@ export const useUserStore = create((set, get) => ({
         return;
       }
 
+      // Единый источник истины - берем значения из store как fallback
+      const state = get();
+      const search = params.search ?? state.searchQuery;
+      const role = params.role ?? state.filters.role;
+      const search_field = params.search_field ?? ''; // Новое поле для поиска по конкретному полю
+
       const urlParams = new URLSearchParams();
       if (params.page) urlParams.append('page', params.page);
       if (params.page_size) urlParams.append('page_size', params.page_size);
-      if (params.search) urlParams.append('search', params.search);
-      if (params.role && params.role.length > 0) {
-        urlParams.append('role', params.role.join(','));
+      
+      // Поиск - только если есть непустое значение (приводим к lowercase)
+      if (search && search.trim().length > 0) {
+        urlParams.append('search', search.trim().toLowerCase());
+      }
+      
+      // Поле для поиска (если указано - ищем по конкретному полю)
+      if (search_field) {
+        urlParams.append('search_field', search_field);
+      }
+      
+      // Роль - только если есть непустой массив
+      if (Array.isArray(role) && role.length > 0) {
+        urlParams.append('role', role.join(','));
       }
 
       const response = await api.get(`/users/list/?${urlParams.toString()}`);
@@ -42,16 +60,16 @@ export const useUserStore = create((set, get) => ({
         totalCount = response.data.total_count || 0;
       }
 
-      console.log(`✅ Загружено ${usersArray.length} пользователей`);
+      //console.log(`Загружено ${usersArray.length} пользователей`);
 
-      set({ 
+      set({
         users: usersArray,
         totalCount: totalCount,
         usersLoading: false 
       });
 
     } catch (err) {
-      console.error('Ошибка обновления списка пользователей:', err);
+      //console.error('Ошибка обновления списка пользователей:', err);
       
       toast.error('❌ Не удалось загрузить список пользователей', {
         description: err.response?.status === 401 
@@ -98,7 +116,7 @@ export const useUserStore = create((set, get) => ({
         totalCount = response.data.total_count || 0;
       }
 
-      console.log(`🔍 Найдено ${usersArray.length} пользователей по запросу "${query}"`);
+      //console.log(`Найдено ${usersArray.length} пользователей по запросу "${query}"`);
 
       set({ 
         users: usersArray,
@@ -107,7 +125,7 @@ export const useUserStore = create((set, get) => ({
       });
 
     } catch (err) {
-      console.error('Ошибка поиска пользователей:', err);
+      //console.error('Ошибка поиска пользователей:', err);
       
       toast.error('❌ Не удалось выполнить поиск', {
         duration: 3000,

@@ -67,14 +67,26 @@ function UsersList({ isDarkMode }) {
     setCurrentPage(1);
     
     // Получаем актуальные значения из store
-    const currentSearch = useUserStore.getState().searchQuery;
-    const currentRole = key === 'role' ? value : useUserStore.getState().filters.role;
+    const currentFilters = useUserStore.getState().filters;
+    const currentRole = key === 'role' ? value : currentFilters.role;
+    
+    // Для поиска по колонке используем filters[key], для общего - searchQuery
+    const columnSearchFields = ['username', 'email', 'first_name', 'last_name'];
+    const columnSearch = columnSearchFields.includes(key) 
+      ? currentFilters[key] 
+      : '';
+    const globalSearch = useUserStore.getState().searchQuery;
+    const searchValue = columnSearch || globalSearch;
+    
+    // Определяем поле для поиска
+    const searchField = columnSearchFields.includes(key) ? key : '';
     
     // Обновляем данные с новым фильтром на сервере
-    refreshUsers({ 
+    refreshUsers({
       page: 1, 
       page_size: pageSize,
-      search: currentSearch.trim(),
+      search: searchValue ? searchValue.trim() : '',
+      search_field: searchField,
       role: Array.isArray(currentRole) ? currentRole : []
     });
   }, [pageSize, refreshUsers, setFilters, setCurrentPage]);

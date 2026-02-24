@@ -19,14 +19,6 @@ def user_list(request):
     """
     User = get_user_model()
     
-    # ДЛЯ ОТЛАДКИ: Логируем информацию о пользователе
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.error(f"[DEBUG] request.user = {request.user}")
-    logger.error(f"[DEBUG] request.user.id = {request.user.id}")
-    logger.error(f"[DEBUG] request.user.role = {request.user.role}")
-    logger.error(f"[DEBUG] request.user.is_admin() = {request.user.is_admin()}")
-    
     # Проверяем, что пользователь - админ
     if not request.user.is_admin():
         return Response(
@@ -36,6 +28,7 @@ def user_list(request):
     
     # Параметры запроса
     search = request.query_params.get('search', '')
+    search_field = request.query_params.get('search_field', '')  # Поле для поиска (username, email, first_name, last_name)
     role = request.query_params.get('role', '')
     page = int(request.query_params.get('page', 1))
     page_size = int(request.query_params.get('page_size', 10))
@@ -43,14 +36,20 @@ def user_list(request):
     # Базовый queryset
     queryset = User.objects.all()
     
-    # Поиск по username, email, first_name, last_name
+    # Поиск - по конкретному полю или по всем полям
     if search:
-        queryset = queryset.filter(
-            Q(username__icontains=search) |
-            Q(email__icontains=search) |
-            Q(first_name__icontains=search) |
-            Q(last_name__icontains=search)
-        )
+        if search_field and search_field in ['username', 'email', 'first_name', 'last_name']:
+            # Поиск по конкретному полю (приводим к lowercase)
+            filter_kwargs = {f'{search_field}__icontains': search.lower()}
+            queryset = queryset.filter(**filter_kwargs)
+        else:
+            # Поиск по всем полям (общий поиск, приводим к lowercase)
+            queryset = queryset.filter(
+                Q(username__icontains=search.lower()) |
+                Q(email__icontains=search.lower()) |
+                Q(first_name__icontains=search.lower()) |
+                Q(last_name__icontains=search.lower())
+            )
     
     # Фильтр по роли (может быть несколько ролей через запятую)
     if role:
