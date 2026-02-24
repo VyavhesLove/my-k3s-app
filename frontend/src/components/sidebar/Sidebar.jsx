@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useItemStore } from '@/store/useItemStore';
+import { useUserRoleStore } from '@/store/useUserRoleStore';
 import api from '@/api/axios';
-import useUserRole from '@/hooks/useUserRole';
 
 import SidebarHeader from './SidebarHeader';
 import SidebarMenu from './SidebarMenu';
@@ -17,8 +17,9 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
   const location = useLocation();
   const navigate = useNavigate();
   
-  // ✅ Используем хук для получения роли с бэкенда
-  const { isAdmin } = useUserRole();
+  // ✅ Используем Zustand store для получения роли с бэкенда
+  const role = useUserRoleStore((state) => state.role);
+  const isAdmin = role === 'admin';
 
   // Достаем selectedItem из Zustand
   const { selectedItem } = useItemStore();
@@ -135,6 +136,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
 
     // 2. Сбрасываем Zustand store в начальное состояние
     useItemStore.getState().reset();
+    useUserRoleStore.getState().reset();
 
     // 3. Уведомление
     toast.success('Выход выполнен');

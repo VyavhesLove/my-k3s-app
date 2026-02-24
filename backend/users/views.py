@@ -19,6 +19,14 @@ def user_list(request):
     """
     User = get_user_model()
     
+    # ДЛЯ ОТЛАДКИ: Логируем информацию о пользователе
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"[DEBUG] request.user = {request.user}")
+    logger.error(f"[DEBUG] request.user.id = {request.user.id}")
+    logger.error(f"[DEBUG] request.user.role = {request.user.role}")
+    logger.error(f"[DEBUG] request.user.is_admin() = {request.user.is_admin()}")
+    
     # Проверяем, что пользователь - админ
     if not request.user.is_admin():
         return Response(
@@ -88,6 +96,15 @@ def user_list(request):
 def get_current_user(request):
     """Возвращает расширенную информацию о текущем пользователе"""
     user = request.user
+    
+    # ДЛЯ ОТЛАДКИ: Логируем информацию о пользователе
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.error(f"[DEBUG /me] request.user = {request.user}")
+    logger.error(f"[DEBUG /me] request.user.id = {request.user.id}")
+    logger.error(f"[DEBUG /me] request.user.role = {request.user.role}")
+    logger.error(f"[DEBUG /me] type(request.user.role) = {type(request.user.role)}")
+    logger.error(f"[DEBUG /me] request.user.is_admin() = {request.user.is_admin()}")
     
     # Получаем последнюю активность
     last_activity = user.last_login

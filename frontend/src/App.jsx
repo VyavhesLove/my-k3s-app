@@ -8,7 +8,7 @@ import { ServiceModal, AtWorkModal, ConfirmTMCModal } from '@/components/modals'
 import AppLoader from '@/components/AppLoader';
 import api from '@/api/axios';
 import { useItemStore } from '@/store/useItemStore';
-import useUserRole from '@/hooks/useUserRole';
+import { useUserRoleStore } from '@/store/useUserRoleStore';
 
 // Lazy (по требованию)
 // Lazy для named exports из page modules
@@ -30,9 +30,22 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
   const { selectedItem, serviceMode, isServiceModalOpen, refreshItems } = useItemStore();
   
-  // ✅ Используем хук для получения роли с бэкенда
+  // ✅ Используем Zustand store для получения роли с бэкенда
   // Это безопасный источник роли вместо localStorage
-  const { role: userRole, isAdmin } = useUserRole();
+  const role = useUserRoleStore((state) => state.role);
+  const isLoading = useUserRoleStore((state) => state.isLoading);
+  const fetchRole = useUserRoleStore((state) => state.fetchRole);
+  
+  // ✅ Вычисляем isAdmin на основе роли
+  const isAdmin = role === 'admin';
+  
+  // ✅ КРИТИЧЕСКИ ВАЖНО: Загружаем роль пользователя при наличии токена
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      fetchRole();
+    }
+  }, [fetchRole]);
   
   // ✅ Состояние для AtWorkModal
   const [isAtWorkModalOpen, setIsAtWorkModalOpen] = useState(false);
@@ -156,11 +169,13 @@ function App() {
                     <Route path="/writeoffs" element={<ScrapPage isDarkMode={isDarkMode} />} />
                     <Route path="/profile" element={<ProfilePage isDarkMode={isDarkMode} />} />
                     
-                    {/* Роут для админ-панели с проверкой прав (роль с бэкенда) */}
+{/* Роут для админ-панели с проверкой прав (роль с бэкенда) */}
                     <Route 
                       path="/admin-panel" 
                       element={
-                        isAdmin ? (
+                        isLoading ? (
+                          <AppLoader />
+                        ) : isAdmin ? (
                           <AdminPanel isDarkMode={isDarkMode} />
                         ) : (
                           <ForbiddenPage isDarkMode={isDarkMode} />
@@ -172,7 +187,9 @@ function App() {
                     <Route 
                       path="/admin-panel/users" 
                       element={
-                        isAdmin ? (
+                        isLoading ? (
+                          <AppLoader />
+                        ) : isAdmin ? (
                           <UsersList isDarkMode={isDarkMode} />
                         ) : (
                           <ForbiddenPage isDarkMode={isDarkMode} />

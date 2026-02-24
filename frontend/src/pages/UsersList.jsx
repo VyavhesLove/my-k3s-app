@@ -52,45 +52,39 @@ function UsersList({ isDarkMode }) {
   const handleSearch = useCallback((query) => {
     setSearchQuery(query);
     setCurrentPage(1);
-    
-    // Делаем серверный поиск
+    // Передаем и поиск, и текущие роли
     refreshUsers({
       page: 1,
       page_size: pageSize,
       search: query.trim(),
-      role: filters.role
+      role: filters.role // Используем текущие роли из стора
     });
   }, [pageSize, refreshUsers, setCurrentPage, setSearchQuery, filters.role]);
 
   const handleFilterChange = useCallback((key, value) => {
-    if (key === 'role') {
-      setFilters(prev => ({ ...prev, [key]: value }));
-    } else {
-      const filterValue = value ? value.toLowerCase() : '';
-      setFilters(prev => ({ ...prev, [key]: filterValue }));
-    }
+    const newFilters = key === 'role' ? value : (value ? value.toLowerCase() : '');
+    setFilters(prev => ({ ...prev, [key]: newFilters }));
     setCurrentPage(1);
-    // Обновляем данные с новым фильтром
+    
+    // Получаем актуальные значения из store
+    const currentSearch = useUserStore.getState().searchQuery;
+    const currentRole = key === 'role' ? value : useUserStore.getState().filters.role;
+    
+    // Обновляем данные с новым фильтром на сервере
     refreshUsers({ 
       page: 1, 
       page_size: pageSize,
-      search: searchQuery.trim(),
-      role: key === 'role' ? value : filters.role
+      search: currentSearch.trim(),
+      role: Array.isArray(currentRole) ? currentRole : []
     });
-  }, [pageSize, filters.role, refreshUsers, setFilters, setCurrentPage, searchQuery]);
+  }, [pageSize, refreshUsers, setFilters, setCurrentPage]);
 
-  // Клиентская фильтрация и сортировка
+  // Клиентская сортировка (сервер уже фильтрует по поиску и ролям)
   const sortedAndFilteredUsers = useMemo(() => {
-    const usersArray = users || [];
-    const rolesArray = filters?.role || [];
-    let result = [...usersArray];
+    // Сервер уже отфильтровал данные, просто берем их
+    let result = [...(users || [])];
     
-    // Фильтрация по ролям (если сервер не отфильтровал)
-    if (rolesArray.length > 0) {
-      result = result.filter(user => rolesArray.includes(user.role));
-    }
-
-    // Сортировка
+    // Оставляем только сортировку (она клиентская)
     if (sortConfig?.length > 0) {
       result.sort((a, b) => {
         for (const { key, direction } of sortConfig) {
@@ -104,7 +98,7 @@ function UsersList({ isDarkMode }) {
       });
     }
     return result;
-  }, [users, filters, sortConfig]);
+  }, [users, sortConfig]);
 
   const handleSortClick = (key, e) => {
     if (e.shiftKey && sortConfig.length > 0) {
