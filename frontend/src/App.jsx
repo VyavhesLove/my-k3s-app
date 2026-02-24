@@ -8,7 +8,7 @@ import { ServiceModal, AtWorkModal, ConfirmTMCModal } from '@/components/modals'
 import AppLoader from '@/components/AppLoader';
 import api from '@/api/axios';
 import { useItemStore } from '@/store/useItemStore';
-import { useUserRoleStore } from '@/store/useUserRoleStore';
+import { useUserRole } from '@/store/useUserRole';
 
 // Lazy (по требованию)
 // Lazy для named exports из page modules
@@ -32,9 +32,9 @@ function App() {
   
   // ✅ Используем Zustand store для получения роли с бэкенда
   // Это безопасный источник роли вместо localStorage
-  const role = useUserRoleStore((state) => state.role);
-  const isLoading = useUserRoleStore((state) => state.isLoading);
-  const fetchRole = useUserRoleStore((state) => state.fetchRole);
+  const role = useUserRole((state) => state.role);
+  const isLoading = useUserRole((state) => state.isLoading);
+  const fetchRole = useUserRole((state) => state.fetchRole);
   
   // ✅ Вычисляем isAdmin на основе роли
   const isAdmin = role === 'admin';

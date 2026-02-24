@@ -9,7 +9,7 @@ import api from '@/api/axios';
 export const useUserRoleStore = create((set, get) => ({
   // === СОСТОЯНИЕ ===
   role: localStorage.getItem('userRole') || 'user',
-  isLoading: true,
+  isLoading: false,
   error: null,
 
   // === МЕТОДЫ ===

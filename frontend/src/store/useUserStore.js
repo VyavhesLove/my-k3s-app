@@ -167,12 +167,14 @@ export const useUserStore = create((set, get) => ({
   currentPage: 1,
   pageSize: 10,
   searchQuery: '',
+  searchField: '', // Активное поле для поиска по колонке (username, email, first_name, last_name)
   filters: { role: [] },
 
   // Методы для управления состоянием пагинации/фильтров
   setCurrentPage: (page) => set({ currentPage: page }),
   setPageSize: (size) => set({ pageSize: size }),
   setSearchQuery: (query) => set({ searchQuery: query }),
+  setSearchField: (field) => set({ searchField: field }),
   setFilters: (filtersOrUpdater) => set((state) => ({
     filters: typeof filtersOrUpdater === 'function'
       ? filtersOrUpdater(state.filters)
@@ -187,6 +189,7 @@ export const useUserStore = create((set, get) => ({
     currentPage: 1,
     pageSize: 10,
     searchQuery: '',
+    searchField: '',
     filters: { role: [] },
   }),
 }));
