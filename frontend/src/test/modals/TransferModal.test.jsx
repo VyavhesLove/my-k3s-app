@@ -60,8 +60,8 @@ describe('TransferModal', () => {
       setSelectedItem: vi.fn(),
       lockItem: vi.fn().mockResolvedValue(true),
       unlockItem: vi.fn().mockResolvedValue(true),
-      refreshItems: vi.fn(),
-      lockedItems: new Set(),
+      refreshItems: vi.fn().mockResolvedValue(true),
+      lockedItems: {},
     });
   });
 

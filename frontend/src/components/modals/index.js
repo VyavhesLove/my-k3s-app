@@ -1,4 +1,4 @@
-export { ServiceModal } from './ServiceModal';
+export { ServiceModal } from './ServiceModal/ServiceModal';
 export { AtWorkModal } from './AtWorkModal';
 export { ConfirmTMCModal } from './ConfirmTMCModal';
 export { TransferModal } from './TransferModal';

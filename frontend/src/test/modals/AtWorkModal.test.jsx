@@ -1,6 +1,6 @@
 // test/modals/AtWorkModal.test.jsx - тесты компонента AtWorkModal
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AtWorkModal } from '@/components/modals/AtWorkModal';
 
@@ -13,13 +13,14 @@ vi.mock('@/api/axios', () => ({
   },
 }));
 
-// Мок store
+// Мок store с правильной имитацией lockItem/unlockItem
 const mockStore = {
-  lockItem: vi.fn(),
-  unlockItem: vi.fn(),
-  refreshItems: vi.fn(),
+  selectedItem: null,
+  lockedItems: {},
+  lockItem: vi.fn().mockResolvedValue(true),
+  unlockItem: vi.fn().mockResolvedValue(true),
+  refreshItems: vi.fn().mockResolvedValue(true),
   setSelectedItem: vi.fn(),
-  lockedItems: new Set(),
 };
 
 vi.mock('@/store/useItemStore', () => ({
@@ -46,6 +47,8 @@ vi.mock('sonner', () => ({
   toast: {
     error: vi.fn(),
     success: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
   },
 }));
 

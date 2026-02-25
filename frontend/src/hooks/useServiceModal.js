@@ -8,7 +8,7 @@ import { getServiceSchema } from '@/schemas/service';
 /**
  * Хук для управления логикой ServiceModal
  */
-export const useServiceModal = ({ isDarkMode }) => {
+export const useServiceModal = () => {
   const { 
     selectedItem, 
     serviceMode, 
@@ -32,7 +32,7 @@ export const useServiceModal = ({ isDarkMode }) => {
   // Динамическая схема
   const schema = useMemo(() => {
     if (isConfirm && selectedItem?.status === 'confirm') {
-      return getServiceSchema('return');
+      return getServiceSchema('confirmSimple');
     }
     return getServiceSchema(serviceMode);
   }, [serviceMode, isConfirm, selectedItem?.status]);

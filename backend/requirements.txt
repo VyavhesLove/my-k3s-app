@@ -1,6 +1,7 @@
 django
 django-auditlog
 django-cors-headers
+django-filter
 djangorestframework
 drf-spectacular
 gunicorn

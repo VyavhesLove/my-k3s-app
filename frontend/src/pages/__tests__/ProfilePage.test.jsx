@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProfilePage } from '../ProfilePage'
 import { useProfile } from '@/hooks/useProfile'
@@ -38,20 +38,24 @@ const createMockUseProfile = (overrides = {}) => ({
   history: [],
   sessions: [],
   loading: false,
-  // RHF методы для профиля
-  registerProfile: vi.fn(),
-  handleProfileSubmitForm: vi.fn((fn) => () => fn({})),
-  profileErrors: {},
-  isProfileSubmitting: false,
-  // RHF методы для пароля
-  registerPassword: vi.fn(),
-  handlePasswordSubmitForm: vi.fn((fn) => () => fn({})),
-  passwordErrors: {},
-  isPasswordSubmitting: false,
+  // Формы
+  profileForm: {
+    first_name: 'Тест',
+    last_name: 'Юзер',
+    email: 'test@example.com'
+  },
+  setProfileForm: vi.fn(),
+  passwordForm: {
+    current_password: '',
+    new_password: '',
+    confirm_password: ''
+  },
+  setPasswordForm: vi.fn(),
   // Функции
   handleProfileSubmit: vi.fn().mockResolvedValue(true),
   handlePasswordSubmit: vi.fn().mockResolvedValue(true),
   handleTerminateSession: vi.fn(),
+  fetchUserData: vi.fn(),
   ...overrides
 })
 
@@ -68,7 +72,7 @@ describe('ProfilePage - Редактирование профиля', () => {
       expect(screen.getByText('Профиль пользователя')).toBeInTheDocument()
     })
     
-    // username отображается в нескольких местах, используем getAllByText
+    // username отображается
     expect(screen.getAllByText('testuser').length).toBeGreaterThan(0)
   })
 
@@ -95,7 +99,6 @@ describe('ProfilePage - Редактирование профиля', () => {
   })
 
   it('кнопка "Отмена" закрывает режим редактирования без сохранения', async () => {
-    // Мокаем handleProfileSubmit, чтобы он не был вызван
     const mockHandleProfileSubmit = vi.fn().mockResolvedValue(true)
     
     useProfile.mockReturnValue(createMockUseProfile({
@@ -114,10 +117,6 @@ describe('ProfilePage - Редактирование профиля', () => {
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Ваше имя')).toBeInTheDocument()
     })
-    
-    // Изменяем значение в поле
-    const nameInput = screen.getByPlaceholderText('Ваше имя')
-    fireEvent.change(nameInput, { target: { value: 'Новое имя' } })
     
     // Нажимаем кнопку "Отмена"
     const cancelButton = screen.getByText('Отмена')

@@ -6,8 +6,7 @@ export const ServiceModalFooter = ({
   status,
   watchedRepairAction,
   buttonText,
-  onCancel,
-  onSubmit 
+  onCancel
 }) => {
   // Определяем класс кнопки
   const getButtonClass = () => {

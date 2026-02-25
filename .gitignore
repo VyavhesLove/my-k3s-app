@@ -143,4 +143,8 @@ Thumbs.db
 *.rej
 *~
 
+# Ad-hoc test scripts
+api_test_confirm.py
+api_test_drf.py
+
 my-k3s-app/backend/venv/

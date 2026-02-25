@@ -1,5 +1,5 @@
 // components/modals/ServiceModal/ServiceModal.jsx
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useItemStore } from '@/store/useItemStore';
@@ -26,7 +26,7 @@ export const ServiceModal = ({ isDarkMode }) => {
     handleClose,
     onSubmit,
     loadQty,
-  } = useServiceModal({ isDarkMode });
+  } = useServiceModal();
 
   const {
     register,
@@ -79,7 +79,6 @@ export const ServiceModal = ({ isDarkMode }) => {
         <ServiceModalHeader 
           title={title}
           isLocked={isLocked}
-          isDarkMode={isDarkMode}
           onClose={handleClose}
         />
         
@@ -145,7 +144,6 @@ export const ServiceModal = ({ isDarkMode }) => {
             watchedRepairAction={watchedRepairAction}
             buttonText={buttonText}
             onCancel={handleClose}
-            onSubmit={handleSubmit(onSubmit)}
           />
         </form>
       </div>

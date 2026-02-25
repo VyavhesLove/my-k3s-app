@@ -21,15 +21,23 @@ export const serviceConfirmSchema = z.object({
   invoiceNumber: z.string().optional(),
   location: z.string().optional(),
 }).refine((data) => {
-  // Если выбрано "подтвердить ремонт" - обязательны invoiceNumber и location
+  // Если выбрано "подтвердить ремонт" - обязателен invoiceNumber
   if (data.repairAction === 'confirm') {
-    return data.invoiceNumber && data.invoiceNumber.trim().length > 0 &&
-           data.location && data.location.trim().length > 0;
+    return data.invoiceNumber && data.invoiceNumber.trim().length > 0;
   }
   return true;
 }, {
-  message: 'Укажите номер счёта и локацию для подтверждения ремонта',
+  message: 'Укажите номер счёта для подтверждения ремонта',
   path: ['invoiceNumber'],
+}).refine((data) => {
+  // Если выбрано "подтвердить ремонт" - обязательна location
+  if (data.repairAction === 'confirm') {
+    return data.location && data.location.trim().length > 0;
+  }
+  return true;
+}, {
+  message: 'Укажите локацию для подтверждения ремонта',
+  path: ['location'],
 });
 
 /**
@@ -41,14 +49,24 @@ export const serviceReturnSchema = z.object({
 });
 
 /**
+ * Схема простого подтверждения ТМЦ (confirm)
+ * Используется когда нужно просто подтвердить ТМЦ без дополнительных действий
+ * comment опционально
+ */
+export const confirmSimpleSchema = z.object({
+  comment: z.string().optional(),
+});
+
+/**
  * Factory функция - возвращает схему в зависимости от режима
- * @param {string} mode - режим работы: 'send', 'confirm', 'return'
+ * @param {string} mode - режим работы: 'send', 'confirm', 'confirmSimple', 'return'
  * @returns {z.ZodSchema} схема для валидации
  */
 export const getServiceSchema = (mode) => {
   const schemas = {
     send: serviceSendSchema,
     confirm: serviceConfirmSchema,
+    confirmSimple: confirmSimpleSchema,
     return: serviceReturnSchema,
   };
   return schemas[mode] || serviceSendSchema;

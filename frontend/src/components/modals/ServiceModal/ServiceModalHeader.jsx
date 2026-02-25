@@ -1,7 +1,7 @@
 // components/modals/ServiceModal/ServiceModalHeader.jsx
 import { X } from 'lucide-react';
 
-export const ServiceModalHeader = ({ title, isLocked, isDarkMode, onClose }) => (
+export const ServiceModalHeader = ({ title, isLocked, onClose }) => (
   <div className="flex justify-between items-center p-6 border-b border-gray-500/10">
     <h2 className="text-xl font-bold uppercase tracking-tight">
       {title}
