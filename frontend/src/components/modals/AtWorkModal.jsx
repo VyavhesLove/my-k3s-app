@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Users, PlusCircle, Lock } from 'lucide-react';
-import BrigadeModal from './BrigadeModal';
+import { BrigadeModal } from './BrigadeModal';
 import api from '@/api/axios';
 import { toast } from 'sonner';
 import { useItemStore } from '@/store/useItemStore';
 
 // ✅ Props-based подход вместо прямого доступа к store
-const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
+export const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
   // ✅ Локальное состояние
   const { lockItem, unlockItem, refreshItems, setSelectedItem, lockedItems } = useItemStore();
   
@@ -258,6 +258,4 @@ const AtWorkModal = ({ isOpen, onClose, selectedItem, isDarkMode }) => {
     </>
   );
 };
-
-export default AtWorkModal;
 

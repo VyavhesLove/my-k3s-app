@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from items.models import Item, ItemHistory
 from items.services.commands.confirm_item import ConfirmItemCommand
 from items.enums import ItemStatus, HistoryAction
-from items.services.domain.exceptions import DomainValidationError
+from items.services.domain.exceptions import DomainValidationError, DomainNotFoundError
 
 User = get_user_model()
 
@@ -71,7 +71,7 @@ class ConfirmItemCommandTestCase(TestCase):
 
     def test_confirm_item_not_found(self):
         """Ошибка при несуществующем item_id."""
-        with self.assertRaises(Item.DoesNotExist):
+        with self.assertRaises(DomainNotFoundError):
             self.command.execute(
                 item_id=999,
                 comment="Test comment",

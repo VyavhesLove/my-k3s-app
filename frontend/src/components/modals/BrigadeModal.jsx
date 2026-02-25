@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 
-const BrigadeModal = ({ isOpen, onClose, onSave, isDarkMode }) => {
+export const BrigadeModal = ({ isOpen, onClose, onSave, isDarkMode }) => {
   const [formData, setFormData] = useState({
     name: '',
     brigadier: '',
@@ -78,6 +78,4 @@ const BrigadeModal = ({ isOpen, onClose, onSave, isDarkMode }) => {
     </div>
   );
 };
-
-export default BrigadeModal;
 

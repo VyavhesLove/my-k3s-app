@@ -1,19 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster, toast } from 'sonner';
-import Sidebar from '@/components/sidebar/Sidebar';
-import InventoryList from '@/components/InventoryList';
-import ItemCreate from '@/components/ItemCreate';
-import Analytics from '@/components/Analytics';
-import QuickActions from '@/components/QuickActions';
-import LoginPage from '@/components/LoginPage';
-import ItemDetailPanel from '@/components/ItemDetailPanel';
-import ServiceModal from '@/components/modals/ServiceModal';
-import AtWorkModal from '@/components/modals/AtWorkModal';
-import ConfirmTMCModal from '@/components/modals/ConfirmTMCModal';
-import ScrapPage from '@/pages/ScrapPage';
+
+// Core (всегда грузится)
+import { Sidebar, InventoryList, ItemCreate, Analytics, QuickActions, LoginPage, ItemDetailPanel } from '@/components/core';
+import { ServiceModal, AtWorkModal, ConfirmTMCModal } from '@/components/modals';
+import AppLoader from '@/components/AppLoader';
 import api from '@/api/axios';
 import { useItemStore } from '@/store/useItemStore';
+import { useUserRoleStore } from '@/store/useUserRoleStore';
+
+// Lazy (по требованию)
+// Lazy для named exports из page modules
+const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const ScrapPage = lazy(() => import('@/pages/ScrapPage').then((m) => ({ default: m.ScrapPage })));
+const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
+const ForbiddenPage = lazy(() => import('@/pages/ForbiddenPage').then((m) => ({ default: m.ForbiddenPage })));
+const AdminPanel = lazy(() => import('@/pages/AdminPanel').then((m) => ({ default: m.AdminPanel })));
+const UsersList = lazy(() => import('@/pages/UsersList').then((m) => ({ default: m.default })));
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -25,6 +29,23 @@ function App() {
   });
   const [token, setToken] = useState(localStorage.getItem('accessToken'));
   const { selectedItem, serviceMode, isServiceModalOpen, refreshItems } = useItemStore();
+  
+  // ✅ Используем Zustand store для получения роли с бэкенда
+  // Это безопасный источник роли вместо localStorage
+  const role = useUserRoleStore((state) => state.role);
+  const isLoading = useUserRoleStore((state) => state.isLoading);
+  const fetchRole = useUserRoleStore((state) => state.fetchRole);
+  
+  // ✅ Вычисляем isAdmin на основе роли
+  const isAdmin = role === 'admin';
+  
+  // ✅ КРИТИЧЕСКИ ВАЖНО: Загружаем роль пользователя при наличии токена
+  useEffect(() => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      fetchRole();
+    }
+  }, [fetchRole]);
   
   // ✅ Состояние для AtWorkModal
   const [isAtWorkModalOpen, setIsAtWorkModalOpen] = useState(false);
@@ -91,7 +112,8 @@ function App() {
         theme={isDarkMode ? 'dark' : 'light'}
       />
       
-      <Routes>
+      <Suspense fallback={<AppLoader />}>
+        <Routes>
         {/* Маршрут логина - доступен без токена */}
         <Route 
           path="/login" 
@@ -145,7 +167,37 @@ function App() {
                     <Route path="/create" element={<ItemCreate isDarkMode={isDarkMode} />} />
                     <Route path="/analytics" element={<Analytics isDarkMode={isDarkMode} />} />
                     <Route path="/writeoffs" element={<ScrapPage isDarkMode={isDarkMode} />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
+                    <Route path="/profile" element={<ProfilePage isDarkMode={isDarkMode} />} />
+                    
+{/* Роут для админ-панели с проверкой прав (роль с бэкенда) */}
+                    <Route 
+                      path="/admin-panel" 
+                      element={
+                        isLoading ? (
+                          <AppLoader />
+                        ) : isAdmin ? (
+                          <AdminPanel isDarkMode={isDarkMode} />
+                        ) : (
+                          <ForbiddenPage isDarkMode={isDarkMode} />
+                        )
+                      } 
+                    />
+                    
+                    {/* Роут для списка пользователей */}
+                    <Route 
+                      path="/admin-panel/users" 
+                      element={
+                        isLoading ? (
+                          <AppLoader />
+                        ) : isAdmin ? (
+                          <UsersList isDarkMode={isDarkMode} />
+                        ) : (
+                          <ForbiddenPage isDarkMode={isDarkMode} />
+                        )
+                      } 
+                    />
+                    
+                    <Route path="*" element={<NotFoundPage isDarkMode={isDarkMode} />} />
                   </Routes>
                 </main>
                 <QuickActions isDarkMode={isDarkMode} />
@@ -156,6 +208,7 @@ function App() {
           } 
         />
       </Routes>
+      </Suspense>
     </div>
   );
 }

@@ -32,14 +32,16 @@ class ItemTransitions:
         # Создание: created → available
         ItemStatus.CREATED: [ItemStatus.AVAILABLE],
 
-        # Распределение: available → confirm
+        # Распределение: available → confirm или at_work
         ItemStatus.AVAILABLE: [
             ItemStatus.CONFIRM,      # Распределение
+            ItemStatus.AT_WORK,      # Выдача напрямую в бригаду
         ],
 
-        # Подтверждение ТМЦ: confirm → issued (подтверждение)
+        # Подтверждение ТМЦ: confirm → issued (подтверждение) или at_work (выдача в бригаду)
         ItemStatus.CONFIRM: [
             ItemStatus.ISSUED,        # Подтверждение
+            ItemStatus.AT_WORK,       # Выдача в бригаду без подтверждения
         ],
 
         # Выдано: issued → at_work (выдача в работу), confirm_repair (в ремонт), confirm (перераспределение), written_off (списание)
@@ -50,10 +52,9 @@ class ItemTransitions:
             ItemStatus.WRITTEN_OFF,      # Списание
         ],
 
-        # Ожидает подтверждения ремонта: confirm_repair → in_repair (подтверждение) или written_off (списание)
+        # Ожидает подтверждения ремонта: confirm_repair → in_repair (подтверждение)
         ItemStatus.CONFIRM_REPAIR: [
             ItemStatus.IN_REPAIR,        # Подтверждение ремонта
-            ItemStatus.WRITTEN_OFF,      # Списание из подтверждения ремонта
         ],
 
         # В ремонте: in_repair → issued (возврат из ремонта) или written_off (списание)
@@ -80,7 +81,6 @@ class ItemTransitions:
         ItemStatus.ISSUED,
         ItemStatus.AT_WORK,
         ItemStatus.IN_REPAIR,
-        ItemStatus.CONFIRM_REPAIR,
     ]
 
     # ========== КОНСТАНТЫ ДЛЯ ОБРАТНОЙ СОВМЕСТИМОСТИ ==========

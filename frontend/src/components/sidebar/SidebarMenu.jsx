@@ -4,8 +4,9 @@ import {
 } from 'lucide-react';
 import MenuItem from './MenuItem';
 
-const SidebarMenu = ({ isCollapsed, isActive, onMenuClick, stats }) => {
-  const menuItems = [
+const SidebarMenu = ({ isCollapsed, isActive, onMenuClick, stats, isAdmin }) => {
+  // Базовые пункты меню
+  const baseMenuItems = [
     { icon: <PlusCircle size={20} />, label: 'Создать ТМЦ' },
     { icon: <Copy size={20} />, label: 'Создать по аналогии' },
     { icon: <Edit size={20} />, label: 'Редактировать ТМЦ' },
@@ -17,8 +18,15 @@ const SidebarMenu = ({ isCollapsed, isActive, onMenuClick, stats }) => {
     { icon: <Wrench size={20} />, label: 'Подтвердить ремонт' },
     { icon: <BarChart3 size={20} />, label: 'Аналитика' },
     { icon: <Trash2 size={20} />, label: 'Списание/затраты' },
-    { icon: <User size={20} />, label: 'Профиль пользователя' },
   ];
+
+  // Пункт "Администрирование" только для админов
+  const adminMenuItem = { icon: <User size={20} />, label: 'Администрирование' };
+  
+  // Формируем итоговый список меню
+  const menuItems = isAdmin 
+    ? [...baseMenuItems, adminMenuItem] 
+    : baseMenuItems;
 
   return (
     <nav className="flex-1 mt-4 overflow-y-auto no-scrollbar">

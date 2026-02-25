@@ -1,6 +1,6 @@
 from decimal import Decimal
 from rest_framework import serializers
-from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord
+from .models import Item, Location, Brigade, ItemHistory, WriteOffRecord, ErrorLog
 
 
 # class ItemSerializer(serializers.ModelSerializer):
@@ -35,7 +35,7 @@ class BrigadeSerializer(serializers.ModelSerializer):
 
 class ItemHistorySerializer(serializers.ModelSerializer):
     """Сериализатор для истории ТМЦ"""
-    date = serializers.DateTimeField(source='timestamp', format="%d.%m.%y")
+    date = serializers.DateTimeField(source='timestamp', format="%d.%m.%y %H:%M")
     user_username = serializers.SerializerMethodField()
     action_type_display = serializers.CharField(source='get_action_type_display', read_only=True)
 
@@ -65,6 +65,9 @@ class ItemSerializer(serializers.ModelSerializer):
 
     # Комментарий для сервисных операций (write_only, не сохраняется в модель)
     service_comment = serializers.CharField(write_only=True, required=False, allow_blank=True)
+
+    # Количество - DecimalField для поддержки дробных значений
+    qty = serializers.DecimalField(max_digits=10, decimal_places=2, required=False, default=1)
 
     class Meta:
         model = Item
@@ -97,6 +100,10 @@ class WriteOffCreateSerializer(serializers.Serializer):
     Сериализатор для создания записи о списании ТМЦ через API.
     
     Используется в POST /writeoffs/ endpoint.
+    
+    Валидация:
+    - Проверяем, что ТМЦ существует
+    - Проверяем, что qty >= 1 (достаточно остатков для списания)
     """
     item_id = serializers.IntegerField(
         help_text="ID ТМЦ для списания"
@@ -125,34 +132,102 @@ class WriteOffCreateSerializer(serializers.Serializer):
         help_text="Описание причины списания"
     )
 
+    def validate_item_id(self, value):
+        """
+        Валидация: проверяем что ТМЦ существует и имеет достаточное количество для списания.
+        """
+        from .models import Item
+        
+        try:
+            item = Item.objects.get(id=value)
+        except Item.DoesNotExist:
+            raise serializers.ValidationError("ТМЦ с указанным ID не найдено")
+        
+        # Проверяем остатки (qty)
+        if item.qty < 1:
+            raise serializers.ValidationError(
+                f"Недостаточное количество на складе. Доступно: {item.qty}, требуется: 1"
+            )
+        
+        return value
+
 
 class WriteOffRecordSerializer(serializers.ModelSerializer):
-    """Сериализатор для записи о списании ТМЦ"""
+    """Сериализатор для записей о списании WriteOffRecord"""
+    # Алиасы для обратной совместимости с фронтендом
     item_name = serializers.CharField(source='item.name', read_only=True)
     item_serial = serializers.CharField(source='item.serial', read_only=True)
+    item_brand = serializers.CharField(source='item.brand', read_only=True)
     location_name = serializers.SerializerMethodField()
     created_by_username = serializers.SerializerMethodField()
+    # Поля из модели WriteOffRecord
+    repair_cost = serializers.SerializerMethodField()
+    invoice_number = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
+    date_to_service = serializers.SerializerMethodField()
+    date_written_off = serializers.SerializerMethodField()
+    is_cancelled = serializers.BooleanField()
 
     class Meta:
         model = WriteOffRecord
         fields = [
-            'id', 'item', 'item_name', 'item_serial', 'location', 'location_name',
+            'id', 
+            # Item fields
+            'item', 'item_name', 'item_serial', 'item_brand',
+            # WriteOffRecord fields
+            'location', 'location_name',
             'repair_cost', 'invoice_number', 'description',
             'date_to_service', 'date_written_off',
-            'created_by', 'created_by_username', 'created_at',
-            'is_cancelled', 'cancelled_at'
+            'created_by_username',
+            'is_cancelled'
         ]
-        read_only_fields = ["id", "created_at", "cancelled_at", "is_cancelled", "created_by"]
 
     def get_location_name(self, obj):
-        """Возвращает название локации, если FK существует"""
+        """Возвращает название локации"""
         if obj.location:
             return obj.location.name
+        if obj.item and obj.item.location:
+            return obj.item.location
         return None
 
     def get_created_by_username(self, obj):
-        """Возвращает username создателя записи"""
+        """Возвращает username создателя записи о списании"""
         if obj.created_by:
             return obj.created_by.username
+        return None
+
+    def get_repair_cost(self, obj):
+        """Возвращает стоимость ремонта"""
+        return str(obj.repair_cost) if obj.repair_cost else None
+
+    def get_invoice_number(self, obj):
+        """Возвращает номер накладной"""
+        return obj.invoice_number
+
+    def get_description(self, obj):
+        """Возвращает описание"""
+        return obj.description
+
+    def get_date_to_service(self, obj):
+        """Возвращает дату поступления в ремонт"""
+        return str(obj.date_to_service) if obj.date_to_service else None
+
+    def get_date_written_off(self, obj):
+        """Возвращает дату списания"""
+        return str(obj.date_written_off) if obj.date_written_off else None
+
+
+class ErrorLogSerializer(serializers.ModelSerializer):
+    """Сериализатор для логов ошибок фронтенда"""
+    user_username = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ErrorLog
+        fields = ['id', 'user', 'user_username', 'timestamp', 'url', 'message', 'stack_trace', 'user_agent']
+        read_only_fields = ['timestamp']
+
+    def get_user_username(self, obj):
+        if obj.user:
+            return obj.user.username
         return None
 

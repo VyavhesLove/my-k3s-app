@@ -1,18 +1,22 @@
-"""Query слой для получения списка записей о списании ТМЦ."""
+"""Query слой для получения списка списаний ТМЦ."""
 from datetime import date
 from typing import Optional
-from django.db.models import QuerySet
-from ...models import WriteOffRecord, Location
+from django.db.models import QuerySet, Q, Exists, OuterRef
+from ...models import WriteOffRecord, Item, Location
+from ...enums import ItemStatus
 
 
 class ListWriteOffsQuery:
     """
-    Query для получения списка записей о списании с фильтрацией.
+    Query для получения списка списаний ТМЦ.
     
     Поддерживает фильтрацию по:
     - status (is_cancelled): активные/отменённые записи
     - location: название локации
     - date: дата списания (date_written_off)
+    - search: поиск по названию или серийному номеру ТМЦ
+    
+    Возвращает WriteOffRecord для поддержки множественных записей на один item.
     """
     
     @staticmethod
@@ -20,52 +24,63 @@ class ListWriteOffsQuery:
         is_cancelled: Optional[bool] = None,
         location: Optional[str] = None,
         date_written_off: Optional[date] = None,
-    ) -> QuerySet[WriteOffRecord]:
+        search: Optional[str] = None,
+    ) -> QuerySet:
         """
-        Получить список записей о списании с фильтрацией.
+        Получить список записей о списании.
         
         Args:
-            is_cancelled: Фильтр по статусу отмены (None = все, True = отменённые, False = активные)
+            is_cancelled: Фильтр по статусу отмены записи списания (None = все, True = отменённые, False = активные)
             location: Фильтр по названию локации (частичное совпадение)
             date_written_off: Фильтр по дате списания
+            search: Поиск по названию или серийному номеру ТМЦ
             
         Returns:
-            QuerySet с отфильтрованными записями о списании
+            QuerySet с записями WriteOffRecord
         """
+        # Начинаем с WriteOffRecord
         queryset = WriteOffRecord.objects.select_related(
             'item', 'location', 'created_by'
-        ).order_by('-created_at')
+        ).order_by('-id')
         
         # Фильтрация по is_cancelled
-        # По умолчанию (is_cancelled=None) показываем все записи (активные + отменённые)
         if is_cancelled is not None:
             queryset = queryset.filter(is_cancelled=is_cancelled)
         
-        # Фильтрация по location (частичное совпадение по названию)
+        # Фильтрация по локации (через связанную таблицу или поле item.location)
         if location:
-            queryset = queryset.filter(location__name__icontains=location)
+            queryset = queryset.filter(
+                Q(location__name__icontains=location) |
+                Q(item__location__icontains=location)
+            )
         
         # Фильтрация по дате списания
         if date_written_off:
             queryset = queryset.filter(date_written_off=date_written_off)
         
+        # Фильтрация по поиску (название или серийный номер ТМЦ)
+        if search:
+            queryset = queryset.filter(
+                Q(item__name__icontains=search) | 
+                Q(item__serial__icontains=search)
+            )
+        
         return queryset
     
     @staticmethod
-    def by_id(write_off_id: int) -> WriteOffRecord:
+    def by_id(write_off_id: int) -> Item:
         """
-        Получить запись о списании по ID.
+        Получить ТМЦ по ID записи о списании.
         
         Args:
-            write_off_id: ID записи о списании
+            write_off_id: ID записи WriteOffRecord
             
         Returns:
-            Запись о списании
+            ТМЦ с записью о списании
             
         Raises:
-            WriteOffRecord.DoesNotExist: Если запись не найдена
+            WriteOffRecord.DoesNotExist: Если запись о списании не найдена
         """
-        return WriteOffRecord.objects.select_related(
-            'item', 'location', 'created_by'
-        ).get(id=write_off_id)
+        write_off = WriteOffRecord.objects.get(id=write_off_id)
+        return write_off.item
 

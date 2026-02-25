@@ -29,9 +29,12 @@ const Analytics = ({ isDarkMode }) => {
     const fetchAnalytics = async () => {
       try {
         const query = new URLSearchParams(filters).toString();
-        const response = await api.get(`/analytics-data?${query}`);
-        console.log("Данные аналитики:", response.data);
-        setData(response.data);
+        const url = query ? `/analytics-data?${query}` : '/analytics-data/';
+        const response = await api.get(url);
+        // Бэкенд возвращает { success: true, data: {...} }
+        const analyticsData = response.data.data || response.data;
+        console.log("Данные аналитики:", analyticsData);
+        setData(analyticsData);
       } catch (err) {
         console.error("Ошибка аналитики:", err);
       }

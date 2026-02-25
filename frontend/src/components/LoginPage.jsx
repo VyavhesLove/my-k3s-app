@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 // ✅ Импортируем НАСТРОЕННЫЙ экземпляр axios, а не чистый!
 import api from '@/api/axios';
 import { useItemStore } from '@/store/useItemStore';
+import { useUserRoleStore } from '@/store/useUserRoleStore';
 import { toast } from 'sonner';
 
 const LoginPage = ({ setToken, isDarkMode }) => {
@@ -26,16 +27,14 @@ const LoginPage = ({ setToken, isDarkMode }) => {
       localStorage.setItem('refreshToken', refresh);
       
       // ✅ Получаем и сохраняем информацию о пользователе
-      try {
-        const userResponse = await api.get('/users/me/');
-        const userData = userResponse.data;
-        
-        localStorage.setItem('user', JSON.stringify(userData));
-        localStorage.setItem('userRole', userData.role || 'user');
-        
-      } catch (userError) {
-        console.error('Не удалось загрузить пользователя:', userError);
-      }
+      const userResponse = await api.get('/users/me/');
+      const userData = userResponse.data;
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('userRole', userData.role || 'user');
+      
+      // ✅ Обновляем роль в Zustand store
+      useUserRoleStore.getState().refreshRole();
       
       // Передаем токен в родительский компонент App.js
       setToken(access);

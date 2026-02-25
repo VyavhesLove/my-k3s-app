@@ -4,7 +4,7 @@ import api from '@/api/axios';
 import { toast } from 'sonner';
 import { useItemStore } from '@/store/useItemStore';
 
-const ConfirmTMCModal = ({ isDarkMode }) => {
+export const ConfirmTMCModal = ({ isDarkMode }) => {
   const {
     selectedItem,
     isConfirmTMCModalOpen,
@@ -281,6 +281,4 @@ const ConfirmTMCModal = ({ isDarkMode }) => {
     </div>
   );
 };
-
-export default ConfirmTMCModal;
 

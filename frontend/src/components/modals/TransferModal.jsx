@@ -4,7 +4,7 @@ import api from '@/api/axios';
 import { toast } from 'sonner';
 import { useItemStore } from '@/store/useItemStore';
 
-const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
+export const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
   const { selectedItem, setSelectedItem, lockItem, unlockItem, refreshItems, lockedItems } = useItemStore();
 
   const [locations, setLocations] = useState([]);
@@ -265,6 +265,4 @@ const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
     </div>
   );
 };
-
-export default TransferModal;
 

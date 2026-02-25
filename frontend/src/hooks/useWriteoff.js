@@ -71,9 +71,12 @@ export const useWriteoffList = (filters, page = 1) => {
           signal: controller.signal
         });
 
+        // Обрабатываем формат ответа от api_response: {success: true, data: {write_offs: [...]}}
+        const writeOffs = response.data.data?.write_offs || response.data.write_offs || response.data.results || [];
+
         setState({
-          items: response.data.write_offs || response.data.results || [],
-          totalCount: response.data.count || response.data.total || 0,
+          items: writeOffs,
+          totalCount: response.data.data?.count || response.data.count || writeOffs.length || 0,
           loading: false,
           error: null
         });

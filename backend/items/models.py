@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from auditlog.registry import auditlog
 from .enums import ItemStatus, HistoryAction
 
 
@@ -32,7 +33,12 @@ class Item(models.Model):
     status = models.CharField(max_length=20, choices=ItemStatus.choices, default=ItemStatus.AVAILABLE, verbose_name="Статус")
     responsible = models.CharField(max_length=100, blank=True, null=True, verbose_name="Ответственный")
     location = models.CharField(max_length=255, blank=True, null=True, verbose_name="Локация")
-    qty = models.IntegerField(default=1, verbose_name="Количество")
+    qty = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=1,
+        verbose_name="Количество"
+    )
 
     brigade = models.ForeignKey(
         'Brigade', 
@@ -59,6 +65,11 @@ class Item(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.serial})"
+
+
+# Регистрация модели Item в django-auditlog
+auditlog.register(Item)
+
 
 class ItemHistory(models.Model):
     item = models.ForeignKey(Item, on_delete=models.CASCADE, related_name='history')
@@ -105,6 +116,47 @@ class ItemHistory(models.Model):
             self.action = HistoryActionTemplates.format(self.action_type, self.payload)
 
         super().save(*args, **kwargs)
+
+
+class ServiceCenter(models.Model):
+    """Модель сервисного центра для ремонта ТМЦ."""
+    name = models.CharField(max_length=255, unique=True, verbose_name="Наименование")
+    address = models.TextField(verbose_name="Адрес")
+    city = models.CharField(max_length=255, verbose_name="Город")
+
+    class Meta:
+        verbose_name = 'Сервисный центр'
+        verbose_name_plural = 'Сервисные центры'
+
+    def __str__(self):
+        return f"{self.name} ({self.city})"
+
+
+class ErrorLog(models.Model):
+    """
+    Модель для логирования ошибок на фронтенде.
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Пользователь"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Время ошибки")
+    url = models.CharField(max_length=255, verbose_name="URL")
+    message = models.TextField(verbose_name="Сообщение об ошибке")
+    stack_trace = models.TextField(verbose_name="Stack trace")
+    user_agent = models.CharField(max_length=255, verbose_name="User Agent")
+    resolved = models.BooleanField(default=False, verbose_name="Исправлено")
+
+    class Meta:
+        verbose_name = "Лог ошибки"
+        verbose_name_plural = "Логи ошибок"
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"Ошибка {self.timestamp} - {self.message[:50]}"
 
 
 class WriteOffRecord(models.Model):

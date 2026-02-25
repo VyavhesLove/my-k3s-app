@@ -14,10 +14,20 @@ from items.enums import ItemStatus, HistoryAction
 from users.models import UserRole
 from tests.utils import APITestCase as HelperAPITestCase
 
+# Переопределяем на DRF APITestCase для доступа к force_authenticate
+# Сохраняем assert_api_success и assert_api_error из tests.utils
+class _APITestCaseWithHelpers(APITestCase):
+    def assert_api_success(self, response, expected_data=None):
+        HelperAPITestCase.assert_api_success(self, response, expected_data)
+    
+    def assert_api_error(self, response, error_msg, status=400):
+        HelperAPITestCase.assert_api_error(self, response, error_msg, status)
+
+
 User = get_user_model()
 
 
-class ConfirmTMCAPITestCase(HelperAPITestCase):
+class ConfirmTMCAPITestCase(_APITestCaseWithHelpers):
     """Интеграционные тесты для ConfirmTMC API."""
 
     def setUp(self):
@@ -186,7 +196,7 @@ class ConfirmTMCAPITestCase(HelperAPITestCase):
         self.assertEqual(response.status_code, 400)
 
 
-class ConfirmItemAPITestCase(HelperAPITestCase):
+class ConfirmItemAPITestCase(_APITestCaseWithHelpers):
     """Интеграционные тесты для confirm_item API (статус confirm -> available)."""
 
     def setUp(self):

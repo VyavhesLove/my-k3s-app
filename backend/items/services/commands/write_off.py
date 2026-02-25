@@ -60,7 +60,13 @@ class WriteOffCommand:
         # 1. Получаем Item через select_for_update() - блокируем строку
         item = Item.objects.select_for_update().get(id=item_id)
 
-        # 2. Проверяем, что Item ещё не списан (конфликт состояния)
+        # 2. Проверяем остатки (qty) - дублирующая проверка на бэкенде
+        if item.qty < 1:
+            raise DomainValidationError(
+                f"Недостаточное количество на складе. Доступно: {item.qty}, требуется: 1"
+            )
+
+        # 3. Проверяем, что Item ещё не списан (конфликт состояния)
         if item.status == ItemStatus.WRITTEN_OFF:
             raise DomainConflictError("Item уже списан")
 

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import UserInfo from './UserInfo';
 
-const SidebarHeader = ({ isCollapsed, setIsCollapsed, user }) => {
+const SidebarHeader = ({ isCollapsed, setIsCollapsed, user, onNavigateToProfile }) => {
   return (
     <div className="flex flex-col p-4 border-b border-theme">
       <div className="flex items-center justify-between">
@@ -22,7 +22,7 @@ const SidebarHeader = ({ isCollapsed, setIsCollapsed, user }) => {
         </button>
       </div>
 
-      <UserInfo user={user} isCollapsed={isCollapsed} />
+      <UserInfo user={user} isCollapsed={isCollapsed} onNavigateToProfile={onNavigateToProfile} />
     </div>
   );
 };

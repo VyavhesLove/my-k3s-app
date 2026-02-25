@@ -1,4 +1,5 @@
 django
+django-auditlog
 django-cors-headers
 djangorestframework
 drf-spectacular

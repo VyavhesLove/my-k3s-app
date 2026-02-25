@@ -1,30 +1,23 @@
-# План рефакторинга ItemTransfer.jsx в модальное окно
+# TODO: Настройка admin.py для логов ошибок
 
-## Задачи:
-1. ✅ Создать TransferModal.jsx в папке modals
-2. ✅ Обновить useItemStore.js - добавить состояние для модалки передачи
-3. ✅ Обновить App.jsx - убрать маршрут /transfer, удалить импорт ItemTransfer
-4. ✅ Обновить ItemDetailPanel.jsx - добавить рендер TransferModal (кнопка "Передать ТМЦ" здесь)
-5. ✅ Обновить App.jsx - handleOpenServiceModal обрабатывает mode === 'transfer'
-6. ✅ Удалить старую страницу ItemTransfer.jsx
+## План
 
-## Детали реализации:
-- Модальное окно следует паттерну ServiceModal (fixed inset-0, backdrop-blur)
-- Использует zustand store для управления состоянием
-- Логика загрузки локаций и отправки формы сохранена
-- Кнопка "Передать ТМЦ" находится в ItemDetailPanel и открывает модалку
+### 1. Обновить модель ErrorLog в items/models.py
+- [x] Добавить поле `resolved = models.BooleanField(default=False, verbose_name="Исправлено")`
+- [x] Проверить/изменить тип поля `stack_trace` на `TextField` (уже был TextField)
 
----
+### 2. Обновить admin.py в items/admin.py
+- [x] Изменить list_display: добавить resolved_status
+- [x] Добавить list_filter: resolved
+- [x] Добавить list_editable: resolved
+- [x] Добавить exclude для stack_trace
+- [x] Создать метод resolved_status (цветная метка)
+- [x] Создать метод short_message
+- [x] Создать метод stack_trace_formatted (стилизованный <pre>)
 
-# TODO: ItemTransitions.reject() - поиск по частичному совпадению
+### 3. Создать миграцию БД
+- [ ] **Требуется выполнить**: `python manage.py makemigrations items`
 
-## Задача:
-- В файле `history_service.py` метод `get_first_assignment` использует точное сравнение `action_type=HistoryAction.ASSIGNED.value`
-- Если поиск не находит записи, заменить на `action__icontains=HistoryAction.ASSIGNED.value`
-- Поиск по частичному совпадению в поле `action` (не `action_type`)
-
-## Расположение кода:
-- Файл: `my-k3s-app/backend/items/services/history_service.py`
-- Метод: `get_first_assignment`
-- Комментарий с TODO уже добавлен в код
+### 4. Проверить работу
+- [ ] Запустить тесты (source venv/bin/activate && python manage.py test)
 

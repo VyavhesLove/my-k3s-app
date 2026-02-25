@@ -1,4 +1,6 @@
 """API views для CRUD операций списания ТМЦ (writeoffs)."""
+import logging
+import traceback
 from datetime import date
 from decimal import Decimal
 from drf_spectacular.utils import extend_schema
@@ -13,6 +15,10 @@ from ..services.commands import WriteOffCommand, CancelWriteOffCommand
 from ..utils import api_response, api_error
 from ..exceptions import DomainNotFoundError, DomainValidationError
 from ..models import Location, Item
+
+
+# Настройка логирования
+logger = logging.getLogger(__name__)
 
 
 @extend_schema(
@@ -30,13 +36,14 @@ from ..models import Location, Item
 @permission_classes([IsStorekeeper])
 def write_off_list(request):
     """
-    GET: список записей о списании с фильтрацией
+    GET: список ТМЦ со статусом 'written_off' (списано) с фильтрацией
     POST: создать запись о списании ТМЦ
     
     Фильтры (GET query params):
-    - is_cancelled: true/false (активные/отменённые)
+    - is_cancelled: true/false (активные/отменённые записи)
     - location: частичное совпадение по названию локации
     - date: дата списания (date_written_off)
+    - search: поиск по названию или серийному номеру ТМЦ
     
     Только для кладовщиков и администраторов.
     """
@@ -47,6 +54,7 @@ def write_off_list(request):
             is_cancelled = is_cancelled.lower() == 'true'
         
         location = request.GET.get('location')
+        search = request.GET.get('search')
         date_str = request.GET.get('date')
         date_written_off = None
         if date_str:
@@ -55,13 +63,15 @@ def write_off_list(request):
             except ValueError:
                 pass
         
+        # Получаем ТМЦ со статусом written_off
         queryset = ListWriteOffsQuery.all(
             is_cancelled=is_cancelled,
             location=location,
-            date_written_off=date_written_off
+            date_written_off=date_written_off,
+            search=search
         )
         
-        serializer = WriteOffRecordSerializer(queryset, many=True)
+        serializer = WriteOffRecordSerializer(queryset, many=True, context={'request': request})
         return api_response(data={"write_offs": serializer.data})
     
     if request.method == 'POST':
@@ -82,7 +92,7 @@ def write_off_list(request):
         except ObjectDoesNotExist:
             return api_error(error="ТМЦ не найдено", status_code=400)
         
-        # Получаем созданную запись для ответа
+        # Получаем созданную запись WriteOffRecord для ответа
         from ..models import WriteOffRecord
         write_off_record = WriteOffRecord.objects.select_related(
             'item', 'location', 'created_by'
@@ -127,12 +137,92 @@ def write_off_cancel(request, write_off_id):
     except DomainNotFoundError as e:
         return api_error(error=str(e), status_code=404)
     
-    # Получаем обновлённую запись о списании для ответа
-    write_off_record.refresh_from_db()
+    # Получаем обновлённую запись WriteOffRecord для сериализации
+    write_off_record = WriteOffRecord.objects.select_related(
+        'item', 'location', 'created_by'
+    ).get(id=write_off_id)
+    
     return api_response(
         data=WriteOffRecordSerializer(write_off_record).data,
         message="Списание отменено"
     )
+
+
+@extend_schema(
+    methods=['POST'],
+    description="Массовое восстановление ТМЦ из списания",
+    request={
+        "type": "object",
+        "properties": {
+            "ids": {"type": "array", "items": {"type": "integer"}}
+        },
+        "required": ["ids"]
+    },
+    responses={200: {"type": "object", "properties": {"message": {"type": "string"}}}}
+)
+@api_view(['POST'])
+@permission_classes([IsStorekeeper])
+def write_off_bulk_restore(request):
+    """
+    Массовое восстановление ТМЦ из списания (возврат в работу).
+    
+    Принимает массив ID ТМЦ и для каждого:
+    - Отменяет запись о списании (is_cancelled=True)
+    - Возвращает ТМЦ в статус AVAILABLE
+    
+    Только для кладовщиков и администраторов.
+    """
+    from ..models import Item
+    from ..services.commands import CancelWriteOffCommand
+    from ..enums import ItemStatus
+    
+    ids = request.data.get('ids', [])
+    
+    if not ids:
+        return api_error(error="Не переданы ID ТМЦ", status_code=400)
+    
+    if not isinstance(ids, list):
+        return api_error(error="IDs должны быть массивом", status_code=400)
+    
+    restored_count = 0
+    errors = []
+    
+    for item_id in ids:
+        try:
+            # Проверяем, что ТМЦ существует и имеет статус WRITTEN_OFF
+            item = Item.objects.get(id=item_id)
+            if item.status != ItemStatus.WRITTEN_OFF:
+                errors.append(f"ТМЦ ID {item_id} не находится в статусе списано")
+                continue
+            
+            # Выполняем отмену списания
+            CancelWriteOffCommand.execute(
+                item_id=item_id,
+                user=request.user
+            )
+            restored_count += 1
+        except Item.DoesNotExist:
+            errors.append(f"ТМЦ с ID {item_id} не найдено")
+        except DomainValidationError as e:
+            # Логируем подробности валидации на сервере
+            logger.warning(f"DomainValidationError при восстановлении ТМЦ {item_id}: {e}")
+            errors.append("Ошибка валидации при восстановлении ТМЦ")
+        except Exception as e:
+            # Логируем полный traceback на сервере, клиенту возвращаем нейтральное сообщение
+            logger.error(f"Ошибка при восстановлении ТМЦ {item_id}: {e}\n{traceback.format_exc()}")
+            errors.append(f"Ошибка при обработке ТМЦ {item_id}: внутренняя ошибка сервера")
+    
+    if restored_count == 0:
+        return api_error(
+            error="Не удалось восстановить ни одного ТМЦ: " + "; ".join(errors),
+            status_code=400
+        )
+    
+    message = f"Восстановлено {restored_count} ТМЦ"
+    if errors:
+        message += f". Ошибки: {'; '.join(errors)}"
+    
+    return api_response(message=message)
 
 
 @extend_schema(

@@ -4,7 +4,7 @@ import api from '@/api/axios';
 import { toast } from 'sonner';
 import { useItemStore } from '@/store/useItemStore';
 
-const ServiceModal = ({ isDarkMode }) => {
+export const ServiceModal = ({ isDarkMode }) => {
   const { 
     selectedItem, 
     serviceMode, 
@@ -21,9 +21,52 @@ const ServiceModal = ({ isDarkMode }) => {
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [qtyError, setQtyError] = useState(null);
   
   // Для статуса confirm_repair - выбор действия: подтвердить ремонт или списать
   const [repairAction, setRepairAction] = useState('confirm'); // 'confirm' или 'write_off'
+
+  // Проверка остатков при выборе "Списать"
+  const checkQty = async () => {
+    if (!selectedItem) return;
+    
+    try {
+      const response = await api.get(`/items/${selectedItem.id}/qty/`);
+      const availableQty = response.data.data.qty;
+      
+      if (availableQty < 1) {
+        setQtyError(`Недостаточное количество на складе. Доступно: ${availableQty}`);
+        return false;
+      }
+      
+      setQtyError(null);
+      return true;
+    } catch (err) {
+      console.error('Ошибка проверки остатков:', err);
+      // Не блокируем отправку при ошибке проверки - пусть бэкенд проверит
+      setQtyError(null);
+      return true;
+    }
+  };
+  
+  // Загрузка qty при выборе "Списать"
+  const [availableQty, setAvailableQty] = useState(null);
+  
+  useEffect(() => {
+    if (repairAction === 'write_off' && selectedItem) {
+      // Загружаем количество при переключении на "Списать"
+      api.get(`/items/${selectedItem.id}/qty/`)
+        .then(res => {
+          setAvailableQty(res.data.data.qty);
+        })
+        .catch(err => {
+          console.error('Ошибка загрузки qty:', err);
+          setAvailableQty(null);
+        });
+    } else {
+      setAvailableQty(null);
+    }
+  }, [repairAction, selectedItem]);
 
   // При открытии модалки - пробуем заблокировать ТМЦ
   useEffect(() => {
@@ -50,6 +93,13 @@ const ServiceModal = ({ isDarkMode }) => {
     }
   }, [isServiceModalOpen, selectedItem, lockItem]);
 
+  // Сброс ошибки qty при закрытии
+  useEffect(() => {
+    if (!isServiceModalOpen) {
+      setQtyError(null);
+    }
+  }, [isServiceModalOpen]);
+
   // При закрытии - разблокируем
   const handleClose = async () => {
     if (isLocked && selectedItem) {
@@ -64,6 +114,7 @@ const ServiceModal = ({ isDarkMode }) => {
     setLocation('');
     setRepairAction('confirm');
     setIsLocked(false);
+    setQtyError(null);
     closeServiceModal();
   };
 
@@ -106,6 +157,14 @@ const ServiceModal = ({ isDarkMode }) => {
         description: 'ТМЦ заблокирован другим пользователем'
       });
       return;
+    }
+
+    // Для операции списания - проверяем остатки перед отправкой
+    if (isConfirm && selectedItem.status === 'confirm_repair' && repairAction === 'write_off') {
+      const hasEnoughQty = await checkQty();
+      if (!hasEnoughQty) {
+        return; // Не продолжаем если недостаточно остатков
+      }
     }
 
     setLoading(true);
@@ -169,7 +228,12 @@ const ServiceModal = ({ isDarkMode }) => {
 
       handleClose();
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Ошибка при выполнении операции");
+      // Обработка ошибки недостаточного количества от бэкенда
+      if (err.response?.data?.error) {
+        toast.error(err.response.data.error);
+      } else {
+        toast.error(err.response?.data?.detail || "Ошибка при выполнении операции");
+      }
       console.error(err);
     } finally {
       setLoading(false);
@@ -316,18 +380,34 @@ const ServiceModal = ({ isDarkMode }) => {
               {/* Комментарий для списания (когда выбрано "Списать") */}
               {repairAction === 'write_off' && (
                 <div className="space-y-2 p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                  {/* Отображение остатков */}
+                  {availableQty !== null && (
+                    <div className={`text-sm font-medium mb-2 ${
+                      availableQty < 1 ? 'text-red-500' : 'text-green-600'
+                    }`}>
+                      📦 Остаток на складе: {availableQty}
+                      {availableQty < 1 && ' (недостаточно!)'}
+                    </div>
+                  )}
                   <label className="text-xs font-bold uppercase text-red-600 ml-1">Причина списания</label>
                   <textarea 
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
+                    disabled={availableQty !== null && availableQty < 1}
                     className={`w-full p-4 rounded-xl border outline-none transition-all resize-none ${
                       isDarkMode 
                         ? 'bg-slate-800 border-slate-700 focus:border-red-500 focus:ring-1 focus:ring-red-500' 
                         : 'bg-gray-50 border-gray-200 focus:border-red-400 focus:ring-1 focus:ring-red-400'
-                    }`}
+                    } ${availableQty !== null && availableQty < 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                     rows="3"
                     placeholder="Укажите причину списания..."
                   />
+                  {/* Ошибка недостаточного количества */}
+                  {qtyError && (
+                    <div className="text-red-500 text-sm font-medium mt-2">
+                      ⚠️ {qtyError}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -408,4 +488,3 @@ const ServiceModal = ({ isDarkMode }) => {
   );
 };
 
-export default ServiceModal;

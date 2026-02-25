@@ -1,9 +1,11 @@
 """Команда возврата ТМЦ из сервиса."""
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal
 from django.db import transaction
 from items.enums import ItemStatus
-from ...models import Item
+from ...models import Item, WriteOffRecord, Location
 from ..history_service import HistoryService
 from ..domain.item_transitions import ItemTransitions
 from ..domain.exceptions import DomainValidationError
@@ -138,14 +140,41 @@ class ReturnFromServiceCommand:
         Списание ТМЦ из статуса "Подтвердить ремонт".
 
         ТМЦ переходит из статуса confirm_repair в written_off.
+        Создаёт запись WriteOffRecord.
 
         Args:
             item: Объект ТМЦ (уже заблокирован)
             user: Пользователь
         """
-        # Валидация: можно списывать только из статуса CONFIRM_REPAIR
+        # Валидация: можно списывать ТМЦ из допустимых статусов
+        # (ISSUED, AT_WORK, IN_REPAIR - см. WRITE_OFF_ALLOWED_FROM)
         old_status = item.status
-        ItemTransitions.validate_transition(item.status, ItemStatus.WRITTEN_OFF)
+        ItemTransitions.validate_write_off(item.status)
+
+        # Проверяем, что нет активной записи списания
+        if WriteOffRecord.objects.filter(item=item, is_cancelled=False).exists():
+            from ..domain.exceptions import DomainConflictError
+            raise DomainConflictError(f"ТМЦ '{item.name}' уже имеет активную запись о списании")
+
+        # Определяем даты
+        today = date.today()
+
+        # Получаем или создаём Location для списания
+        location = None
+        if item.location:
+            location, _ = Location.objects.get_or_create(name=item.location)
+
+        # Создаём запись о списании
+        WriteOffRecord.objects.create(
+            item=item,
+            location=location,
+            repair_cost=Decimal("0"),
+            invoice_number="",
+            description="Списание из подтверждения ремонта",
+            date_to_service=today,
+            date_written_off=today,
+            created_by=user,
+        )
 
         item.status = ItemStatus.WRITTEN_OFF
         item.save()

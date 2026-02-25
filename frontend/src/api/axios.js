@@ -31,9 +31,13 @@ if (process.env.NODE_ENV === 'development') {
 // Автоматическое добавление слеша в конец URL (только если слеша нет)
 api.interceptors.request.use((config) => {
     // Проверяем, что в конце URL нет слеша и это не запрос с параметрами (типа ?search=...)
-    // Добавляем слеш только если его нет в конце
+    // Добавляем слеш только если его нет в конце и URL не пустой
     if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
         config.url += '/';
+    }
+    // Убираем двойной слеш, если он образовался
+    if (config.url && config.url.includes('//') && !config.url.includes('?')) {
+        config.url = config.url.replace(/\/+$/, '') + '/';
     }
     return config;
 }, (error) => {
@@ -54,7 +58,7 @@ api.interceptors.request.use(
 
 // 2. Перехватчик ОТВЕТОВ: ловим 401 и обновляем токен
 api.interceptors.response.use(
-    (response) => response, // Если всё ок, просто возвращаем ответ
+    (response) => response,
     async (error) => {
         const originalRequest = error.config;
 

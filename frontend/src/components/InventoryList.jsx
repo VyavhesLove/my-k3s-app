@@ -16,7 +16,7 @@ function InventoryList({ isDarkMode }) {
   const location = useLocation();
   const { setSelectedItem, selectedItem, items, refreshItems, itemsLoading, lockedItems } = useItemStore();
   
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState({ status: [] });
   const [sortConfig, setSortConfig] = useState([]);
   const [pageSize, setPageSize] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,7 +29,7 @@ function InventoryList({ isDarkMode }) {
       refreshItems();
       setSelectedItem(null);
       setCurrentPage(1);
-      setFilters({});
+      setFilters({ status: [] });
       setSortConfig([]);
       setSearchQuery('');
     }
@@ -37,7 +37,7 @@ function InventoryList({ isDarkMode }) {
 
   // Функция полного сброса фильтров
   const resetAllFilters = useCallback(() => {
-    setFilters({});
+    setFilters({ status: [] });
     setSearchQuery('');
     setCurrentPage(1);
     setSortConfig([]);
@@ -58,7 +58,7 @@ function InventoryList({ isDarkMode }) {
           useItemStore.setState({ items: response.data.items || [] });
           setSelectedItem(null);
           setCurrentPage(1);
-          setFilters({});
+          setFilters({ status: [] });
           setSortConfig([]);
         } catch (err) {
           console.error('Ошибка поиска:', err);
@@ -73,8 +73,13 @@ function InventoryList({ isDarkMode }) {
   }, [refreshItems, setSelectedItem]);
 
   const handleFilterChange = (key, value) => {
-    const filterValue = key === 'status' ? value : (value ? value.toLowerCase() : '');
-    setFilters(prev => ({ ...prev, [key]: filterValue }));
+    // Для status передается массив, для остальных полей - строка
+    if (key === 'status') {
+      setFilters(prev => ({ ...prev, [key]: value }));
+    } else {
+      const filterValue = value ? value.toLowerCase() : '';
+      setFilters(prev => ({ ...prev, [key]: filterValue }));
+    }
     setCurrentPage(1);
   };
 
@@ -91,9 +96,17 @@ function InventoryList({ isDarkMode }) {
           return false;
         }
       }
-      return Object.keys(filters).every(key => 
-        String(item[key] || '').toLowerCase().includes(filters[key])
-      );
+      
+      // Проверяем фильтр по статусу (массив)
+      if (filters.status.length > 0 && !filters.status.includes(item.status)) {
+        return false;
+      }
+      
+      // Проверяем остальные фильтры (строки)
+      return Object.keys(filters).every(key => {
+        if (key === 'status') return true; // status уже проверен выше
+        return String(item[key] || '').toLowerCase().includes(filters[key]);
+      });
     });
     
     if (sortConfig.length > 0) {
@@ -163,7 +176,7 @@ function InventoryList({ isDarkMode }) {
               borderColor: 'var(--table-border)'
             }}>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" style={{ minHeight: '520px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--table-header-bg)' }}>
                     <th className="px-4 py-3 text-left text-xs font-bold border-b w-12"
@@ -182,23 +195,31 @@ function InventoryList({ isDarkMode }) {
                   ) : paginatedItems.length === 0 ? (
                     <EmptyState searchQuery={searchQuery} onClearSearch={() => handleSearch('')} />
                   ) : (
-                    paginatedItems.map((item, index) => {
-                      const isLocked = lockedItems[item.id];
-                      return (
-                        <TableRow
-                          key={item.id}
-                          item={item}
-                          index={index}
-                          isSelected={selectedItem?.id === item.id}
-                          isLocked={isLocked}
-                          lockedItems={lockedItems}
-                          onSelect={setSelectedItem}
-                          isDarkMode={isDarkMode}
-                          currentPage={currentPage}
-                          pageSize={pageSize}
-                        />
-                      );
-                    })
+                    <>
+                      {paginatedItems.map((item, index) => {
+                        const isLocked = lockedItems[item.id];
+                        return (
+                          <TableRow
+                            key={item.id}
+                            item={item}
+                            index={index}
+                            isSelected={selectedItem?.id === item.id}
+                            isLocked={isLocked}
+                            lockedItems={lockedItems}
+                            onSelect={setSelectedItem}
+                            isDarkMode={isDarkMode}
+                            currentPage={currentPage}
+                            pageSize={pageSize}
+                          />
+                        );
+                      })}
+                      {/* Пустые строки-распорки для поддержания минимальной высоты */}
+                      {Array.from({ length: Math.max(0, pageSize - paginatedItems.length) }).map((_, index) => (
+                        <tr key={`spacer-${index}`} className="h-[52px]">
+                          <td colSpan={7} />
+                        </tr>
+                      ))}
+                    </>
                   )}
                 </tbody>
               </table>

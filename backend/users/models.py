@@ -40,11 +40,16 @@ class User(AbstractUser):
 
     # Helper-методы для проверки ролей
     def is_admin(self) -> bool:
-        return self.role == UserRole.ADMIN
+        return str(self.role) == 'admin'
 
     def is_storekeeper(self) -> bool:
-        return self.role == UserRole.STOREKEEPER
+        return str(self.role) == 'storekeeper'
 
     def is_foreman(self) -> bool:
-        return self.role == UserRole.FOREMAN
+        return str(self.role) == 'foreman'
+
+
+# Импорт модели сессий для избежания циклических импортов
+# Модель UserSession определена в models_session.py
+default_app_config = 'users.apps.UsersConfig'
 

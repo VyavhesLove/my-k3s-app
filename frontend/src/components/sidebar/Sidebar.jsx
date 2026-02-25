@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { useItemStore } from '@/store/useItemStore';
+import { useUserRoleStore } from '@/store/useUserRoleStore';
 import api from '@/api/axios';
 
 import SidebarHeader from './SidebarHeader';
@@ -15,6 +16,10 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
   const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // ✅ Используем Zustand store для получения роли с бэкенда
+  const role = useUserRoleStore((state) => state.role);
+  const isAdmin = role === 'admin';
 
   // Достаем selectedItem из Zustand
   const { selectedItem } = useItemStore();
@@ -52,6 +57,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
       'Создать ТМЦ': '/create',
       'Аналитика': '/analytics',
       'Списание/затраты': '/writeoffs',
+      'Администрирование': '/admin-panel',
     };
 
     // Проверяем pathname для маршрутов
@@ -113,6 +119,8 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
       navigate('/analytics');
     } else if (label === 'Списание/затраты') {
       navigate('/writeoffs');
+    } else if (label === 'Администрирование') {
+      navigate('/admin-panel');
     }
   };
   // --------------------------------
@@ -128,6 +136,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
 
     // 2. Сбрасываем Zustand store в начальное состояние
     useItemStore.getState().reset();
+    useUserRoleStore.getState().reset();
 
     // 3. Уведомление
     toast.success('Выход выполнен');
@@ -152,6 +161,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
         isCollapsed={isCollapsed}
         setIsCollapsed={setIsCollapsed}
         user={user}
+        onNavigateToProfile={() => navigate('/profile')}
       />
 
       <SidebarMenu
@@ -159,6 +169,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
         isActive={isActive}
         onMenuClick={handleMenuClick}
         stats={stats}
+        isAdmin={isAdmin}
       />
 
       <SidebarFooter
