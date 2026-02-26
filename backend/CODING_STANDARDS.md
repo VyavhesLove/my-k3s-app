@@ -174,7 +174,46 @@ from django.contrib.auth.models import User
 
 ---
 
-## 8. Frontend-интеграция
+## 8. Модель UserSession и импорты из models_session.py
+
+Модель `UserSession` находится в отдельном файле `users/models_session.py`. Это Special case - модель вынесена в отдельный файл для избежания циклических импортов.
+
+**Всегда проверяйте импорт UserSession при работе с функциями:**
+- `get_current_user()`
+- `get_active_sessions()`
+- `terminate_session()`
+- `create_session()`
+
+**✅ Правильно:**
+```python
+from users.models_session import UserSession
+
+def get_active_sessions(user):
+    return UserSession.objects.filter(user=user, is_active=True)
+```
+
+**❌ Неправильно (вызовет NameError и 500 ошибку):**
+```python
+# Забыли импорт - будет ошибка при вызове функции
+def get_active_sessions(user):
+    return UserSession.objects.filter(user=user, is_active=True)
+```
+
+### Тест для проверки импорта UserSession
+
+Для быстрого выявления проблем с импортом запустите тест:
+
+```bash
+cd my-k3s-app/backend
+source venv/bin/activate
+pytest tests/test_imports/test_user_session_import.py -v
+```
+
+Тест находится в: `tests/test_imports/test_user_session_import.py`
+
+---
+
+## 10. Frontend-интеграция
 
 При работе с фронтендом:
 
@@ -184,7 +223,7 @@ from django.contrib.auth.models import User
 
 ---
 
-## 9. Структура сервисов
+## 11. Структура сервисов
 
 ### Новый сервис должен следовать паттерну
 
@@ -223,7 +262,7 @@ class MyService:
 
 ---
 
-## 10. Чек-лист перед коммитом
+## 12. Чек-лист перед коммитом
 
 - [ ] Все статусы используют `ItemStatus` enum
 - [ ] Все операции записи используют `ItemLockService`
@@ -260,7 +299,7 @@ class MyService:
 
 ---
 
-## 11. Справочник для ИИ-агента
+## 13. Справочник для ИИ-агента
 
 ### Структура проекта
 

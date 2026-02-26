@@ -3,6 +3,9 @@ import SearchBar from '@/components/inventory/SearchBar';
 import Pagination from '@/components/inventory/Pagination';
 import UsersTable from './components/UsersTable';
 import { useUsers } from './hooks/useUsers';
+import { useUserStore } from '@/store/useUserStore';
+import { CreateUserModal } from '@/components/modals/CreateUserModal';
+import { UserPlus } from 'lucide-react';
 
 function UsersList({ isDarkMode }) {
   const {
@@ -23,6 +26,13 @@ function UsersList({ isDarkMode }) {
     onPageSizeChange,
   } = useUsers(isDarkMode);
 
+  // Подключение к store для модалки
+  const { 
+    isCreateUserModalOpen, 
+    openCreateUserModal, 
+    closeCreateUserModal 
+  } = useUserStore();
+
   const handleClearSearch = () => {
     handleSearch('');
   };
@@ -35,6 +45,15 @@ function UsersList({ isDarkMode }) {
             <h1 className="text-2xl font-bold text-primary">Пользователи</h1>
             
             <div className="flex items-center gap-3">
+              <button 
+                onClick={openCreateUserModal}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg flex items-center gap-2 ${
+                  isDarkMode ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'
+                }`}
+              >
+                <UserPlus size={16} />
+                Создать пользователя
+              </button>
               <SearchBar 
                 searchQuery={searchQuery} 
                 onSearch={handleSearch} 
@@ -79,6 +98,13 @@ function UsersList({ isDarkMode }) {
           )}
         </div>
       </div>
+
+      {/* Модалка создания пользователя */}
+      <CreateUserModal
+        isOpen={isCreateUserModalOpen}
+        onClose={closeCreateUserModal}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 }

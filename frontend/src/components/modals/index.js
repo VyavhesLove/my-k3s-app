@@ -4,4 +4,5 @@ export { ConfirmTMCModal } from './ConfirmTMCModal';
 export { TransferModal } from './TransferModal';
 export { BrigadeModal } from './BrigadeModal';
 export { HistoryModal } from './HistoryModal';
+export { CreateUserModal } from './CreateUserModal';
 

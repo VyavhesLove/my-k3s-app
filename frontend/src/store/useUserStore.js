@@ -7,6 +7,73 @@ export const useUserStore = create((set, get) => ({
   users: [],
   usersLoading: false,
 
+  // === МОДАЛКА СОЗДАНИЯ ПОЛЬЗОВАТЕЛЯ ===
+  isCreateUserModalOpen: false,
+
+  // Открыть модалку создания пользователя
+  openCreateUserModal: () => set({ isCreateUserModalOpen: true }),
+  
+  // Закрыть модалку создания пользователя
+  closeCreateUserModal: () => set({ isCreateUserModalOpen: false }),
+
+  // Создание пользователя
+  createUser: async (userData) => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      if (!token) {
+        throw new Error('Нет токена авторизации');
+      }
+
+      const response = await api.post('/users/create/', userData);
+      
+      // Парсинг ответа
+      let newUser = null;
+      let success = false;
+
+      // Вариант 1: { success: true, data: {...}, message: "..." }
+      if (response.data?.success && response.data?.data) {
+        newUser = response.data.data;
+        success = true;
+      }
+      // Вариант 2: прямой ответ с данными пользователя
+      else if (response.data?.id) {
+        newUser = response.data;
+        success = true;
+      }
+
+      if (success && newUser) {
+        // Добавляем нового пользователя в начало списка
+        get().addUserToTop(newUser);
+        
+        toast.success('✅ Пользователь успешно создан', {
+          description: response.data?.message || `Пользователь ${newUser.username} добавлен`,
+          duration: 3000,
+        });
+        
+        return { success: true, user: newUser };
+      }
+      
+      throw new Error(response.data?.error || 'Не удалось создать пользователя');
+
+    } catch (err) {
+      const errorMessage = err.response?.data?.error 
+        || err.response?.data?.details 
+        || err.message 
+        || 'Ошибка создания пользователя';
+      
+      toast.error('❌ Не удалось создать пользователя', {
+        description: errorMessage,
+        duration: 5000,
+      });
+      
+      return { 
+        success: false, 
+        error: errorMessage,
+        details: err.response?.data?.details 
+      };
+    }
+  },
+
   // Универсальная функция обновления списка пользователей
   refreshUsers: async (params = {}) => {
     set({ usersLoading: true });

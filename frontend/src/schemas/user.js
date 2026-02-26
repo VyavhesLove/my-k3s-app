@@ -33,14 +33,18 @@ export const profileSchema = z.object({
 });
 
 /**
- * Схема создания пользователя (если потребуется)
+ * Схема создания пользователя
  */
 export const userCreateSchema = z.object({
   username: minString(3, 'Логин'),
-  password: minString(8, 'Пароль'),
   email: emailSchema,
   first_name: z.string().optional(),
   last_name: z.string().optional(),
-  role: z.enum(['admin', 'manager', 'user']).optional(),
+  role: z.enum(['admin', 'storekeeper', 'foreman']).optional(),
+  password: minString(8, 'Пароль'),
+  confirm_password: requiredString('Подтверждение пароля'),
+}).refine((data) => data.password === data.confirm_password, {
+  message: 'Пароли не совпадают',
+  path: ['confirm_password'],
 });
 

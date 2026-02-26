@@ -8,7 +8,40 @@ from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
+from .serializers import CreateUserSerializer, UserResponseSerializer
 from .models_session import UserSession
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_user(request):
+    """
+    Создание нового пользователя.
+    Доступно только для администраторов.
+    """
+    # Проверяем, что пользователь - админ
+    if not request.user.is_admin():
+        return Response(
+            {'success': False, 'error': 'Доступ запрещён. Только администраторы могут создавать пользователей.'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    serializer = CreateUserSerializer(data=request.data)
+    
+    if serializer.is_valid():
+        user = serializer.save()
+        
+        return Response({
+            'success': True,
+            'message': 'Пользователь успешно создан',
+            'data': UserResponseSerializer(user).data
+        }, status=status.HTTP_201_CREATED)
+    
+    return Response({
+        'success': False,
+        'error': 'Ошибка валидации',
+        'details': serializer.errors
+    }, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
