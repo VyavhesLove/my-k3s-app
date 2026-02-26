@@ -38,12 +38,19 @@ def user_list(request):
     
     # Поиск - по конкретному полю или по всем полям
     if search:
-        if search_field and search_field in ['username', 'email', 'first_name', 'last_name']:
-            # Поиск по конкретному полю (приводим к lowercase)
-            filter_kwargs = {f'{search_field}__icontains': search.lower()}
-            queryset = queryset.filter(**filter_kwargs)
+        if search_field == 'full_name':
+            # Поиск по ФИО (имя + фамилия)
+            queryset = queryset.filter(
+                Q(first_name__icontains=search.lower()) |
+                Q(last_name__icontains=search.lower())
+            )
+        elif search_field in ['username', 'email']:
+            # Поиск по конкретному полю
+            queryset = queryset.filter(
+                **{f'{search_field}__icontains': search.lower()}
+            )
         else:
-            # Поиск по всем полям (общий поиск, приводим к lowercase)
+            # Поиск по всем полям (общий поиск)
             queryset = queryset.filter(
                 Q(username__icontains=search.lower()) |
                 Q(email__icontains=search.lower()) |
