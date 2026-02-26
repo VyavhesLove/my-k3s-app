@@ -36,42 +36,47 @@ def user_list(request):
     # Базовый queryset
     queryset = User.objects.all()
     
-    # Поиск - по конкретному полю или по всем полям
-    if search:
-        if search_field == 'full_name':
-            # Поиск по ФИО (имя + фамилия)
-            queryset = queryset.filter(
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search)
-            )
-        elif search_field in ['username', 'email', 'first_name', 'last_name']:
-            # Поиск по конкретному полю
-            queryset = queryset.filter(
-                **{f'{search_field}__icontains': search}
-            )
-        else:
-            # Поиск по всем полям (общий поиск)
-            queryset = queryset.filter(
-                Q(username__icontains=search) |
-                Q(email__icontains=search) |
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search)
-            )
-    
     # Фильтр по роли (может быть несколько ролей через запятую)
     if role:
         roles_list = [r.strip() for r in role.split(',') if r.strip()]
         if roles_list:
             queryset = queryset.filter(role__in=roles_list)
     
-    # Сортировка по username
-    queryset = queryset.order_by('username')
+    # Сортируем и получаем все записи
+    users_pool = list(queryset.order_by('username'))
+    
+    # Поиск по Unicode выполняем в Python через casefold,
+    # чтобы не зависеть от ограничений колляции/LIKE в SQLite для кириллицы.
+    if search:
+        search_casefold = search.casefold()
+
+        def field_matches(value):
+            return search_casefold in (value or '').casefold()
+
+        if search_field == 'full_name':
+            users_pool = [
+                u for u in users_pool
+                if field_matches(u.first_name) or field_matches(u.last_name)
+            ]
+        elif search_field in ['username', 'email', 'first_name', 'last_name']:
+            users_pool = [
+                u for u in users_pool
+                if field_matches(getattr(u, search_field, ''))
+            ]
+        else:
+            users_pool = [
+                u for u in users_pool
+                if field_matches(u.username)
+                or field_matches(u.email)
+                or field_matches(u.first_name)
+                or field_matches(u.last_name)
+            ]
     
     # Пагинация
-    total_count = queryset.count()
+    total_count = len(users_pool)
     start = (page - 1) * page_size
     end = start + page_size
-    users_data = queryset[start:end]
+    users_data = users_pool[start:end]
     
     # Формируем ответ
     users = []

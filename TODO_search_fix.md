@@ -89,7 +89,7 @@ const newFilters = key === 'role' ? value : (value ? value : '');
 ## Порядок выполнения
 
 1. ✅ Анализ проведён
-2. ✅ Исправлен backend (`users/views.py`) - добавлено first_name/last_name, убран .lower()
+2. ✅ Исправлен backend (`users/views.py`) - переделана логика поиска: сначала получаем все записи, затем фильтруем через Python casefold()
 3. ✅ Исправлен frontend (`useUsers.js`, `useUserStore.js`) - убран toLowerCase и двойной debounce, добавлена синхронизация с store
 4. ⬜ Протестировать
 
