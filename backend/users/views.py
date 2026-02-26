@@ -44,10 +44,10 @@ def user_list(request):
                 Q(first_name__icontains=search.lower()) |
                 Q(last_name__icontains=search.lower())
             )
-        elif search_field in ['username', 'email']:
+        elif search_field in ['username', 'email', 'first_name', 'last_name']:
             # Поиск по конкретному полю
             queryset = queryset.filter(
-                **{f'{search_field}__icontains': search.lower()}
+                **{f'{search_field}__icontains': search}
             )
         else:
             # Поиск по всем полям (общий поиск)

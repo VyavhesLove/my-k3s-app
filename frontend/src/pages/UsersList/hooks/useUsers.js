@@ -41,7 +41,7 @@ export const useUsers = (isDarkMode) => {
       if (params.page_size) urlParams.append('page_size', params.page_size);
       
       if (search && search.trim().length > 0) {
-        urlParams.append('search', search.trim().toLowerCase());
+        urlParams.append('search', search.trim());
       }
       
       if (search_field) {
@@ -128,7 +128,7 @@ export const useUsers = (isDarkMode) => {
 
   // Изменение фильтра - для текстовых полей используем debounce
   const handleFilterChange = useCallback((key, value) => {
-    const newFilters = key === 'role' ? value : (value ? value.toLowerCase() : '');
+    const newFilters = key === 'role' ? value : (value ? value : '');
     setFilters(prev => ({ ...prev, [key]: newFilters }));
     
     const columnSearchFields = ['username', 'email', 'first_name', 'last_name'];
@@ -140,30 +140,24 @@ export const useUsers = (isDarkMode) => {
     
     setCurrentPage(1);
     
-    // Для текстовых полей (поиск по колонкам) используем debounce
+    // Для текстовых полей (поиск по колонкам) - без debounce (он уже есть в TableHeader)
     if (columnSearchFields.includes(key)) {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
+      const state = useUserStore.getState();
+      const currentFilters = state.filters;
+      const currentRole = currentFilters.role;
+      const currentSearchField = state.searchField;
       
-      debounceRef.current = setTimeout(() => {
-        const state = useUserStore.getState();
-        const currentFilters = state.filters;
-        const currentRole = currentFilters.role;
-        const currentSearchField = state.searchField;
-        
-        const columnSearch = currentSearchField ? currentFilters[currentSearchField] : '';
-        const globalSearch = searchQuery;
-        const searchValue = columnSearch || globalSearch;
-        
-        refreshUsers({
-          page: 1, 
-          page_size: state.pageSize || pageSize,
-          search: searchValue ? searchValue.trim() : '',
-          search_field: currentSearchField,
-          role: Array.isArray(currentRole) ? currentRole : []
-        });
-      }, 300);
+      const columnSearch = currentSearchField ? currentFilters[currentSearchField] : '';
+      const globalSearch = searchQuery;
+      const searchValue = columnSearch || globalSearch;
+      
+      refreshUsers({
+        page: 1, 
+        page_size: state.pageSize || pageSize,
+        search: searchValue ? searchValue.trim() : '',
+        search_field: currentSearchField,
+        role: Array.isArray(currentRole) ? currentRole : []
+      });
     } else {
       // Для role и других нетекстовых фильтров - сразу
       const state = useUserStore.getState();
