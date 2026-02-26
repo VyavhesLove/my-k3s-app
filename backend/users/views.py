@@ -41,8 +41,8 @@ def user_list(request):
         if search_field == 'full_name':
             # Поиск по ФИО (имя + фамилия)
             queryset = queryset.filter(
-                Q(first_name__icontains=search.lower()) |
-                Q(last_name__icontains=search.lower())
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
             )
         elif search_field in ['username', 'email', 'first_name', 'last_name']:
             # Поиск по конкретному полю
@@ -52,10 +52,10 @@ def user_list(request):
         else:
             # Поиск по всем полям (общий поиск)
             queryset = queryset.filter(
-                Q(username__icontains=search.lower()) |
-                Q(email__icontains=search.lower()) |
-                Q(first_name__icontains=search.lower()) |
-                Q(last_name__icontains=search.lower())
+                Q(username__icontains=search) |
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
             )
     
     # Фильтр по роли (может быть несколько ролей через запятую)

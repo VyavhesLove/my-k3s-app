@@ -89,7 +89,7 @@ const newFilters = key === 'role' ? value : (value ? value : '');
 ## Порядок выполнения
 
 1. ✅ Анализ проведён
-2. ✅ Исправить backend (`users/views.py`) - добавлено first_name/last_name, убран .lower()
-3. ✅ Исправить frontend (`useUsers.js`) - убран toLowerCase и двойной debounce
+2. ✅ Исправлен backend (`users/views.py`) - добавлено first_name/last_name, убран .lower()
+3. ✅ Исправлен frontend (`useUsers.js`, `useUserStore.js`) - убран toLowerCase и двойной debounce, добавлена синхронизация с store
 4. ⬜ Протестировать
 

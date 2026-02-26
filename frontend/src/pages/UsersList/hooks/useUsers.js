@@ -16,6 +16,7 @@ export const useUsers = (isDarkMode) => {
     setPageSize,
     setFilters,
     setSearchField,
+    setSearchQuery: setSearchQueryInStore,
   } = useUserStore();
 
   // Локальное состояние для поиска - как в InventoryList
@@ -98,14 +99,16 @@ export const useUsers = (isDarkMode) => {
     setFilters({ role: [] });
     setSearchQuery('');
     setSearchField('');
+    setSearchQuery('');
     setCurrentPage(1);
     refreshUsers({ page: 1, page_size: pageSize });
-  }, [pageSize, refreshUsers, setFilters, setSearchQuery, setSearchField, setCurrentPage]);
+  }, [pageSize, refreshUsers, setFilters, setSearchField, setCurrentPage, setSearchQuery]);
 
   // Функция поиска - с debounce как в TableHeader
   const handleSearch = useCallback((query) => {
     // Сразу обновляем локальное состояние - фокус не теряется
     setSearchQuery(query);
+    setSearchQueryInStore(query);
     setSearchField('');
     setCurrentPage(1);
     
@@ -124,7 +127,7 @@ export const useUsers = (isDarkMode) => {
         role: state.filters.role
       });
     }, 300);
-  }, [pageSize, refreshUsers, setCurrentPage, setSearchQuery, setSearchField]);
+  }, [pageSize, refreshUsers, setCurrentPage, setSearchField, setSearchQueryInStore]);
 
   // Изменение фильтра - для текстовых полей используем debounce
   const handleFilterChange = useCallback((key, value) => {
@@ -143,19 +146,13 @@ export const useUsers = (isDarkMode) => {
     // Для текстовых полей (поиск по колонкам) - без debounce (он уже есть в TableHeader)
     if (columnSearchFields.includes(key)) {
       const state = useUserStore.getState();
-      const currentFilters = state.filters;
-      const currentRole = currentFilters.role;
-      const currentSearchField = state.searchField;
-      
-      const columnSearch = currentSearchField ? currentFilters[currentSearchField] : '';
-      const globalSearch = searchQuery;
-      const searchValue = columnSearch || globalSearch;
+      const currentRole = state.filters.role;
       
       refreshUsers({
         page: 1, 
         page_size: state.pageSize || pageSize,
-        search: searchValue ? searchValue.trim() : '',
-        search_field: currentSearchField,
+        search: newFilters ? newFilters.trim() : '',
+        search_field: key,
         role: Array.isArray(currentRole) ? currentRole : []
       });
     } else {
@@ -179,7 +176,7 @@ export const useUsers = (isDarkMode) => {
         role: Array.isArray(currentRole) ? currentRole : []
       });
     }
-  }, [pageSize, refreshUsers, setFilters, setSearchField, setCurrentPage, searchQuery]);
+  }, [pageSize, refreshUsers, setFilters, setSearchField, setCurrentPage]);
 
   // Клик по заголовку для сортировки
   const handleSortClick = useCallback((key) => {

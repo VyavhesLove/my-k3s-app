@@ -28,9 +28,9 @@ export const useUserStore = create((set, get) => ({
       if (params.page) urlParams.append('page', params.page);
       if (params.page_size) urlParams.append('page_size', params.page_size);
       
-      // Поиск - только если есть непустое значение (приводим к lowercase)
+      // Поиск - только если есть непустое значение
       if (search && search.trim().length > 0) {
-        urlParams.append('search', search.trim().toLowerCase());
+        urlParams.append('search', search.trim());
       }
       
       // Поле для поиска (если указано - ищем по конкретному полю)
