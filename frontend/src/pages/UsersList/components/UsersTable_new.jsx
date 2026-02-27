@@ -30,7 +30,8 @@ export const UsersTable = ({
   isDarkMode,
   sortConfig,
   handleSortClick,
-  onClearSearch
+  onClearSearch,
+  onUserClick
 }) => {
   if (usersLoading) {
     return <TableSkeleton columns={6} rows={pageSize} />
@@ -277,8 +278,9 @@ export const UsersTable = ({
               {users.map((user, index) => (
                 <div 
                   key={user.id} 
-                  className="flex border-b items-center hover:bg-blue-500/5"
+                  className="flex border-b items-center hover:bg-blue-500/5 cursor-pointer transition-colors"
                   style={{ borderColor: 'var(--table-border)' }}
+                  onClick={() => onUserClick && onUserClick(user)}
                 >
                   <div className="w-12 px-4 py-4 text-xs font-medium flex-shrink-0">
                     {(currentPage - 1) * pageSize + index + 1}

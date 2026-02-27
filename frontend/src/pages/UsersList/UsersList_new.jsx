@@ -1,10 +1,12 @@
 import { RefreshCw, UserPlus } from 'lucide-react';
 import SearchBar from '@/components/inventory/SearchBar';
 import UsersTable_new from './components/UsersTable_new';
+import UserDetailPanel from '@/components/UserDetailPanel';
 import { useUsers } from './hooks/useUsers';
 import Pagination from '@/components/inventory/Pagination';
 import { useUserStore } from '@/store/useUserStore';
 import { CreateUserModal } from '@/components/modals/CreateUserModal';
+import { useState } from 'react';
 
 function UsersList_new({ isDarkMode }) {
   const {
@@ -31,6 +33,18 @@ function UsersList_new({ isDarkMode }) {
     openCreateUserModal, 
     closeCreateUserModal 
   } = useUserStore();
+
+  // Состояние для выбранного пользователя (панель деталей)
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  // Обработчики для панели деталей пользователя
+  const handleUserClick = (user) => {
+    setSelectedUser(user);
+  };
+
+  const handleCloseUserDetail = () => {
+    setSelectedUser(null);
+  };
 
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: 'var(--main-bg)' }}>
@@ -84,6 +98,7 @@ function UsersList_new({ isDarkMode }) {
             sortConfig={sortConfig}
             handleSortClick={handleSortClick}
             onClearSearch={() => handleSearch('')}
+            onUserClick={handleUserClick}
           />
         </div>
       </main>
@@ -111,6 +126,13 @@ function UsersList_new({ isDarkMode }) {
       <CreateUserModal
         isOpen={isCreateUserModalOpen}
         onClose={closeCreateUserModal}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* Панель деталей пользователя */}
+      <UserDetailPanel
+        user={selectedUser}
+        onClose={handleCloseUserDetail}
         isDarkMode={isDarkMode}
       />
     </div>
