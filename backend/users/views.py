@@ -120,7 +120,9 @@ def user_list(request):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'surname': user.surname,
             'role': user.role,
+            'active': user.active,
             'is_active': user.is_active,
             'date_joined': user.date_joined.isoformat() if user.date_joined else None,
             'last_login': user.last_login.isoformat() if user.last_login else None,
@@ -166,6 +168,8 @@ def get_current_user(request):
         'role': getattr(user, 'role', 'user'),
         'first_name': user.first_name,
         'last_name': user.last_name,
+        'surname': user.surname,
+        'active': user.active,
         'last_activity': last_activity.isoformat() if last_activity else None,
         'date_joined': user.date_joined.isoformat() if user.date_joined else None,
         'active_sessions_count': active_sessions.count(),
@@ -314,6 +318,7 @@ def update_profile(request):
     """
     first_name = request.data.get('first_name', '').strip()
     last_name = request.data.get('last_name', '').strip()
+    surname = request.data.get('surname', '').strip()
     email = request.data.get('email', '').strip()
     
     user = request.user
@@ -322,6 +327,8 @@ def update_profile(request):
         user.first_name = first_name
     if last_name:
         user.last_name = last_name
+    if surname:
+        user.surname = surname
     if email:
         # Проверка уникальности email
         from django.contrib.auth import get_user_model
@@ -344,6 +351,7 @@ def update_profile(request):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
+            'surname': user.surname,
         }
     })
 

@@ -15,7 +15,9 @@ class CreateUserSerializer(serializers.Serializer):
     - email: обязательное, уникальное  
     - first_name: имя
     - last_name: фамилия
+    - surname: отчество
     - role: роль пользователя
+    - active: активен
     - password: пароль
     - confirm_password: подтверждение пароля
     """
@@ -40,10 +42,20 @@ class CreateUserSerializer(serializers.Serializer):
         allow_blank=True,
         help_text="Фамилия"
     )
+    surname = serializers.CharField(
+        max_length=150,
+        required=False,
+        allow_blank=True,
+        help_text="Отчество"
+    )
     role = serializers.ChoiceField(
         choices=UserRole.choices,
         default=UserRole.FOREMAN,
         help_text="Роль пользователя"
+    )
+    active = serializers.BooleanField(
+        default=True,
+        help_text="Активен"
     )
     password = serializers.CharField(
         write_only=True,
@@ -93,7 +105,9 @@ class CreateUserSerializer(serializers.Serializer):
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
+            surname=validated_data.get('surname', ''),
             role=validated_data.get('role', UserRole.FOREMAN),
+            active=validated_data.get('active', True),
         )
         
         return user
@@ -105,6 +119,6 @@ class UserResponseSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'date_joined']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'surname', 'role', 'active', 'is_active', 'date_joined']
         read_only_fields = fields
 

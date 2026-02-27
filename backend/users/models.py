@@ -30,6 +30,15 @@ class User(AbstractUser):
         db_index=True,
         verbose_name="Роль"
     )
+    surname = models.CharField(
+        max_length=150,
+        blank=True,
+        verbose_name="Отчество"
+    )
+    active = models.BooleanField(
+        default=True,
+        verbose_name="Активен"
+    )
 
     class Meta(AbstractUser.Meta):
         verbose_name = "Пользователь"
