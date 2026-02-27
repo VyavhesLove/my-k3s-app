@@ -1,6 +1,8 @@
-import React from 'react';
-import { X, Lock, Key, Users, LogOut } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Lock, Key, Users, LogOut, RefreshCw } from 'lucide-react';
 import { getRoleText } from '@/utils/role';
+import { toggleUserBlock } from '@/api/userApi';
+import { toast } from 'sonner';
 
 // Стили для ролей (как в UsersTable_new)
 const getRoleStyles = (role, isDarkMode) => {
@@ -18,13 +20,31 @@ const getRoleStyles = (role, isDarkMode) => {
   return styles[role] || (isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-gray-100 text-gray-500');
 };
 
-const UserDetailPanel = ({ user, onClose, isDarkMode }) => {
+const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
   const isOpen = !!user;
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Обработчики-заполнители для кнопок действий
-  const handleBlockUnblock = () => {
-    console.log('Нажата кнопка: Заблокировать/Разблокировать пользователя', user?.id);
-    // TODO: Интеграция с API - заблокировать/разблокировать пользователя
+  // Обработчик блокировки/разблокировки пользователя
+  const handleBlockUnblock = async () => {
+    if (!user || isLoading) return;
+    
+    setIsLoading(true);
+    try {
+      const result = await toggleUserBlock(user.id);
+      
+      if (result.success) {
+        toast.success(result.message);
+        // Обновляем данные пользователя через callback
+        if (onUserUpdate) {
+          onUserUpdate(result.user);
+        }
+      }
+    } catch (error) {
+      const errorMessage = error?.error || 'Произошла ошибка при изменении статуса пользователя';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResetPassword = () => {
@@ -81,18 +101,18 @@ const UserDetailPanel = ({ user, onClose, isDarkMode }) => {
 
             {/* Индикатор статуса пользователя */}
             <div className={`p-3 rounded-xl flex items-center gap-2 text-sm ${
-              user.is_active 
+              user.active 
                 ? (isDarkMode ? 'bg-green-500/20 border border-green-500/30' : 'bg-green-50 border border-green-200')
                 : (isDarkMode ? 'bg-red-500/20 border border-red-500/30' : 'bg-red-50 border border-red-200')
             }`}>
               <Lock 
-                className={user.is_active 
+                className={user.active 
                   ? (isDarkMode ? 'text-green-400' : 'text-green-600')
                   : (isDarkMode ? 'text-red-400' : 'text-red-600')
                 } 
                 size={16} 
               />
-              <span className={user.is_active 
+              <span className={user.active 
                 ? (isDarkMode ? 'text-green-400' : 'text-green-600')
                 : (isDarkMode ? 'text-red-400' : 'text-red-600')
               }>
@@ -115,18 +135,23 @@ const UserDetailPanel = ({ user, onClose, isDarkMode }) => {
             {/* Кнопка Заблокировать/Разблокировать */}
             <button
               onClick={handleBlockUnblock}
+              disabled={isLoading}
               className={`w-full py-3 px-4 flex items-center justify-center gap-2 rounded-xl font-medium transition-all active:scale-95 ${
-                user.is_active 
+                user.active 
                   ? (isDarkMode 
                       ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30' 
                       : 'bg-red-100 text-red-700 border border-red-200 hover:bg-red-200')
                   : (isDarkMode 
                       ? 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30' 
                       : 'bg-green-100 text-green-700 border border-green-200 hover:bg-green-200')
-              }`}
+              } ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <Lock size={18} />
-              {user.is_active ? 'Заблокировать пользователя' : 'Разблокировать пользователя'}
+              {isLoading ? (
+                <RefreshCw size={18} className="animate-spin" />
+              ) : (
+                <Lock size={18} />
+              )}
+              {user.active ? 'Заблокировать пользователя' : 'Разблокировать пользователя'}
             </button>
 
             {/* Кнопка Сброс пароля */}

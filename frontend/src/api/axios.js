@@ -81,7 +81,8 @@ api.interceptors.response.use(
             try {
                 const refreshToken = localStorage.getItem('refreshToken');
                 // ✅ Используем refreshApi для обновления токена (без интерцепторов)
-                const res = await refreshApi.post('token/refresh/', {
+                // ⚠️ Изменено: /api/users/token/refresh/ (было /api/token/refresh/)
+                const res = await refreshApi.post('users/token/refresh/', {
                     refresh: refreshToken,
                 });
 

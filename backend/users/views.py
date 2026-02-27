@@ -396,6 +396,78 @@ def update_profile(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def toggle_user_block(request, user_id):
+    """
+    Блокировка/разблокировка пользователя.
+    Проверка: нельзя заблокировать последнего администратора.
+    """
+    User = get_user_model()
+    
+    # Проверяем, что пользователь - админ
+    if not request.user.is_admin():
+        return Response(
+            {'success': False, 'error': 'Доступ запрещён'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Получаем пользователя для блокировки
+    try:
+        target_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response(
+            {'success': False, 'error': 'Пользователь не найден'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Нельзя заблокировать самого себя
+    if target_user.id == request.user.id:
+        return Response(
+            {'success': False, 'error': 'Нельзя заблокировать самого себя'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Если блокируем пользователя (is_active = False)
+    if target_user.is_active:
+        # Проверяем, не последний ли это админ
+        if target_user.is_admin():
+            admin_count = User.objects.filter(role='admin', is_active=True).count()
+            if admin_count <= 1:
+                return Response(
+                    {'success': False, 'error': 'Это последний пользователь с ролью администратор, его нельзя заблокировать'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        target_user.is_active = False
+        target_user.save()
+        
+        return Response({
+            'success': True,
+            'message': f'Пользователь {target_user.username} заблокирован',
+            'user': {
+                'id': target_user.id,
+                'username': target_user.username,
+                'is_active': target_user.is_active,
+            }
+        })
+    
+    # Если разблокируем пользователя (is_active = True)
+    else:
+        target_user.is_active = True
+        target_user.save()
+        
+        return Response({
+            'success': True,
+            'message': f'Пользователь {target_user.username} разблокирован',
+            'user': {
+                'id': target_user.id,
+                'username': target_user.username,
+                'is_active': target_user.is_active,
+            }
+        })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def create_session(request):
     """
     Создание записи о сессии пользователя.

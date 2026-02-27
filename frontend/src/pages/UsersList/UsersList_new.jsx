@@ -1,6 +1,6 @@
 import { RefreshCw, UserPlus } from 'lucide-react';
 import SearchBar from '@/components/inventory/SearchBar';
-import UsersTable_new from './components/UsersTable_new';
+import UsersTable from './components/UsersTable_new';
 import UserDetailPanel from '@/components/UserDetailPanel';
 import { useUsers } from './hooks/useUsers';
 import Pagination from '@/components/inventory/Pagination';
@@ -37,11 +37,20 @@ function UsersList_new({ isDarkMode }) {
   // Состояние для выбранного пользователя (панель деталей)
   const [selectedUser, setSelectedUser] = useState(null);
 
-  // Обработчики для панели деталей пользователя
+  // Обработчик обновления данных пользователя (из панели деталей)
+  const handleUserUpdate = (updatedUser) => {
+    // Обновляем пользователя в store
+    useUserStore.getState().updateUserLocally(updatedUser);
+    // Также обновляем локальное состояние выбранного пользователя
+    setSelectedUser(prev => prev ? { ...prev, ...updatedUser } : null);
+  };
+
+  // Обработчик клика на пользователя - открытие панели деталей
   const handleUserClick = (user) => {
     setSelectedUser(user);
   };
 
+  // Обработчик закрытия панели деталей пользователя
   const handleCloseUserDetail = () => {
     setSelectedUser(null);
   };
@@ -87,7 +96,7 @@ function UsersList_new({ isDarkMode }) {
       {/* Контент - таблица */}
       <main className="flex-1 overflow-auto p-4">
         <div className="max-w-7xl mx-auto">
-          <UsersTable_new 
+          <UsersTable
             users={users}
             usersLoading={usersLoading}
             currentPage={currentPage}
