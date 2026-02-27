@@ -50,13 +50,51 @@ const LoginPage = ({ setToken, isDarkMode }) => {
       navigate('/'); // Редирект на главную
     } catch (err) {
       console.error('Login error:', err);
+      console.error('Response data:', err.response?.data);
       
-      // ❌ ОШИБКА ВХОДА
-      toast.error('❌ Ошибка входа', {
-        description: 'Неверный логин или пароль',
-      });
+      // Проверяем, не заблокирован ли пользователь
+      // Проверяем разные форматы ошибки
+      const errorData = err.response?.data;
+      let errorMessage = '';
       
-      setError('Неверный логин или пароль');
+      if (errorData) {
+        // Новый формат от exception handler: {success: false, error: "..."}
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+        // Старый формат: non_field_errors
+        else if (Array.isArray(errorData.non_field_errors)) {
+          errorMessage = errorData.non_field_errors[0];
+        } else if (typeof errorData.non_field_errors === 'string') {
+          errorMessage = errorData.non_field_errors;
+        } else if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      }
+      
+      // Для отладки - выводим сообщение
+      // console.log('Extracted error message:', errorMessage);
+      
+      if (errorMessage && errorMessage.includes('заблокирован')) {
+        toast.error('Пользователь заблокирован');
+        setError('Пользователь заблокирован');
+      } else if (errorMessage && errorMessage.includes('No active user')) {
+        // Это сообщение от SimpleJWT - проверяем отдельно
+        toast.error('Пользователь заблокирован');
+        setError('Пользователь заблокирован');
+      } else if (errorMessage) {
+        // Другая ошибка от сервера
+        toast.error('Ошибка входа', { description: errorMessage });
+        setError(errorMessage);
+      } else {
+        // ❌ ОШИБКА ВХОДА
+        toast.error('❌ Ошибка входа', {
+          description: 'Неверный логин или пароль',
+        });
+        setError('Неверный логин или пароль');
+      }
     }
   };
 

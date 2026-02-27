@@ -1,15 +1,53 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, serializers
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth import get_user_model
 from django.db.models import Q
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .serializers import CreateUserSerializer, UserResponseSerializer
 from .models_session import UserSession
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Кастомный сериализатор для получения токена.
+    Проверяет, что пользователь активен (active).
+    Возвращает корректное сообщение "Пользователь заблокирован" вместо стандартного
+    "Invalid username or password" если пользователь неактивен.
+    """
+    def validate(self, attrs):
+        User = get_user_model()
+        username = attrs.get('username')
+        
+        # Если есть username - проверяем пользователя
+        if username:
+            try:
+                user = User.objects.get(username=username)
+                # Проверяем active перед аутентификацией
+                if not user.active:
+                    raise serializers.ValidationError({
+                        'non_field_errors': ['Пользователь заблокирован']
+                    })
+            except User.DoesNotExist:
+                # Если пользователя не существует - пропускаем
+                pass
+        
+        # Вызываем стандартную валидацию (которая сгенерирует токен)
+        return super().validate(attrs)
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """
+    Кастомное представление для получения токена.
+    Проверяет active перед выдачей токена.
+    """
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 @api_view(['POST'])

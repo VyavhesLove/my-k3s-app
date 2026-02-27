@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner';
 
 // Создаем экземпляр axios с базовыми настройками
 const api = axios.create({
@@ -62,6 +63,13 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
+        // Проверяем на ошибку блокировки пользователя
+        if (error.response?.status === 400 &&
+            error.response?.data?.non_field_errors?.includes('Пользователь заблокирован')) {
+            toast.error('Пользователь заблокирован');
+            return Promise.reject(error);
+        }
+
         // Если ошибка 401 и мы еще не пробовали обновиться (_retry)
         if (error.response.status === 401 && !originalRequest._retry) {
             // Если мы на странице логина — не пытаемся обновить токен, просто пробрасываем ошибку
@@ -69,7 +77,7 @@ api.interceptors.response.use(
                 return Promise.reject(error);
             }
             originalRequest._retry = true;
-            
+
             try {
                 const refreshToken = localStorage.getItem('refreshToken');
                 // ✅ Используем refreshApi для обновления токена (без интерцепторов)

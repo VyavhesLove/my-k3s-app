@@ -40,7 +40,16 @@ def custom_exception_handler(exc, context):
         # Получаем текст ошибки
         if hasattr(exc, 'detail'):
             if isinstance(exc.detail, dict):
-                error_text = str(exc.detail)
+                # Проверяем special case - non_field_errors
+                if 'non_field_errors' in exc.detail:
+                    errors = exc.detail['non_field_errors']
+                    if isinstance(errors, list) and len(errors) > 0:
+                        error_text = str(errors[0])
+                    else:
+                        error_text = str(errors)
+                else:
+                    # Форматируем обычные ошибки
+                    error_text = str(exc.detail)
             elif isinstance(exc.detail, list):
                 error_text = ", ".join(str(d) for d in exc.detail)
             else:
