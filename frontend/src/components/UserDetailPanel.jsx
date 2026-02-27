@@ -116,7 +116,7 @@ const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
                 ? (isDarkMode ? 'text-green-400' : 'text-green-600')
                 : (isDarkMode ? 'text-red-400' : 'text-red-600')
               }>
-                {user.is_active ? 'Активен' : 'Заблокирован'}
+                {user.active ? 'Активен' : 'Заблокирован'}
               </span>
             </div>
 

@@ -143,6 +143,7 @@ function UsersList_new({ isDarkMode }) {
         user={selectedUser}
         onClose={handleCloseUserDetail}
         isDarkMode={isDarkMode}
+        onUserUpdate={handleUserUpdate}
       />
     </div>
   );

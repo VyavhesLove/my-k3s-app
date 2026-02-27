@@ -119,7 +119,6 @@ def user_list(request):
             'surname': user.surname,
             'role': user.role,
             'active': user.active,
-            'is_active': user.is_active,
             'date_joined': user.date_joined.isoformat() if user.date_joined else None,
             'last_login': user.last_login.isoformat() if user.last_login else None,
         })
@@ -165,18 +164,18 @@ def toggle_user_block(request, user_id):
             status=status.HTTP_400_BAD_REQUEST
         )
     
-    # Если блокируем пользователя (is_active = False)
-    if target_user.is_active:
+    # Если блокируем пользователя (active = False)
+    if target_user.active:
         # Проверяем, не последний ли это админ
         if target_user.is_admin():
-            admin_count = User.objects.filter(role='admin', is_active=True).count()
+            admin_count = User.objects.filter(role='admin', active=True).count()
             if admin_count <= 1:
                 return Response(
                     {'success': False, 'error': 'Это последний пользователь с ролью администратор, его нельзя заблокировать'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        target_user.is_active = False
+        target_user.active = False
         target_user.save()
         
         return Response({
@@ -185,13 +184,13 @@ def toggle_user_block(request, user_id):
             'user': {
                 'id': target_user.id,
                 'username': target_user.username,
-                'is_active': target_user.is_active,
+                'active': target_user.active,
             }
         })
     
-    # Если разблокируем пользователя (is_active = True)
+    # Если разблокируем пользователя (active = True)
     else:
-        target_user.is_active = True
+        target_user.active = True
         target_user.save()
         
         return Response({
@@ -200,7 +199,7 @@ def toggle_user_block(request, user_id):
             'user': {
                 'id': target_user.id,
                 'username': target_user.username,
-                'is_active': target_user.is_active,
+                'active': target_user.active,
             }
         })
 

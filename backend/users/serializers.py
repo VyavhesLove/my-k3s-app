@@ -119,6 +119,6 @@ class UserResponseSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'surname', 'role', 'active', 'is_active', 'date_joined']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'surname', 'role', 'active', 'date_joined']
         read_only_fields = fields
 
