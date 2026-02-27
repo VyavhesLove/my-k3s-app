@@ -23,5 +23,5 @@ kubectl rollout status deployment react-frontend --timeout=90s
 echo "✨ Прод готов! Проверяй порты."
 kubectl get svc
 
-sudo nerdctl -n k8s.io system prune -a
+# sudo nerdctl -n k8s.io system prune -a
 

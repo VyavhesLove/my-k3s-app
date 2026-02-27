@@ -17,7 +17,7 @@ const ScrapPage = lazy(() => import('@/pages/ScrapPage').then((m) => ({ default:
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 const ForbiddenPage = lazy(() => import('@/pages/ForbiddenPage').then((m) => ({ default: m.ForbiddenPage })));
 const AdminPanel = lazy(() => import('@/pages/AdminPanel').then((m) => ({ default: m.AdminPanel })));
-const UsersList = lazy(() => import('@/pages/UsersList').then((m) => ({ default: m.default })));
+const UsersList_new = lazy(() => import('@/pages/UsersList/UsersList_new').then((m) => ({ default: m.default })));
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -183,14 +183,14 @@ function App() {
                       } 
                     />
                     
-                    {/* Роут для списка пользователей */}
+                    {/* Роут для списка пользователей (TanStack Table v8) */}
                     <Route 
                       path="/admin-panel/users" 
                       element={
                         isLoading ? (
                           <AppLoader />
                         ) : isAdmin ? (
-                          <UsersList isDarkMode={isDarkMode} />
+                          <UsersList_new isDarkMode={isDarkMode} />
                         ) : (
                           <ForbiddenPage isDarkMode={isDarkMode} />
                         )

@@ -231,3 +231,83 @@ else if (Array.isArray(response.data)) {
 - [ ] Нет прямых запросов в useEffect
 - [ ] Методы store покрывают все операции (CRUD, поиск, фильтрация)
 
+---
+
+## 7. TanStack React Table v8
+
+### Установка
+
+Пакет уже установлен в проекте: `@tanstack/react-table@^8`
+
+### Базовая структура
+
+В проекте есть готовая базовая структура для работы с таблицами:
+
+```
+src/
+├── hooks/table/
+│   └── useTableCore.js       # Хук для создания таблицы
+├── components/table/
+│   └── GenericTable.jsx      # Универсальный компонент таблицы
+└── table/
+    └── index.js              # Точка входа для экспорта
+```
+
+### Использование
+
+**1. Импорт:**
+```js
+import { useTableCore, createColumn } from '@/table';
+import GenericTable from '@/components/table/GenericTable';
+```
+
+**2. Создание колонок:**
+```js
+const columns = [
+  createColumn('name', 'Имя'),
+  createColumn('email', 'Email'),
+  createColumn('role', 'Роль', {
+    cell: (info) => <span>{info.getValue()}</span>,
+  }),
+];
+```
+
+**3. Создание таблицы:**
+```js
+const table = useTableCore({
+  data: users,
+  columns,
+  initialState: {
+    sorting: [{ id: 'name', desc: false }],
+    pagination: { pageSize: 20, pageIndex: 0 },
+  },
+});
+```
+
+**4. Использование в компоненте:**
+```jsx
+<GenericTable 
+  table={table} 
+  emptyMessage="Нет пользователей"
+>
+  {/* Здесь можно разместить фильтры, поиск и т.д. */}
+  <SearchBar onSearch={...} />
+</GenericTable>
+```
+
+### Доступные методы table
+
+- `table.getRowModel()` - получить строки таблицы
+- `table.getHeaderGroupModel()` - получить группы заголовков
+- `table.setPageIndex(index)` - перейти на страницу
+- `table.setPageSize(size)` - изменить размер страницы
+- `table.getState()` - получить текущее состояние (сортировка, фильтрация, пагинация)
+- `table.resetSorting()` - сбросить сортировку
+- `table.resetFilters()` - сбросить фильтры
+
+### Когда использовать
+
+- Новые таблицы создавать с использованием TanStack Table
+- Существующие таблицы не менять (пока нет отдельной задачи)
+- Для сложных таблиц с сортировкой, фильтрацией и пагинацией использовать готовую структуру
+

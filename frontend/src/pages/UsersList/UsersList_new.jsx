@@ -1,13 +1,12 @@
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, UserPlus } from 'lucide-react';
 import SearchBar from '@/components/inventory/SearchBar';
-import Pagination from '@/components/inventory/Pagination';
-import UsersTable from './components/UsersTable';
+import UsersTable_new from './components/UsersTable_new';
 import { useUsers } from './hooks/useUsers';
+import Pagination from '@/components/inventory/Pagination';
 import { useUserStore } from '@/store/useUserStore';
 import { CreateUserModal } from '@/components/modals/CreateUserModal';
-import { UserPlus } from 'lucide-react';
 
-function UsersList({ isDarkMode }) {
+function UsersList_new({ isDarkMode }) {
   const {
     users,
     usersLoading,
@@ -17,10 +16,10 @@ function UsersList({ isDarkMode }) {
     pageSize,
     filters,
     searchQuery,
-    sortConfig,
-    resetAllFilters,
     handleSearch,
     handleFilterChange,
+    resetAllFilters,
+    sortConfig,
     handleSortClick,
     onPageChange,
     onPageSizeChange,
@@ -33,13 +32,9 @@ function UsersList({ isDarkMode }) {
     closeCreateUserModal 
   } = useUserStore();
 
-  const handleClearSearch = () => {
-    handleSearch('');
-  };
-
   return (
     <div className="flex flex-col h-screen" style={{ backgroundColor: 'var(--main-bg)' }}>
-      {/* Header с кнопками и поиском */}
+      {/* Header с кнопками */}
       <header className={`p-4 border-b flex flex-col gap-4 flex-shrink-0 ${
         isDarkMode ? 'border-slate-800 bg-slate-900' : 'border-gray-200 bg-white'
       }`}>
@@ -61,7 +56,7 @@ function UsersList({ isDarkMode }) {
               onSearch={handleSearch} 
               isDarkMode={isDarkMode}
             />
-            <button 
+            <button
               onClick={resetAllFilters}
               disabled={usersLoading}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg flex items-center gap-2 ${
@@ -78,17 +73,17 @@ function UsersList({ isDarkMode }) {
       {/* Контент - таблица */}
       <main className="flex-1 overflow-auto p-4">
         <div className="max-w-7xl mx-auto">
-          <UsersTable 
+          <UsersTable_new 
             users={users}
             usersLoading={usersLoading}
             currentPage={currentPage}
             pageSize={pageSize}
-            sortConfig={sortConfig}
             filters={filters}
-            handleSortClick={handleSortClick}
             handleFilterChange={handleFilterChange}
-            onClearSearch={handleClearSearch}
             isDarkMode={isDarkMode}
+            sortConfig={sortConfig}
+            handleSortClick={handleSortClick}
+            onClearSearch={() => handleSearch('')}
           />
         </div>
       </main>
@@ -122,5 +117,5 @@ function UsersList({ isDarkMode }) {
   );
 }
 
-export default UsersList;
+export default UsersList_new;
 

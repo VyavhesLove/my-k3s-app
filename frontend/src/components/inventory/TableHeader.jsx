@@ -59,8 +59,13 @@ const TableHeader = ({
   
   return (
     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b"
-      style={{ borderColor: 'var(--table-border)', color: 'var(--table-text)' }}>
-      <div className="flex flex-col gap-2">
+      style={{ 
+        borderColor: 'var(--table-border)', 
+        color: 'var(--table-text)',
+        verticalAlign: 'middle',
+        position: 'relative'
+      }}>
+      <div className="flex flex-col gap-1">
         <div
           className={`flex items-center gap-1 cursor-pointer hover:text-blue-400 ${sortDirection ? 'text-blue-400' : ''}`}
           onClick={(e) => handleSortClick(sortKey, e)}

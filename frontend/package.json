@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
-"dependencies": {
+  "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
     "axios": "^1.7.2",
     "lucide-react": "^0.474.0",
     "react": "^19.2.0",
