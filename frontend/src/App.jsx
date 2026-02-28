@@ -15,8 +15,10 @@ import { useUserRoleStore } from '@/store/useUserRoleStore';
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
 const ScrapPage = lazy(() => import('@/pages/ScrapPage').then((m) => ({ default: m.ScrapPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
+
 const ForbiddenPage = lazy(() => import('@/pages/ForbiddenPage').then((m) => ({ default: m.ForbiddenPage })));
 const UnauthorizedPage = lazy(() => import('@/pages/UnauthorizedPage').then((m) => ({ default: m.UnauthorizedPage })));
+const ServiceUnavailablePage = lazy(() => import('@/pages/ServiceUnavailablePage'));
 const AdminPanel = lazy(() => import('@/pages/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 const UsersList_new = lazy(() => import('@/pages/UsersList/UsersList_new').then((m) => ({ default: m.default })));
 
@@ -126,9 +128,16 @@ function App() {
           path="/401"
           element={<UnauthorizedPage />}
         />
+
+
+        {/* Тестовые маршруты для проверки страниц ошибок (публичные) */}
+        <Route path="/test/401" element={<UnauthorizedPage />} />
+        <Route path="/test/403" element={<ForbiddenPage />} />
+        <Route path="/test/404" element={<NotFoundPage />} />
+        <Route path="/test/503" element={<ServiceUnavailablePage />} />
         
         {/* Все остальные маршруты - требуют токена */}
-        <Route 
+        <Route
           path="/*" 
           element={
             token ? (

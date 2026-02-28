@@ -24,8 +24,9 @@
 1. Установить django-maintenance-mode
 2. Создать кастомную модель сессий на базе AbstractBaseSession
 3. Настроить maintenance mode в settings
-4. Создать шаблон 503 страницы
+4. Создать шаблон 503 страницы с отображением запланированного времени завершения
 5. Настроить whitelist (IP/пользователи)
+6. Добавить поле `planned_end_time` для отображения запланированного времени завершения работ
 
 ---
 
@@ -116,6 +117,30 @@
   MAINTENANCE_MODE_USE_REDIS = False
   ```
 
+### Этап 3.1: Добавление запланированного времени завершения работ
+
+- [ ] 3.1.1 Добавить поле `planned_end_time` в модель MaintenanceMode (миграция):
+  ```python
+  # Модель уже создаётся django-maintenance-mode, но нужно добавить поле для запланированного времени
+  planned_end_time = models.DateTimeField(null=True, blank=True, verbose_name='Планируемое время завершения')
+  ```
+
+- [ ] 3.1.2 Обновить API endpoint для включения/выключения maintenance mode:
+  ```python
+  # Добавить параметр planned_end_time в POST запрос
+  {
+      "enabled": true,
+      "planned_end_time": "2024-12-25T15:00:00Z"  # опционально
+  }
+  ```
+
+- [ ] 3.1.3 Добавить endpoint для получения статуса maintenance mode:
+  ```python
+  path('api/admin/maintenance/status/', get_maintenance_status, name='get-maintenance-status'),
+  ```
+
+- [ ] 3.1.4 Обновить 503 шаблон для отображения запланированного времени
+
 ### Этап 4: Создание шаблона 503 страницы
 
 - [ ] 4.1 Создать директорию `templates/maintenance/`
@@ -133,6 +158,7 @@
           h1 { color: #e74c3c; }
           p { color: #7f8c8d; }
           .whitelist-notice { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; }
+          .planned-time { background: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; }
       </style>
   </head>
   <body>
@@ -146,6 +172,12 @@
           {% else %}
               <p>Сайт временно недоступен.</p>
               <p>Пожалуйста, вернитесь позже.</p>
+          {% endif %}
+          
+          {% if planned_end_time %}
+              <div class="planned-time">
+                  <p>Планируемое время завершения: <strong>{{ planned_end_time }}</strong></p>
+              </div>
           {% endif %}
       </div>
   </body>
@@ -285,22 +317,56 @@ from rest_framework.response import Response
 def toggle_maintenance(request):
     """
     Включить/выключить режим обслуживания.
+    Пример POST запроса:
+    {
+        "enabled": true,
+        "planned_end_time": "2024-12-25T15:00:00Z"  # опционально
+    }
     """
     from maintenance_mode.models import MaintenanceMode
     
+    enabled = request.data.get('enabled', False)
+    planned_end_time = request.data.get('planned_end_time')  # строка в формате ISO 8601
+    
     # Получаем текущее состояние
-    current = MaintenanceMode.objects.first()
+    maintenance, created = MaintenanceMode.objects.get_or_create(defaults={'enabled': False})
     
-    if current:
-        new_state = not current.enabled
-        current.enabled = new_state
-        current.save()
+    maintenance.enabled = enabled
+    
+    if planned_end_time:
+        from django.utils.dateparse import parse_datetime
+        maintenance.planned_end_time = parse_datetime(planned_end_time)
     else:
-        # Создаём запись если её нет
-        MaintenanceMode.objects.create(enabled=True)
-        new_state = True
+        maintenance.planned_end_time = None
     
-    return Response({'maintenance_mode': new_state})
+    maintenance.save()
+    
+    return Response({
+        'maintenance_mode': maintenance.enabled,
+        'planned_end_time': maintenance.planned_end_time
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def get_maintenance_status(request):
+    """
+    Получить текущий статус режима обслуживания.
+    """
+    from maintenance_mode.models import MaintenanceMode
+    
+    maintenance = MaintenanceMode.objects.first()
+    
+    if maintenance:
+        return Response({
+            'enabled': maintenance.enabled,
+            'planned_end_time': maintenance.planned_end_time
+        })
+    
+    return Response({
+        'enabled': False,
+        'planned_end_time': None
+    })
 ```
 
 ### Views для управления сессиями:
@@ -349,12 +415,13 @@ def user_sessions(request):
 
 ```python
 # users/urls.py
-from .views.maintenance import toggle_maintenance
+from .views.maintenance import toggle_maintenance, get_maintenance_status
 from .views.sessions import user_sessions
 
 urlpatterns = [
     # ... другие url
     path('api/admin/maintenance/toggle/', toggle_maintenance, name='toggle-maintenance'),
+    path('api/admin/maintenance/status/', get_maintenance_status, name='get-maintenance-status'),
     path('api/user/sessions/', user_sessions, name='user-sessions'),
 ]
 
