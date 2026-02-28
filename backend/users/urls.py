@@ -4,7 +4,8 @@ from .views import (
     CustomTokenObtainPairView,
     user_list, create_user, toggle_user_block, reset_user_password,
     get_current_user, update_profile, change_password,
-    get_user_history, get_active_sessions, terminate_session, create_session
+    get_user_history, get_active_sessions, terminate_session, create_session,
+    get_user_sessions, terminate_all_user_sessions, terminate_user_session
 )
 
 app_name = 'users'
@@ -37,5 +38,10 @@ urlpatterns = [
     path('sessions/', get_active_sessions, name='active_sessions_alt'),
     path('sessions/create/', create_session, name='create_session_alt'),
     path('sessions/<int:session_id>/terminate/', terminate_session, name='terminate_session_third'),
+    
+    # Admin sessions endpoints (для управления сессиями пользователей)
+    path('<int:user_id>/sessions/', get_user_sessions, name='user_sessions'),
+    path('<int:user_id>/sessions/terminate-all/', terminate_all_user_sessions, name='terminate_all_user_sessions'),
+    path('<int:user_id>/sessions/<int:session_id>/terminate/', terminate_user_session, name='terminate_user_session'),
 ]
 

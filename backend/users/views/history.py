@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth import get_user_model
 
 # Модель UserSession определена в models_session.py для избежания циклических импортов
 from ..models_session import UserSession
@@ -127,4 +128,115 @@ def create_session(request):
         'success': True,
         'session_id': session.id,
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_sessions(request, user_id):
+    """Возвращает список активных сессий указанного пользователя (для админа)"""
+    # Проверка прав админа
+    if not request.user.is_staff:
+        return Response({'error': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+    
+    User = get_user_model()
+    
+    try:
+        target_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'Пользователь не найден'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Получаем ID текущей сессии из заголовка
+    current_token_id = request.headers.get('X-Session-ID', None)
+    
+    sessions = UserSession.objects.filter(
+        user=target_user,
+        is_active=True
+    ).order_by('-last_activity')
+    
+    sessions_data = []
+    for session in sessions:
+        sessions_data.append({
+            'id': session.id,
+            'user_agent': session.user_agent or 'Неизвестное устройство',
+            'ip_address': session.ip_address,
+            'created_at': session.created_at.isoformat(),
+            'last_activity': session.last_activity.isoformat(),
+            'description': session.description,
+            'is_current': session.token_id == current_token_id,
+        })
+    
+    return Response(sessions_data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def terminate_all_user_sessions(request, user_id):
+    """Завершает все сессии указанного пользователя (для админа)"""
+    # Проверка прав админа
+    if not request.user.is_staff:
+        return Response({'error': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+    
+    User = get_user_model()
+    
+    try:
+        target_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'Пользователь не найден'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Получаем текущую сессию по token_id из заголовка
+    current_token_id = request.headers.get('X-Session-ID', None)
+    
+    sessions = UserSession.objects.filter(
+        user=target_user,
+        is_active=True
+    )
+    
+    # Если передан флаг exclude_current=True - не завершаем текущую сессию
+    exclude_current = request.data.get('exclude_current', False)
+    
+    if exclude_current and current_token_id:
+        sessions = sessions.exclude(token_id=current_token_id)
+    
+    count = sessions.count()
+    sessions.update(is_active=False)
+    
+    return Response({
+        'success': True, 
+        'message': f'Завершено сессий: {count}',
+        'terminated_count': count
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def terminate_user_session(request, user_id, session_id):
+    """Завершает указанную сессию пользователя (для админа)"""
+    # Проверка прав админа
+    if not request.user.is_staff:
+        return Response({'error': 'Доступ запрещён'}, status=status.HTTP_403_FORBIDDEN)
+    
+    User = get_user_model()
+    
+    try:
+        target_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'Пользователь не найден'}, status=status.HTTP_404_NOT_FOUND)
+    
+    try:
+        session = UserSession.objects.get(
+            id=session_id,
+            user=target_user,
+            is_active=True
+        )
+        
+        session.is_active = False
+        session.save()
+        
+        return Response({'success': True, 'message': 'Сессия завершена'})
+    
+    except UserSession.DoesNotExist:
+        return Response(
+            {'error': 'Сессия не найдена или уже завершена'},
+            status=status.HTTP_404_NOT_FOUND
+        )
 

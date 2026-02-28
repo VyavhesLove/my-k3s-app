@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { X, Lock, Key, Users, LogOut, RefreshCw } from 'lucide-react';
+import { X, Lock, Key, Users, RefreshCw } from 'lucide-react';
 import { getRoleText } from '@/utils/role';
 import { toggleUserBlock } from '@/api/userApi';
 import { toast } from 'sonner';
-import { ResetPasswordModal } from './modals';
+import { ResetPasswordModal, SessionsModal } from './modals';
 
 // Стили для ролей (как в UsersTable_new)
 const getRoleStyles = (role, isDarkMode) => {
@@ -25,6 +25,7 @@ const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
   const isOpen = !!user;
   const [isLoading, setIsLoading] = useState(false);
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
 
   // Обработчик блокировки/разблокировки пользователя
   const handleBlockUnblock = async () => {
@@ -54,23 +55,18 @@ const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
   };
 
   const handleSessions = () => {
-    console.log('Нажата кнопка: Сеансы', user?.id);
-    // TODO: Интеграция с API - получить список сеансов
-  };
-
-  const handleLogout = () => {
-    console.log('Нажата кнопка: Выход (принудительно)', user?.id);
-    // TODO: Интеграция с API - принудительный выход пользователя
+    setIsSessionsModalOpen(true);
   };
 
   return (
-    <div 
-      className={`fixed right-0 top-0 h-full w-[400px] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
-        isOpen ? 'translate-x-0' : 'translate-x-full'
-      } ${
-        isDarkMode ? 'bg-slate-900 border-l border-slate-800 text-white' : 'bg-white border-l border-gray-200 text-slate-900'
-      }`}
-    >
+    <>
+      <div 
+        className={`fixed right-0 top-0 h-full w-[400px] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        } ${
+          isDarkMode ? 'bg-slate-900 border-l border-slate-800 text-white' : 'bg-white border-l border-gray-200 text-slate-900'
+        }`}
+      >
       {/* Шапка панели */}
       <div className="p-6 border-b border-gray-200 flex justify-between items-center relative z-10">
         <h2 className="text-xl font-bold uppercase tracking-tight">Информация о пользователе</h2>
@@ -181,19 +177,6 @@ const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
               Сеансы
             </button>
 
-            {/* Кнопка Выход (принудительно) */}
-            <button
-              onClick={handleLogout}
-              className={`w-full py-3 px-4 flex items-center justify-center gap-2 rounded-xl font-medium transition-all active:scale-95 ${
-                isDarkMode 
-                  ? 'bg-gray-500/20 text-gray-400 border border-gray-500/30 hover:bg-gray-500/30' 
-                  : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
-              }`}
-            >
-              <LogOut size={18} />
-              Выход (принудительно)
-            </button>
-
             <p className="text-[10px] text-center mt-2 opacity-50 uppercase font-bold text-gray-400">
               Нажмите для выполнения действия
             </p>
@@ -207,15 +190,28 @@ const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
           </section>
         </div>
       )}
+      </div>
 
       {/* Модальное окно сброса пароля */}
-      <ResetPasswordModal
-        isOpen={isResetPasswordModalOpen}
-        onClose={() => setIsResetPasswordModalOpen(false)}
-        user={user}
-        isDarkMode={isDarkMode}
-      />
-    </div>
+      {isResetPasswordModalOpen && user && (
+        <ResetPasswordModal
+          isOpen={isResetPasswordModalOpen}
+          onClose={() => setIsResetPasswordModalOpen(false)}
+          user={user}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* Модальное окно сессий */}
+      {isSessionsModalOpen && user && (
+        <SessionsModal
+          isOpen={isSessionsModalOpen}
+          onClose={() => setIsSessionsModalOpen(false)}
+          user={user}
+          isDarkMode={isDarkMode}
+        />
+      )}
+    </>
   );
 };
 
