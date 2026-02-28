@@ -12,6 +12,7 @@ class UserRole(models.TextChoices):
 """Кастомная модель User с полем роли."""
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.utils import timezone
 
 
 class User(AbstractUser):
@@ -56,6 +57,46 @@ class User(AbstractUser):
 
     def is_foreman(self) -> bool:
         return str(self.role) == 'foreman'
+
+
+class MaintenanceMode(models.Model):
+    """
+    Модель для хранения состояния режима обслуживания.
+    """
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name="Режим обслуживания включён"
+    )
+    planned_end_time = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Планируемое время завершения"
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Дата обновления"
+    )
+
+    class Meta:
+        verbose_name = "Режим обслуживания"
+        verbose_name_plural = "Режимы обслуживания"
+
+    def __str__(self):
+        status = "включён" if self.enabled else "выключен"
+        if self.planned_end_time:
+            return f"Режим обслуживания: {status} (до {self.planned_end_time})"
+        return f"Режим обслуживания: {status}"
+
+    def is_active(self):
+        """Проверить, активен ли режим обслуживания."""
+        if not self.enabled:
+            return False
+        # Проверяем, не истекло ли запланированное время
+        if self.planned_end_time and self.planned_end_time < timezone.now():
+            self.enabled = False
+            self.save()
+            return False
+        return True
 
 
 # Импорт модели сессий для избежания циклических импортов

@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'django_filters',
     'drf_spectacular',
     'auditlog',
+    'maintenance_mode',
     'users',
     'items',
 ]
@@ -65,6 +66,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'maintenance_mode.middleware.MaintenanceModeMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -100,6 +102,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'maintenance_mode.context_processors.maintenance_mode',
+                'users.context_processors.maintenance_mode_context',
             ],
         },
     },
@@ -155,3 +159,24 @@ TIME_ZONE = 'Asia/Yekaterinburg'
 
 # django-auditlog настройки
 AUDITLOG_USE_TZ = True  # Использовать часовой пояс для записей аудита
+
+# django-maintenance-mode настройки
+MAINTENANCE_MODE = False  # по умолчанию выключен
+
+# Использовать кастомный backend для хранения в БД
+MAINTENANCE_MODE_STATE_BACKEND = 'users.maintenance_backend.DatabaseBackend'
+
+# URL для отображения во время обслуживания
+MAINTENANCE_MODE_TEMPLATE = 'maintenance/503.html'
+
+# Разрешённые IP (whitelist)
+MAINTENANCE_MODE_IPS = []
+
+# Разрешённые пользователи (whitelist по username)
+MAINTENANCE_MODE_USERS = ['admin']  # admin всегда имеет доступ
+
+# Разрешённые URL (regex)
+MAINTENANCE_MODE_URLS = []
+
+# Имя файла для хранения состояния (не используется при кастомном backend)
+MAINTENANCE_MODE_STATE_FILE_NAME = 'maintenance_mode.lock'

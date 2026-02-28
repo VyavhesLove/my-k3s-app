@@ -2,6 +2,7 @@ django
 django-auditlog
 django-cors-headers
 django-filter
+django-maintenance-mode
 djangorestframework
 drf-spectacular
 gunicorn

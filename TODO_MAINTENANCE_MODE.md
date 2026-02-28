@@ -19,14 +19,19 @@
 2. ✅ `settings.py` - основные настройки
 3. ✅ Модель `User` с ролями (admin, storekeeper, foreman)
 4. ✅ Существующая `UserSession` модель в `users/models_session.py` (расширенная версия)
+5. ✅ **Модель MaintenanceMode** (`users/models.py`) с полем `planned_end_time` - УЖЕ СОЗДАНА
+6. ✅ **API endpoints** (`users/views/maintenance.py`) - УЖЕ СОЗДАНЫ
+7. ✅ **Кастомный backend** (`users/maintenance_backend.py`) - УЖЕ СОЗДАН
+8. ✅ **Context processor** (`users/context_processors.py`) - УЖЕ СОЗДАН
+9. ✅ **Шаблон 503** (`templates/maintenance/503.html`) - УЖЕ СОЗДАН
 
 ### Что нужно сделать:
-1. Установить django-maintenance-mode
-2. Создать кастомную модель сессий на базе AbstractBaseSession
-3. Настроить maintenance mode в settings
-4. Создать шаблон 503 страницы с отображением запланированного времени завершения
-5. Настроить whitelist (IP/пользователи)
-6. Добавить поле `planned_end_time` для отображения запланированного времени завершения работ
+- [x] 1. Модель MaintenanceMode с planned_end_time - РЕАЛИЗОВАНО
+- [x] 2. API endpoints для управления - РЕАЛИЗОВАНО
+- [x] 3. Кастомный backend для хранения в БД - РЕАЛИЗОВАНО
+- [x] 4. Context processor для передачи planned_end_time в шаблоны - РЕАЛИЗОВАНО
+- [x] 5. Шаблон 503 с отображением запланированного времени - РЕАЛИЗОВАНО
+- [ ] 6. Применить миграции: `python manage.py makemigrations users && python manage.py migrate`
 
 ---
 
@@ -43,8 +48,8 @@
 
 ### Этап 1: Установка зависимостей
 
-- [ ] 1.1 Установить django-maintenance-mode: `pip install django-maintenance-mode`
-- [ ] 1.2 Добавить в requirements.txt
+- [x] 1.1 Установить django-maintenance-mode: `pip install django-maintenance-mode` (добавлено в requirements.txt)
+- [x] 1.2 Добавить в requirements.txt
 
 ### Этап 2: Создание кастомной модели сессий (AbstractBaseSession)
 
@@ -75,76 +80,22 @@
 
 ### Этап 3: Настройка django-maintenance-mode в settings.py
 
-- [ ] 3.1 Добавить 'maintenance_mode' в INSTALLED_APPS
-
-- [ ] 3.2 Проверить настройки сессий (обязательно только если вы реально используете django session backend):
-  ```python
-  SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-  SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
-  ```
-
-- [ ] 3.3 Настройка middleware (порядок КРИТИЧЕН!):
-  ```python
-  MIDDLEWARE = [
-      # ... стандартные
-      'django.contrib.sessions.middleware.SessionMiddleware',  # ДО
-      'django.contrib.auth.middleware.AuthenticationMiddleware',  # ДО
-      'maintenance_mode.middleware.MaintenanceModeMiddleware',  # ← ПОСЛЕ Authentication!
-      # ... остальное
-  ]
-  ```
-
-- [ ] 3.4 Добавить настройки MAINTENANCE_MODE:
-  ```python
-  MAINTENANCE_MODE = False  # по умолчанию выключен
-  
-  # URL для отображения во время обслуживания
-  MAINTENANCE_MODE_TEMPLATE = 'maintenance/503.html'
-  
-  # Разрешённые IP (whitelist)
-  MAINTENANCE_MODE_IPS = []
-  
-  # Разрешённые пользователи (whitelist по username)
-  MAINTENANCE_MODE_USERS = []
-  
-  # Разрешённые URL (regex)
-  MAINTENANCE_MODE_URLS = []
-  
-  # Использовать DB для хранения состояния
-  MAINTENANCE_MODE_USE_DB = True
-  
-  # Использовать Redis (если есть)
-  MAINTENANCE_MODE_USE_REDIS = False
-  ```
+- [x] 3.1 Добавить 'maintenance_mode' в INSTALLED_APPS
+- [x] 3.2 Добавить настройки сессий (уже есть SESSION_ENGINE в проекте)
+- [x] 3.3 Добавить MaintenanceModeMiddleware в MIDDLEWARE (после AuthenticationMiddleware)
+- [x] 3.4 Добавить настройки MAINTENANCE_MODE в settings.py
 
 ### Этап 3.1: Добавление запланированного времени завершения работ
 
-- [ ] 3.1.1 Добавить поле `planned_end_time` в модель MaintenanceMode (миграция):
-  ```python
-  # Модель уже создаётся django-maintenance-mode, но нужно добавить поле для запланированного времени
-  planned_end_time = models.DateTimeField(null=True, blank=True, verbose_name='Планируемое время завершения')
-  ```
-
-- [ ] 3.1.2 Обновить API endpoint для включения/выключения maintenance mode:
-  ```python
-  # Добавить параметр planned_end_time в POST запрос
-  {
-      "enabled": true,
-      "planned_end_time": "2024-12-25T15:00:00Z"  # опционально
-  }
-  ```
-
-- [ ] 3.1.3 Добавить endpoint для получения статуса maintenance mode:
-  ```python
-  path('api/admin/maintenance/status/', get_maintenance_status, name='get-maintenance-status'),
-  ```
-
-- [ ] 3.1.4 Обновить 503 шаблон для отображения запланированного времени
+- [x] 3.1.1 Поле `planned_end_time` в модели MaintenanceMode - УЖЕ ЕСТЬ в `users/models.py`
+- [x] 3.1.2 API endpoint для включения/выключения maintenance mode с planned_end_time - РЕАЛИЗОВАНО в `users/views/maintenance.py`
+- [x] 3.1.3 Endpoint для получения статуса maintenance mode - РЕАЛИЗОВАНО в `users/views/maintenance.py`
+- [x] 3.1.4 503 шаблон для отображения запланированного времени - РЕАЛИЗОВАН в `templates/maintenance/503.html`
 
 ### Этап 4: Создание шаблона 503 страницы
 
-- [ ] 4.1 Создать директорию `templates/maintenance/`
-- [ ] 4.2 Создать файл `templates/maintenance/503.html`:
+- [x] 4.1 Создать директорию `templates/maintenance/`
+- [x] 4.2 Создать файл `templates/maintenance/503.html` с отображением planned_end_time
   ```html
   {% load static %}
   <!DOCTYPE html>
@@ -186,9 +137,9 @@
 
 ### Этап 5: API для управления режимом обслуживания
 
-- [ ] 5.1 Создать endpoint для включения/выключения maintenance mode
-- [ ] 5.2 Добавить представление в `users/views/maintenance.py`
-- [ ] 5.3 Добавить URL в `users/urls.py`:
+- [x] 5.1 Создать endpoint для включения/выключения maintenance mode - РЕАЛИЗОВАНО
+- [x] 5.2 Добавить представление в `users/views/maintenance.py` - РЕАЛИЗОВАНО
+- [x] 5.3 Добавить URL в `users/urls.py` - РЕАЛИЗОВАНО
   ```python
   path('api/admin/maintenance/toggle/', toggle_maintenance, name='toggle-maintenance'),
   ```
@@ -455,5 +406,5 @@ urlpatterns = [
 
 - [ ] Тест 1: 
 - [ ] Тест 2: 
-- [ ] Тест 3: 
+- [ ] Тест 3:
 
