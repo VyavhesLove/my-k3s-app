@@ -12,12 +12,13 @@ import { flexRender } from '@tanstack/react-table';
 const GenericTable = ({ table, styles = {}, emptyMessage = 'Нет данных', children }) => {
   const {
     getRowModel,
-    getHeaderGroupModel,
+    getHeaderGroups,
     getState,
   } = table;
 
   const { sorting, columnFilters, pagination } = getState();
-  const { pageSize, pageIndex } = pagination;
+  const pageSize = pagination?.pageSize ?? getRowModel().rows.length;
+  const headerGroups = getHeaderGroups();
 
   // Проверка на пустые данные
   const isEmpty = getRowModel().rows.length === 0 && 
@@ -82,7 +83,7 @@ const GenericTable = ({ table, styles = {}, emptyMessage = 'Нет данных'
         <table style={{ width: '100%', tableLayout: 'fixed' }}>
           {/* Header Groups */}
           <thead style={defaultStyles.thead}>
-            {getHeaderGroupModel().map((headerGroup) => (
+            {headerGroups.map((headerGroup) => (
               <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <th
@@ -112,7 +113,7 @@ const GenericTable = ({ table, styles = {}, emptyMessage = 'Нет данных'
           <tbody style={defaultStyles.tbody}>
             {isEmpty ? (
               <tr>
-                <td colSpan={getHeaderGroupModel()[0]?.headers.length || 0} style={{ textAlign: 'center', padding: '48px' }}>
+                <td colSpan={headerGroups[0]?.headers.length || 0} style={{ textAlign: 'center', padding: '48px' }}>
                   <div className="text-gray-500">
                     {emptyMessage}
                   </div>
@@ -141,7 +142,7 @@ const GenericTable = ({ table, styles = {}, emptyMessage = 'Нет данных'
             {!isEmpty && getRowModel().rows.length < pageSize && (
               Array.from({ length: pageSize - getRowModel().rows.length }).map((_, idx) => (
                 <tr key={`spacer-${idx}`} style={{ height: '52px' }}>
-                  <td colSpan={getHeaderGroupModel()[0]?.headers.length || 0} />
+                  <td colSpan={headerGroups[0]?.headers.length || 0} />
                 </tr>
               ))
             )}
@@ -153,4 +154,3 @@ const GenericTable = ({ table, styles = {}, emptyMessage = 'Нет данных'
 };
 
 export default GenericTable;
-
