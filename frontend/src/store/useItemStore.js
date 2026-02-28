@@ -66,6 +66,17 @@ export const useItemStore = create((set, get) => ({
     } catch (err) {
       console.error('Ошибка обновления списка ТМЦ:', err);
       
+      // При ошибке 401 (сессия завершена) - редирект на логин
+      if (err.response?.status === 401) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('sessionId');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userRole');
+        window.location.href = '/login';
+        return;
+      }
+      
       // ❌ ОШИБКА - понятное сообщение пользователю
       toast.error('❌ Не удалось загрузить список ТМЦ', {
         description: err.response?.status === 401 

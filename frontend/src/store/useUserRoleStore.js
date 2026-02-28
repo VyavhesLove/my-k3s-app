@@ -45,6 +45,17 @@ export const useUserRoleStore = create((set, get) => ({
     } catch (err) {
       console.error('Ошибка при загрузке роли пользователя:', err);
       
+      // При ошибке 401 (сессия завершена) - редирект на логин
+      if (err.response?.status === 401) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('sessionId');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userRole');
+        window.location.href = '/login';
+        return;
+      }
+      
       // При ошибке используем значение по умолчанию
       set({ role: 'user', isLoading: false, error: 'Не удалось загрузить роль' });
       localStorage.setItem('userRole', 'user');

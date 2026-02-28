@@ -183,7 +183,8 @@ const SessionsModal = ({ isOpen, onClose, user, isDarkMode }) => {
           {info.getValue()}
         </span>
       ),
-      size: 60,
+      size: 20,
+      minSize: 10,
     }),
     columnHelper.accessor('user_agent', {
       header: 'Устройство',
@@ -192,7 +193,9 @@ const SessionsModal = ({ isOpen, onClose, user, isDarkMode }) => {
           {info.getValue()}
         </span>
       ),
-      size: 200,
+      size: 1000,
+      minSize: 800,
+      maxSize: 1200,
     }),
     columnHelper.accessor('ip_address', {
       header: 'IP адрес',
@@ -201,7 +204,7 @@ const SessionsModal = ({ isOpen, onClose, user, isDarkMode }) => {
           {info.getValue()}
         </span>
       ),
-      size: 130,
+      size: 140,
     }),
     columnHelper.accessor('created_at', {
       header: 'Создана',
@@ -210,7 +213,7 @@ const SessionsModal = ({ isOpen, onClose, user, isDarkMode }) => {
           {formatDate(info.getValue())}
         </span>
       ),
-      size: 150,
+      size: 170,
     }),
     columnHelper.accessor('last_activity', {
       header: 'Активность',
@@ -219,7 +222,7 @@ const SessionsModal = ({ isOpen, onClose, user, isDarkMode }) => {
           {formatDate(info.getValue())}
         </span>
       ),
-      size: 150,
+      size: 170,
     }),
     columnHelper.accessor('description', {
       header: 'Описание',
@@ -228,7 +231,7 @@ const SessionsModal = ({ isOpen, onClose, user, isDarkMode }) => {
           {info.getValue() || '—'}
         </span>
       ),
-      size: 120,
+      size: 160,
     }),
     columnHelper.display({
       id: 'actions',
@@ -251,7 +254,7 @@ const SessionsModal = ({ isOpen, onClose, user, isDarkMode }) => {
           </button>
         );
       },
-      size: 80,
+      size: 100,
     }),
   ], [isDarkMode, isTerminating, handleTerminateSession]);
 
@@ -273,7 +276,7 @@ const SessionsModal = ({ isOpen, onClose, user, isDarkMode }) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div 
-        className={`w-full max-w-3xl max-h-[80vh] rounded-2xl shadow-2xl flex flex-col transform transition-all ${
+        className={`w-full max-w-6xl max-h-[80vh] rounded-2xl shadow-2xl flex flex-col transform transition-all ${
           isDarkMode ? 'bg-slate-900 text-white border border-slate-700' : 'bg-white text-slate-900'
         }`}
       >

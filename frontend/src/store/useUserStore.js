@@ -138,6 +138,17 @@ export const useUserStore = create((set, get) => ({
     } catch (err) {
       //console.error('Ошибка обновления списка пользователей:', err);
       
+      // При ошибке 401 (сессия завершена) - редирект на логин
+      if (err.response?.status === 401) {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('sessionId');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userRole');
+        window.location.href = '/login';
+        return;
+      }
+      
       toast.error('❌ Не удалось загрузить список пользователей', {
         description: err.response?.status === 401 
           ? 'Сессия истекла. Войдите снова.' 

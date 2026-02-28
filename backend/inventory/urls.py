@@ -1,11 +1,16 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.contrib.auth.views import LoginView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from items.views.common import hello, get_config, get_status_counters, get_analytics, brigade_list, ErrorLogView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
+    # 🔥 0. Auth URLs
+    path('login/', LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path('401/', lambda request: __import__('django.http', fromlist=['HttpResponse']).HttpResponseRedirect('/login/?next=' + request.path), name='401-redirect'),
+    
     # 🔥 1. Health check (для k8s)
     path('api/hello/', hello, name='hello'),
 

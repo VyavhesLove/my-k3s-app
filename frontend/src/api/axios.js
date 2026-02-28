@@ -45,13 +45,21 @@ api.interceptors.request.use((config) => {
     return Promise.reject(error);
 });
 
-// 1. Перехватчик ЗАПРОСОВ: подкладываем токен в каждый запрос
+// 1. Перехватчик ЗАПРОСОВ: подкладываем токен и sessionId в каждый запрос
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('accessToken');
+        const sessionId = localStorage.getItem('sessionId');
+        
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        
+        // Добавляем заголовок X-Session-ID для проверки активности сессии
+        if (sessionId) {
+            config.headers['X-Session-ID'] = sessionId;
+        }
+        
         return config;
     },
     (error) => Promise.reject(error)
@@ -67,6 +75,19 @@ api.interceptors.response.use(
         if (error.response?.status === 400 &&
             error.response?.data?.non_field_errors?.includes('Пользователь заблокирован')) {
             toast.error('Пользователь заблокирован');
+            return Promise.reject(error);
+        }
+
+        // Проверяем на ошибку завершенной сессии
+        if (error.response?.status === 401 &&
+            error.response?.data?.message?.includes('Сессия завершена')) {
+            toast.error('Сессия завершена. Войдите в систему снова.');
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('sessionId');
+            localStorage.removeItem('user');
+            localStorage.removeItem('userRole');
+            window.location.href = '/login';
             return Promise.reject(error);
         }
 
@@ -96,6 +117,9 @@ api.interceptors.response.use(
                 // Если даже рефреш-токен сдох — выкидываем на логин
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
+                localStorage.removeItem('sessionId');
+                localStorage.removeItem('user');
+                localStorage.removeItem('userRole');
                 window.location.href = '/login';
                 return Promise.reject(refreshError);
             }

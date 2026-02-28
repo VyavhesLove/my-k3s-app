@@ -104,8 +104,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     refresh_token = response.data.get('refresh')
                     
                     if refresh_token:
-                        # Используем первые 8 символов refresh токена как token_id
-                        token_id = refresh_token[:8]
+                        # Используем полный refresh токен как token_id для уникальности
+                        token_id = refresh_token
                         create_user_session(user, token_id, request)
                         
                 except User.DoesNotExist:
