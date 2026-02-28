@@ -69,17 +69,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.config;
+        const originalRequest = error?.config;
+        const status = error?.response?.status;
 
         // Проверяем на ошибку блокировки пользователя
-        if (error.response?.status === 400 &&
+        if (status === 400 &&
             error.response?.data?.non_field_errors?.includes('Пользователь заблокирован')) {
             toast.error('Пользователь заблокирован');
             return Promise.reject(error);
         }
 
         // Проверяем на ошибку завершенной сессии
-        if (error.response?.status === 401 &&
+        if (status === 401 &&
             error.response?.data?.message?.includes('Сессия завершена')) {
             toast.error('Сессия завершена. Войдите в систему снова.');
             localStorage.removeItem('accessToken');
@@ -92,7 +93,7 @@ api.interceptors.response.use(
         }
 
         // Если ошибка 401 и мы еще не пробовали обновиться (_retry)
-        if (error.response.status === 401 && !originalRequest._retry) {
+        if (status === 401 && originalRequest && !originalRequest._retry) {
             // Если мы на странице логина — не пытаемся обновить токен, просто пробрасываем ошибку
             if (window.location.pathname.includes('/login')) {
                 return Promise.reject(error);
@@ -120,10 +121,19 @@ api.interceptors.response.use(
                 localStorage.removeItem('sessionId');
                 localStorage.removeItem('user');
                 localStorage.removeItem('userRole');
-                window.location.href = '/login';
+                // Fallback: если 401 не удалось обработать через refresh,
+                // показываем пользователю явную страницу ошибки авторизации.
+                window.location.href = '/401';
                 return Promise.reject(refreshError);
             }
         }
+
+        // Крайний fallback: если 401 дошел сюда (например, нестандартный ответ),
+        // показываем страницу ошибки авторизации вместо «сырой» ошибки.
+        if (status === 401 && !window.location.pathname.includes('/login')) {
+            window.location.href = '/401';
+        }
+
         return Promise.reject(error);
     }
 );

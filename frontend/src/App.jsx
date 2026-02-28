@@ -16,6 +16,7 @@ const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ defa
 const ScrapPage = lazy(() => import('@/pages/ScrapPage').then((m) => ({ default: m.ScrapPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 const ForbiddenPage = lazy(() => import('@/pages/ForbiddenPage').then((m) => ({ default: m.ForbiddenPage })));
+const UnauthorizedPage = lazy(() => import('@/pages/UnauthorizedPage').then((m) => ({ default: m.UnauthorizedPage })));
 const AdminPanel = lazy(() => import('@/pages/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 const UsersList_new = lazy(() => import('@/pages/UsersList/UsersList_new').then((m) => ({ default: m.default })));
 
@@ -119,6 +120,12 @@ function App() {
           path="/login" 
           element={!token ? <LoginPage setToken={setToken} isDarkMode={isDarkMode} /> : <Navigate to="/" />} 
         />
+
+        {/* Страница неавторизованного доступа (fallback для неотловленного 401) */}
+        <Route
+          path="/401"
+          element={<UnauthorizedPage />}
+        />
         
         {/* Все остальные маршруты - требуют токена */}
         <Route 
@@ -214,4 +221,3 @@ function App() {
 }
 
 export default App;
-
