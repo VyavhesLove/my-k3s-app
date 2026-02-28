@@ -3,6 +3,7 @@ import { X, Lock, Key, Users, LogOut, RefreshCw } from 'lucide-react';
 import { getRoleText } from '@/utils/role';
 import { toggleUserBlock } from '@/api/userApi';
 import { toast } from 'sonner';
+import { ResetPasswordModal } from './modals';
 
 // Стили для ролей (как в UsersTable_new)
 const getRoleStyles = (role, isDarkMode) => {
@@ -23,6 +24,7 @@ const getRoleStyles = (role, isDarkMode) => {
 const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
   const isOpen = !!user;
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
 
   // Обработчик блокировки/разблокировки пользователя
   const handleBlockUnblock = async () => {
@@ -48,8 +50,7 @@ const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
   };
 
   const handleResetPassword = () => {
-    console.log('Нажата кнопка: Сброс пароля', user?.id);
-    // TODO: Интеграция с API - сброс пароля
+    setIsResetPasswordModalOpen(true);
   };
 
   const handleSessions = () => {
@@ -206,6 +207,14 @@ const UserDetailPanel = ({ user, onClose, isDarkMode, onUserUpdate }) => {
           </section>
         </div>
       )}
+
+      {/* Модальное окно сброса пароля */}
+      <ResetPasswordModal
+        isOpen={isResetPasswordModalOpen}
+        onClose={() => setIsResetPasswordModalOpen(false)}
+        user={user}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

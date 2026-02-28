@@ -64,9 +64,9 @@ def get_active_sessions(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def terminate_session(request):
+def terminate_session(request, session_id=None):
     """Завершает указанную сессию пользователя"""
-    session_id = request.data.get('session_id')
+    session_id = session_id or request.data.get('session_id')
     
     if not session_id:
         return Response(

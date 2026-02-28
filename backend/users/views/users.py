@@ -203,3 +203,61 @@ def toggle_user_block(request, user_id):
             }
         })
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reset_user_password(request, user_id):
+    """
+    Сброс пароля пользователя администратором.
+    Не требует ввода текущего пароля пользователя.
+    """
+    User = get_user_model()
+    
+    # Проверяем, что пользователь - админ
+    if not request.user.is_admin():
+        return Response(
+            {'success': False, 'error': 'Доступ запрещён'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    # Получаем данные из запроса
+    new_password = request.data.get('new_password')
+    confirm_password = request.data.get('confirm_password')
+    
+    # Валидация полей
+    if not new_password or not confirm_password:
+        return Response(
+            {'success': False, 'error': 'Все поля обязательны для заполнения'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if new_password != confirm_password:
+        return Response(
+            {'success': False, 'error': 'Новый пароль и подтверждение не совпадают'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if len(new_password) < 8:
+        return Response(
+            {'success': False, 'error': 'Пароль должен содержать минимум 8 символов'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Получаем пользователя для сброса пароля
+    try:
+        target_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response(
+            {'success': False, 'error': 'Пользователь не найден'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+    # Установка нового пароля (админ может сбросить пароль любому пользователю)
+    target_user.set_password(new_password)
+    target_user.save()
+    
+    return Response({
+        'success': True,
+        'message': f'Пароль пользователя {target_user.username} успешно изменён'
+    })
+
