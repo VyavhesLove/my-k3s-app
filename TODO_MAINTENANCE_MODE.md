@@ -7,12 +7,12 @@
 
 ### ⚠️ Ключевые исправления (обязательно к изучению!)
 
-1. **Модель сессий**: `app_label = 'django_session'` в Meta (НЕ `db_table = 'user_sessions'`)
+1. **Модель сессий**: если идёте в `AbstractBaseSession`, используйте корректный `app_label = 'sessions'` (или отдельное приложение), а не `django_session`
 2. **SESSION_ENGINE**: Обязательно добавить в settings.py
 3. **Middleware порядок**: MaintenanceModeMiddleware ПОСЛЕ AuthenticationMiddleware
-4. **Менеджер**: Использовать `session_key__ne` вместо `exclude()`, добавить проверку `is_authenticated`
+4. **Менеджер**: в Django нет lookup `__ne`; для текущей сессии используйте `.exclude(session_key=current_key)` + проверку `is_authenticated`
 5. **Шаблон 503**: Добавить проверку `{% if request.user.is_staff %}` для whitelist
-6. **API endpoints**: Обязательно добавить toggle_maintenance и user_sessions
+6. **API endpoints**: `user_sessions` у вас уже есть; добавить только endpoint управления maintenance mode
 
 ### Что уже есть:
 1. ✅ Django проект настроен в `my-k3s-app/backend/`
@@ -28,6 +28,15 @@
 5. Настроить whitelist (IP/пользователи)
 
 ---
+
+
+## Быстрое ревью применимости к текущему проекту
+
+- Проект уже использует JWT + вашу таблицу `users.UserSession`, а не стандартные Django Session для API. Полный переход на `AbstractBaseSession` нужен только если вы хотите хранить **именно Django session** в своей модели.
+- Для вашей текущей архитектуры чаще достаточно оставить `UserSession` как доменную таблицу устройств/refresh-токенов и отдельно внедрить `django-maintenance-mode`.
+- `request.user.is_staff` в шаблоне — это не whitelist сам по себе; whitelist в `django-maintenance-mode` задаётся через настройки (`MAINTENANCE_MODE_*`).
+- Endpoint `user_sessions` уже реализован в `backend/users/urls.py`, поэтому в плане лучше не дублировать эту задачу.
+- Если цель — «выкидывать пользователя со всех устройств», ваша текущая логика через `UserSession` подходит лучше и проще, чем миграция на `AbstractBaseSession`.
 
 ## План выполнения
 
@@ -55,9 +64,9 @@
       user_agent = models.CharField(max_length=255, blank=True, null=True)
       
       class Meta(AbstractBaseSession.Meta):
-          app_label = 'django_session'  # КРИТИЧНО! Не использовать db_table!
+          app_label = 'sessions'  # корректный app label для django.contrib.sessions
   ```
-- [ ] 2.3 Обновить `users/__init__.py` для использования новой модели
+- [ ] 2.3 Зарегистрировать модель в `users/models.py` (или вынести в пакет models) — одного `__init__.py` обычно недостаточно
 - [ ] 2.4 Добавить менеджер с методами:
   - `terminate_all(user)` - завершить все сессии пользователя
   - `terminate_except_current(request)` - завершить все кроме текущей
@@ -67,7 +76,7 @@
 
 - [ ] 3.1 Добавить 'maintenance_mode' в INSTALLED_APPS
 
-- [ ] 3.2 **ОБЯЗАТЕЛЬНО** добавить настройки сессий:
+- [ ] 3.2 Проверить настройки сессий (обязательно только если вы реально используете django session backend):
   ```python
   SESSION_ENGINE = 'django.contrib.sessions.backends.db'
   SESSION_SERIALIZER = 'django.contrib.sessions.serializers.JSONSerializer'
@@ -163,7 +172,7 @@
 - [ ] 7.2 Тест доступа для whitelist IP
 - [ ] 7.3 Тест доступа для whitelist пользователя (admin)
 - [ ] 7.4 Тест кастомной 503 страницы
-- [ ] 7.5 Тест модели CustomSession
+- [ ] 7.5 Тест модели CustomSession (если оставляете именно django sessions путь)
 
 ### Этап 8: Admin для сессий
 
@@ -197,7 +206,7 @@ class CustomSession(AbstractBaseSession):
     user_agent = models.CharField(max_length=255, blank=True, null=True)
     
     class Meta(AbstractBaseSession.Meta):
-        app_label = 'django_session'  # КРИТИЧНО! Не использовать db_table!
+        app_label = 'sessions'  # корректный app label для django.contrib.sessions
 ```
 
 ### Менеджер с методами управления сессиями:
@@ -227,8 +236,7 @@ class CustomSessionManager(models.Manager):
         session_key = request.session.session_key
         return self.filter(
             user=request.user,
-            session_key__ne=session_key  # используем __ne вместо exclude
-        ).delete()
+        ).exclude(session_key=session_key).delete()
 ```
 
 ### Интеграция менеджера в модель:
