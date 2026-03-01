@@ -7,7 +7,7 @@ from .views import (
     get_user_history, get_active_sessions, terminate_session, create_session,
     get_user_sessions, terminate_all_user_sessions, terminate_user_session
 )
-from .views.maintenance import get_maintenance_status, toggle_maintenance
+from .views.maintenance import get_maintenance_status, toggle_maintenance, get_maintenance_settings
 
 app_name = 'users'
 
@@ -19,6 +19,7 @@ urlpatterns = [
     # Maintenance mode endpoints
     path('maintenance/status/', get_maintenance_status, name='maintenance_status'),
     path('maintenance/toggle/', toggle_maintenance, name='maintenance_toggle'),
+    path('maintenance/settings/', get_maintenance_settings, name='maintenance_settings'),
     
     # User endpoints
     path('', user_list, name='user_list'),

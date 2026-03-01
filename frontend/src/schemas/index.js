@@ -14,3 +14,6 @@ export * from './brigade';
 // Re-export из service
 export * from './service';
 
+// Re-export из maintenance
+export * from './maintenance';
+

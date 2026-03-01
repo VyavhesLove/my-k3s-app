@@ -91,6 +91,16 @@ class MaintenanceMode(models.Model):
         blank=True,
         verbose_name="Планируемое время завершения"
     )
+    allowed_ips = models.JSONField(
+        default=list,
+        verbose_name="Разрешённые IP-адреса",
+        help_text="Список IP-адресов, которые имеют доступ во время обслуживания"
+    )
+    allowed_urls = models.JSONField(
+        default=list,
+        verbose_name="Разрешённые URL",
+        help_text="Список URL (regex), которые доступны во время обслуживания"
+    )
     updated_at = models.DateTimeField(
         auto_now=True,
         verbose_name="Дата обновления"

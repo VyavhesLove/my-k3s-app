@@ -3,6 +3,7 @@ from django.urls import path, include
 from django.contrib.auth.views import LoginView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from items.views.common import hello, get_config, get_status_counters, get_analytics, brigade_list, ErrorLogView
+from users.views.maintenance import get_maintenance_status, toggle_maintenance, get_maintenance_settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,6 +27,11 @@ urlpatterns = [
 
     # 4. Users API (token/, me/, profile/, users/, sessions/)
     path('api/users/', include('users.urls', namespace='users')),
+
+    # 4.1. Maintenance mode API
+    path('api/maintenance/status/', get_maintenance_status, name='maintenance_status'),
+    path('api/maintenance/toggle/', toggle_maintenance, name='maintenance_toggle'),
+    path('api/maintenance/settings/', get_maintenance_settings, name='maintenance_settings'),
 
     # 5. Schema и Docs (последними!)
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

@@ -21,6 +21,7 @@ const UnauthorizedPage = lazy(() => import('@/pages/UnauthorizedPage').then((m) 
 const ServiceUnavailablePage = lazy(() => import('@/pages/ServiceUnavailablePage'));
 const AdminPanel = lazy(() => import('@/pages/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 const UsersList_new = lazy(() => import('@/pages/UsersList/UsersList_new').then((m) => ({ default: m.default })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.default })));
 
 function App() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -207,6 +208,20 @@ function App() {
                           <AppLoader />
                         ) : isAdmin ? (
                           <UsersList_new isDarkMode={isDarkMode} />
+                        ) : (
+                          <ForbiddenPage isDarkMode={isDarkMode} />
+                        )
+                      } 
+                    />
+                    
+                    {/* Роут для страницы настроек */}
+                    <Route 
+                      path="/admin-panel/settings" 
+                      element={
+                        isLoading ? (
+                          <AppLoader />
+                        ) : isAdmin ? (
+                          <SettingsPage isDarkMode={isDarkMode} />
                         ) : (
                           <ForbiddenPage isDarkMode={isDarkMode} />
                         )

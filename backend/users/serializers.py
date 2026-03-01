@@ -133,3 +133,35 @@ class MaintenanceModeSerializer(serializers.Serializer):
     planned_end_time = serializers.DateTimeField(required=False, allow_null=True)
     message = serializers.CharField(read_only=True)
 
+
+class MaintenanceModeSettingsSerializer(serializers.Serializer):
+    """
+    Serializer для получения и обновления настроек режима обслуживания.
+    
+    Поля:
+    - enabled: включение/выключение режима (из модели MaintenanceMode)
+    - planned_end_time: время завершения (из модели MaintenanceMode)
+    - ips: список IP-адресов (из модели MaintenanceMode)
+    - urls: список URL (regex) (из модели MaintenanceMode)
+    - admin_users: список пользователей с доступом (из settings.MAINTENANCE_MODE_USERS, только чтение)
+    """
+    enabled = serializers.BooleanField(required=False, default=False)
+    planned_end_time = serializers.DateTimeField(required=False, allow_null=True)
+    ips = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        help_text="Список разрешённых IP-адресов"
+    )
+    urls = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list,
+        help_text="Список разрешённых URL (regex)"
+    )
+    admin_users = serializers.ListField(
+        child=serializers.CharField(),
+        read_only=True,
+        help_text="Список пользователей с доступом в режиме обслуживания"
+    )
+

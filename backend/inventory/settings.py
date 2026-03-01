@@ -66,7 +66,9 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'maintenance_mode.middleware.MaintenanceModeMiddleware',
+    # Кастомный middleware для проверки роли admin и разрешённых IP/URL
+    # Полностью заменяет стандартный maintenance_mode.middleware.MaintenanceModeMiddleware
+    'users.middleware.MaintenanceModeEnforcementMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 

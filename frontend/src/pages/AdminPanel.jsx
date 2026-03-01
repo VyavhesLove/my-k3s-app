@@ -57,7 +57,9 @@ export const AdminPanel = ({ isDarkMode }) => {
         </div>
 
         {/* Настройки системы */}
-        <div className={`p-6 rounded-2xl border transition-all hover:scale-[1.02] cursor-pointer ${
+        <div 
+          onClick={() => navigate('/admin-panel/settings')}
+          className={`p-6 rounded-2xl border transition-all hover:scale-[1.02] cursor-pointer ${
           isDarkMode 
             ? 'bg-slate-800 border-slate-700 hover:border-orange-500' 
             : 'bg-white border-gray-200 hover:border-orange-500'
