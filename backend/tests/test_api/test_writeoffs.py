@@ -155,7 +155,7 @@ class WriteOffListAPITestCase(APITestCase):
         """Фильтрация по локации."""
         self.client.force_authenticate(self.storekeeper)
         
-        response = self.client.get('/api/writeoffs/?location=Склад 1')
+        response = self.client.get('/api/items/writeoffs/?location=Склад 1')
         
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["success"], True)
@@ -224,7 +224,7 @@ class WriteOffCreateAPITestCase(APITestCase):
         self.client.force_authenticate(self.storekeeper)
         
         response = self.client.post(
-            '/api/writeoffs/',
+            '/api/items/writeoffs/',
             {
                 'item_id': self.item.id,
                 'invoice_number': 'INV-001',
@@ -249,7 +249,7 @@ class WriteOffCreateAPITestCase(APITestCase):
         self.client.force_authenticate(self.foreman)
         
         response = self.client.post(
-            '/api/writeoffs/',
+            '/api/items/writeoffs/',
             {
                 'item_id': self.item.id,
                 'invoice_number': 'INV-001',
@@ -262,7 +262,7 @@ class WriteOffCreateAPITestCase(APITestCase):
     def test_create_writeoff_unauthenticated(self):
         """401 для неаутентифицированного пользователя."""
         response = self.client.post(
-            '/api/writeoffs/',
+            '/api/items/writeoffs/',
             {
                 'item_id': self.item.id,
                 'invoice_number': 'INV-001',
@@ -277,7 +277,7 @@ class WriteOffCreateAPITestCase(APITestCase):
         self.client.force_authenticate(self.storekeeper)
         
         response = self.client.post(
-            '/api/writeoffs/',
+            '/api/items/writeoffs/',
             {
                 'invoice_number': 'INV-001',
             },
@@ -291,7 +291,7 @@ class WriteOffCreateAPITestCase(APITestCase):
         self.client.force_authenticate(self.storekeeper)
         
         response = self.client.post(
-            '/api/writeoffs/',
+            '/api/items/writeoffs/',
             {
                 'item_id': 99999,
                 'invoice_number': 'INV-001',
@@ -317,7 +317,7 @@ class WriteOffCreateAPITestCase(APITestCase):
         # Act - пытаемся списать снова
         self.client.force_authenticate(self.storekeeper)
         response = self.client.post(
-            '/api/writeoffs/',
+            '/api/items/writeoffs/',
             {
                 'item_id': self.item.id,
                 'invoice_number': 'INV-SECOND',
@@ -383,7 +383,7 @@ class WriteOffCancelAPITestCase(APITestCase):
         self.client.force_authenticate(self.storekeeper)
         
         response = self.client.post(
-            f'/api/writeoffs/{self.write_off.id}/cancel/'
+            f'/api/items/writeoffs/{self.write_off.id}/cancel/'
         )
         
         self.assertEqual(response.status_code, 200)
@@ -403,7 +403,7 @@ class WriteOffCancelAPITestCase(APITestCase):
         self.client.force_authenticate(self.admin)
         
         response = self.client.post(
-            f'/api/writeoffs/{self.write_off.id}/cancel/'
+            f'/api/items/writeoffs/{self.write_off.id}/cancel/'
         )
         
         self.assertEqual(response.status_code, 200)
@@ -416,7 +416,7 @@ class WriteOffCancelAPITestCase(APITestCase):
         self.client.force_authenticate(self.foreman)
         
         response = self.client.post(
-            f'/api/writeoffs/{self.write_off.id}/cancel/'
+            f'/api/items/writeoffs/{self.write_off.id}/cancel/'
         )
         
         self.assertEqual(response.status_code, 403)
@@ -424,7 +424,7 @@ class WriteOffCancelAPITestCase(APITestCase):
     def test_cancel_writeoff_unauthenticated(self):
         """401 для неаутентифицированного пользователя."""
         response = self.client.post(
-            f'/api/writeoffs/{self.write_off.id}/cancel/'
+            f'/api/items/writeoffs/{self.write_off.id}/cancel/'
         )
         
         self.assertEqual(response.status_code, 401)
@@ -434,7 +434,7 @@ class WriteOffCancelAPITestCase(APITestCase):
         self.client.force_authenticate(self.storekeeper)
         
         response = self.client.post(
-            '/api/writeoffs/99999/cancel/'
+            '/api/items/writeoffs/99999/cancel/'
         )
         
         # Запись о списании не найдена - 404

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Users, Database, Shield } from 'lucide-react';
+import { Settings, Users, Database, Shield, BookOpen, Key } from 'lucide-react';
 
 export const AdminPanel = ({ isDarkMode }) => {
   const navigate = useNavigate();
@@ -69,6 +69,44 @@ export const AdminPanel = ({ isDarkMode }) => {
             <div>
               <h3 className="font-semibold">Настройки</h3>
               <p className="text-sm opacity-60">Конфигурация системы</p>
+            </div>
+          </div>
+        </div>
+
+        {/* API Swagger */}
+        <div 
+          onClick={() => window.open('/api/docs/', '_blank')}
+          className={`p-6 rounded-2xl border transition-all hover:scale-[1.02] cursor-pointer ${
+          isDarkMode 
+            ? 'bg-slate-800 border-slate-700 hover:border-cyan-500' 
+            : 'bg-white border-gray-200 hover:border-cyan-500'
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-cyan-500/20 rounded-xl">
+              <BookOpen className="w-6 h-6 text-cyan-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold">API Swagger</h3>
+              <p className="text-sm opacity-60">Документация API</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Django Administration */}
+        <div 
+          onClick={() => window.open('/admin', '_blank')}
+          className={`p-6 rounded-2xl border transition-all hover:scale-[1.02] cursor-pointer ${
+          isDarkMode 
+            ? 'bg-slate-800 border-slate-700 hover:border-red-500' 
+            : 'bg-white border-gray-200 hover:border-red-500'
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-red-500/20 rounded-xl">
+              <Key className="w-6 h-6 text-red-500" />
+            </div>
+            <div>
+              <h3 className="font-semibold">Django Admin</h3>
+              <p className="text-sm opacity-60">Админ-панель Django</p>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 # Импорты для обратной совместимости
-from .auth import CustomTokenObtainPairView
+from .auth import CustomTokenObtainPairView, SwaggerTokenView
 from .profile import get_current_user, update_profile, change_password
 from .users import create_user, user_list, toggle_user_block, reset_user_password
 from .history import (
@@ -9,6 +9,7 @@ from .history import (
 
 __all__ = [
     'CustomTokenObtainPairView',
+    'SwaggerTokenView',
     'get_current_user', 'update_profile', 'change_password',
     'create_user', 'user_list', 'toggle_user_block', 'reset_user_password',
     'get_user_history', 'get_active_sessions', 'terminate_session', 'create_session',

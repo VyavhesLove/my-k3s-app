@@ -1,12 +1,31 @@
 """Аутентификация и работа с токенами."""
 from rest_framework import serializers
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 
 # Импорт модели UserSession для создания сессий при логине
 from users.models_session import UserSession
+
+
+class SwaggerTokenRequestSerializer(serializers.Serializer):
+    """Сериализатор для запроса токена Swagger."""
+    username = serializers.CharField()
+    password = serializers.CharField(write_only=True)
+
+
+class SwaggerTokenResponseSerializer(serializers.Serializer):
+    """Сериализатор для ответа токена Swagger."""
+    access_token = serializers.CharField()
+    token_type = serializers.CharField()
+    expires_in = serializers.IntegerField()
+    refresh_token = serializers.CharField()
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -112,4 +131,96 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     pass
         
         return response
+
+
+class SwaggerTokenView(APIView):
+    """
+    Endpoint для получения JWT токена по username/password.
+    Используется для авторизации в Swagger UI.
+    Требует, чтобы пользователь имел is_staff=True.
+    """
+    authentication_classes = []  # Без аутентификации
+    permission_classes = []  # Без разрешений
+    
+    @extend_schema(
+        summary="Получение токена для Swagger",
+        description="Получает JWT токен по username/password. "
+                   "Используется для авторизации в Swagger UI. "
+                   "Требует, чтобы пользователь имел is_staff=True.",
+        request=SwaggerTokenRequestSerializer,
+        responses={
+            200: SwaggerTokenResponseSerializer,
+            400: {'description': 'Требуются username и password'},
+            401: {'description': 'Неверные учетные данные'},
+            403: {'description': 'Доступ только для staff пользователей или пользователь заблокирован'},
+        },
+        tags=['Auth'],
+    )
+    def post(self, request):
+        User = get_user_model()
+        username = request.data.get('username')
+        password = request.data.get('password')
+        
+        if not username or not password:
+            return Response(
+                {'error': 'Требуются username и password'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Проверяем пользователя
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'Неверные учетные данные'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Проверяем is_staff
+        if not user.is_staff:
+            return Response(
+                {'error': 'Доступ только для staff пользователей'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Проверяем active
+        if not user.active:
+            return Response(
+                {'error': 'Пользователь заблокирован'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Проверяем пароль
+        if not user.check_password(password):
+            return Response(
+                {'error': 'Неверные учетные данные'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Генерируем токены через тот же метод, что и стандартный endpoint
+        # Используем TokenObtainPairSerializer для согласованности
+        serializer = CustomTokenObtainPairSerializer(data={
+            'username': username,
+            'password': password
+        })
+        
+        if serializer.is_valid():
+            # Создаём сессию при успешной аутентификации
+            refresh_token = serializer.validated_data.get('refresh')
+            if refresh_token:
+                token_id = str(refresh_token)[:8]
+                create_user_session(user, token_id, request)
+            
+            # Форматируем ответ для Swagger UI (ожидает access_token, а не access)
+            return Response({
+                'access_token': serializer.validated_data.get('access'),
+                'token_type': 'Bearer',
+                'expires_in': 3600,  # 60 минут (в секундах)
+                'refresh_token': serializer.validated_data.get('refresh'),
+            })
+        
+        return Response(
+            {'error': 'Неверные учетные данные'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
 

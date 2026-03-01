@@ -54,6 +54,8 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'AUTH_HEADER_TYPES': ('Bearer',),
+    # Отключаем генерацию JWT схемы для Swagger
+    'JWT_AUTH_HEADER_TYPE': 'Bearer',
 }
 
 MIDDLEWARE = [
@@ -155,3 +157,53 @@ TIME_ZONE = 'Asia/Yekaterinburg'
 
 # django-auditlog настройки
 AUDITLOG_USE_TZ = True  # Использовать часовой пояс для записей аудита
+
+# drf-spectacular настройки для Swagger
+def remove_jwt_auth_hook(result, generator, request, public, **kwargs):
+    """Хук для удаления jwtAuth из схемы."""
+    if 'components' in result and 'securitySchemes' in result['components']:
+        schemes = result['components']['securitySchemes']
+        if 'jwtAuth' in schemes:
+            del schemes['jwtAuth']
+    return result
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Inventory API',
+    'DESCRIPTION': 'API для системы учета ТМЦ',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    # Настройки Swagger UI
+    'SWAGGER_UI_SETTINGS': {
+        'persistAuthorization': True,
+        'displayRequestDuration': True,
+        'docExpansion': 'none',
+    },
+    # OAuth2 настройки для авторизации через форму
+    'OAUTH2_CONFIG': {
+        'clientId': 'swagger-ui',
+        'realm': 'inventory-api',
+    },
+    # Postprocessing hook для удаления jwtAuth
+    'POSTPROCESSING_HOOKS': [
+        'inventory.settings.remove_jwt_auth_hook',
+    ],
+    # Полностью заменяем схемы безопасности - только OAuth2Password
+    'APPEND_COMPONENTS': {
+        'securitySchemes': {
+            'OAuth2Password': {
+                'type': 'oauth2',
+                'flows': {
+                    'password': {
+                        'tokenUrl': '/api/users/swagger-token/',
+                        'scopes': {},
+                    },
+                },
+            },
+        },
+    },
+    # Убираем jwtAuth из списка доступных схем
+    'SECURITY': [
+        {'OAuth2Password': []},
+    ],
+}

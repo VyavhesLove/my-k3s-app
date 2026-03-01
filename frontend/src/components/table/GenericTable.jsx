@@ -80,7 +80,7 @@ const GenericTable = ({ table, styles = {}, emptyMessage = 'Нет данных'
       {children && <div className="p-4 border-b" style={{ borderColor: 'var(--table-border)' }}>{children}</div>}
 
       <div style={defaultStyles.wrapper}>
-        <table style={{ width: '100%', tableLayout: 'fixed' }}>
+        <table style={{ width: '100%' }}>
           {/* Header Groups */}
           <thead style={defaultStyles.thead}>
             {headerGroups.map((headerGroup) => (

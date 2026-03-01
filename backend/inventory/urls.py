@@ -11,6 +11,8 @@ urlpatterns = [
 
     # 🔥 2. Items API
     path('api/items/', include('items.urls')),
+    # 🔥 2a. Writeoffs API (legacy URL /api/writeoffs/ для совместимости)
+    path('api/writeoffs/', include('items.urls_writeoffs')),
 
     # 🔥 3. Common API endpoints (moved from items.urls for correct URL structure)
     path('api/config/', get_config, name='get_config'),

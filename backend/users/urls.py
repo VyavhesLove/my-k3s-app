@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     CustomTokenObtainPairView,
+    SwaggerTokenView,
     user_list, create_user, toggle_user_block, reset_user_password,
     get_current_user, update_profile, change_password,
     get_user_history, get_active_sessions, terminate_session, create_session,
@@ -14,6 +15,9 @@ urlpatterns = [
     # Auth endpoints (обратная совместимость с фронтендом)
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    
+    # Swagger token endpoint (для авторизации в Swagger UI)
+    path('swagger-token/', SwaggerTokenView.as_view(), name='swagger_token'),
     
     # User endpoints
     path('', user_list, name='user_list'),
