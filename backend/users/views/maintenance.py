@@ -7,7 +7,7 @@ from django.core.cache import cache
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 
 from users.models import MaintenanceMode
@@ -189,3 +189,17 @@ def get_maintenance_settings(request):
     
     return Response(MaintenanceModeSettingsSerializer(data).data)
 
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_maintenance_public_status(request):
+    """
+    Публичный endpoint для проверки статуса maintenance mode.
+    Нужен фронтенду для корректного роутинга во время обслуживания.
+    """
+    maintenance = MaintenanceMode.objects.get_instance()
+    return Response({
+        'enabled': maintenance.enabled,
+        'planned_end_time': maintenance.planned_end_time,
+    }, status=status.HTTP_200_OK)
