@@ -154,13 +154,9 @@ class MaintenanceModeEnforcementMiddleware:
         - is_superuser  
         - роль admin (через is_admin() метод или role='admin')
         """
-        if not hasattr(request, 'user'):
+        user = self._get_authenticated_user(request)
+        if user is None:
             return False
-        
-        if not request.user.is_authenticated:
-            return False
-        
-        user = request.user
         
         # Проверка is_staff
         if user.is_staff:
@@ -183,6 +179,37 @@ class MaintenanceModeEnforcementMiddleware:
             return True
         
         return False
+
+    def _get_authenticated_user(self, request):
+        """
+        Вернуть аутентифицированного пользователя из request.
+
+        Важно для JWT API-запросов: стандартный AuthenticationMiddleware
+        не знает про DRF JWT, поэтому request.user на этом этапе может
+        быть AnonymousUser даже для валидного Bearer-токена.
+        """
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            return request.user
+
+        cached_user = getattr(request, '_maintenance_jwt_user', None)
+        if cached_user is not None:
+            return cached_user
+
+        try:
+            from users.authentication import SessionAwareJWTAuthentication
+
+            auth_result = SessionAwareJWTAuthentication().authenticate(request)
+            if auth_result is None:
+                request._maintenance_jwt_user = None
+                return None
+
+            jwt_user, _ = auth_result
+            request._maintenance_jwt_user = jwt_user
+            return jwt_user
+        except Exception as e:
+            logger.debug("JWT authentication in maintenance middleware failed: %s", e)
+            request._maintenance_jwt_user = None
+            return None
     
     def _is_ip_allowed(self, client_ip):
         """
@@ -322,4 +349,3 @@ def clear_maintenance_whitelist_cache():
     Вызывать после обновления настроек в БД.
     """
     cache.delete(MaintenanceModeEnforcementMiddleware.CACHE_KEY)
-
