@@ -1,7 +1,10 @@
 """
 Кастомный context processor для передачи данных о maintenance mode в шаблоны.
 """
+import logging
 from django.core.cache import cache
+
+logger = logging.getLogger(__name__)
 
 
 def maintenance_mode_context(request):
@@ -18,23 +21,19 @@ def maintenance_mode_context(request):
         from maintenance_mode.core import get_maintenance_mode
         
         if get_maintenance_mode():
-            maintenance = MaintenanceMode.objects.first()
-            if maintenance:
-                info = {
-                    'maintenance_mode': True,
-                    'planned_end_time': maintenance.planned_end_time,
-                }
-            else:
-                info = {
-                    'maintenance_mode': True,
-                    'planned_end_time': None,
-                }
+            # Используем singleton manager для гарантии работы с одной записью
+            maintenance = MaintenanceMode.objects.get_instance()
+            info = {
+                'maintenance_mode': maintenance.enabled,
+                'planned_end_time': maintenance.planned_end_time,
+            }
         else:
             info = {
                 'maintenance_mode': False,
                 'planned_end_time': None,
             }
-    except Exception:
+    except Exception as e:
+        logger.exception("Error getting maintenance mode context: %s", e)
         info = {
             'maintenance_mode': False,
             'planned_end_time': None,

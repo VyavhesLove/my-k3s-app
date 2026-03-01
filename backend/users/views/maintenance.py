@@ -1,13 +1,15 @@
 """
 Views для управления режимом обслуживания (maintenance mode).
 """
+from django.core.cache import cache
 from django.utils import timezone
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
-from rest_framework import status
 
 from users.models import MaintenanceMode
+from users.serializers import MaintenanceModeSerializer
 
 
 @api_view(['GET', 'POST'])
@@ -23,50 +25,43 @@ def get_maintenance_status(request):
         "planned_end_time": "2024-12-25T15:00:00Z"  # опционально
     }
     """
-    maintenance = MaintenanceMode.objects.first()
+    # Используем singleton manager для гарантии работы с одной записью
+    maintenance = MaintenanceMode.objects.get_instance()
     
     if request.method == 'POST':
-        enabled = request.data.get('enabled', False)
-        planned_end_time = request.data.get('planned_end_time')
+        # Используем serializer для корректной валидации boolean
+        serializer = MaintenanceModeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         
-        if not maintenance:
-            maintenance = MaintenanceMode.objects.create(
-                enabled=False,
-                planned_end_time=None
-            )
+        enabled = serializer.validated_data.get('enabled', False)
+        planned_end_time = serializer.validated_data.get('planned_end_time')
         
-        maintenance.enabled = bool(enabled)
-        
-        if planned_end_time:
-            from django.utils.dateparse import parse_datetime
-            maintenance.planned_end_time = parse_datetime(planned_end_time)
-        else:
-            maintenance.planned_end_time = None
-        
+        maintenance.enabled = enabled
+        maintenance.planned_end_time = planned_end_time
         maintenance.save()
         
         # Очищаем кэш
-        from django.core.cache import cache
         cache.delete('maintenance_context')
         cache.delete('maintenance_mode_state')
         
-        return Response({
+        response_data = {
             'enabled': maintenance.enabled,
             'planned_end_time': maintenance.planned_end_time,
             'message': 'Режим обслуживания включён' if maintenance.enabled else 'Режим обслуживания выключен'
-        })
+        }
+        
+        return Response(
+            MaintenanceModeSerializer(response_data).data,
+            status=status.HTTP_200_OK
+        )
     
     # GET request
-    if maintenance:
-        return Response({
+    return Response(
+        MaintenanceModeSerializer({
             'enabled': maintenance.enabled,
             'planned_end_time': maintenance.planned_end_time,
-        })
-    
-    return Response({
-        'enabled': False,
-        'planned_end_time': None,
-    })
+        }).data
+    )
 
 
 @api_view(['POST'])
@@ -80,17 +75,16 @@ def toggle_maintenance(request):
         "enabled": true  # опционально, по умолчанию инвертирует текущее состояние
     }
     """
-    maintenance = MaintenanceMode.objects.first()
+    # Используем singleton manager для гарантии работы с одной записью
+    maintenance = MaintenanceMode.objects.get_instance()
     
-    if not maintenance:
-        maintenance = MaintenanceMode.objects.create(
-            enabled=False,
-            planned_end_time=None
-        )
+    # Используем serializer для корректной валидации boolean
+    serializer = MaintenanceModeSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
     
     # Если enabled передан - используем его, иначе инвертируем
-    if 'enabled' in request.data:
-        new_enabled = bool(request.data.get('enabled'))
+    if 'enabled' in serializer.validated_data:
+        new_enabled = serializer.validated_data['enabled']
     else:
         new_enabled = not maintenance.enabled
     
@@ -98,13 +92,17 @@ def toggle_maintenance(request):
     maintenance.save()
     
     # Очищаем кэш
-    from django.core.cache import cache
     cache.delete('maintenance_context')
     cache.delete('maintenance_mode_state')
     
-    return Response({
+    response_data = {
         'enabled': maintenance.enabled,
         'planned_end_time': maintenance.planned_end_time,
         'message': 'Режим обслуживания включён' if maintenance.enabled else 'Режим обслуживания выключен'
-    })
+    }
+    
+    return Response(
+        MaintenanceModeSerializer(response_data).data,
+        status=status.HTTP_200_OK
+    )
 

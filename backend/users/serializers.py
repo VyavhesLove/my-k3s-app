@@ -122,3 +122,14 @@ class UserResponseSerializer(serializers.ModelSerializer):
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'surname', 'role', 'active', 'date_joined']
         read_only_fields = fields
 
+
+class MaintenanceModeSerializer(serializers.Serializer):
+    """
+    Serializer для управления режимом обслуживания.
+    Корректно обрабатывает boolean значения через DRF serializer,
+    избегая проблемы с bool(...) для строковых значений ("false", "0").
+    """
+    enabled = serializers.BooleanField(required=False, default=False)
+    planned_end_time = serializers.DateTimeField(required=False, allow_null=True)
+    message = serializers.CharField(read_only=True)
+

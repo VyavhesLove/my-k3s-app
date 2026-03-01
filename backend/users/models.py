@@ -59,9 +59,28 @@ class User(AbstractUser):
         return str(self.role) == 'foreman'
 
 
+class MaintenanceModeManager(models.Manager):
+    """
+    Менеджер для работы с singleton-записью MaintenanceMode.
+    Гарантирует, что в таблице всегда только одна запись с id=1.
+    """
+    
+    def get_instance(self):
+        """
+        Получить или создать единственную запись MaintenanceMode.
+        Всегда использует pk=1 для гарантии singleton.
+        """
+        obj, created = self.get_or_create(
+            pk=1,
+            defaults={'enabled': False, 'planned_end_time': None}
+        )
+        return obj
+
+
 class MaintenanceMode(models.Model):
     """
     Модель для хранения состояния режима обслуживания.
+    Singleton - всегда должна быть только одна запись в БД.
     """
     enabled = models.BooleanField(
         default=False,
@@ -77,6 +96,8 @@ class MaintenanceMode(models.Model):
         verbose_name="Дата обновления"
     )
 
+    objects = MaintenanceModeManager()
+
     class Meta:
         verbose_name = "Режим обслуживания"
         verbose_name_plural = "Режимы обслуживания"
@@ -88,13 +109,14 @@ class MaintenanceMode(models.Model):
         return f"Режим обслуживания: {status}"
 
     def is_active(self):
-        """Проверить, активен ли режим обслуживания."""
+        """
+        Проверить, активен ли режим обслуживания.
+        Примечание: автоотключение при истечении времени централизовано в maintenance_backend.
+        """
         if not self.enabled:
             return False
         # Проверяем, не истекло ли запланированное время
         if self.planned_end_time and self.planned_end_time < timezone.now():
-            self.enabled = False
-            self.save()
             return False
         return True
 
