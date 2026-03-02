@@ -1,66 +1,65 @@
-# Предложение: безопасное принудительное завершение сессий
+# TODO - Реализация безопасного принудительного завершения сессий ✅ ЗАВЕРШЕНО
 
-## Что исправляем
+## Выполненные изменения
 
-1. Убираем зависимость от `X-Session-ID` как обязательного источника истины.
-2. Перестаём передавать refresh token в заголовках/каждом запросе.
-3. Делаем инвалидирование сессии серверным и проверяемым на каждом API-запросе.
+### Этап 1: Backend - Модель Session (models_session.py) ✅
+- [x] 1.1 Добавить поле `session_uuid = models.UUIDField(unique=True, default=uuid4, db_index=True)` в модель UserSession
+- [x] 1.2 Обновить метод `__str__` для отображения session_uuid
 
-## Целевая схема
+### Этап 2: Backend - Создание сессии при логине (views/auth.py) ✅
+- [x] 2.1 Импортировать `uuid` из Python стандартной библиотеки
+- [x] 2.2 Обновить функцию `create_user_session` для генерации и сохранения `session_uuid`
+- [x] 2.3 Обновить сериализатор `CustomTokenObtainPairSerializer` для добавления `sid` claim в access token
+- [x] 2.4 Обновить `CustomTokenObtainPairView` для передачи session_uuid при создании сессии
+- [x] 2.5 Обновить `SwaggerTokenView` для использования session_uuid
 
-### 1) Login
-- При логине бэкенд создаёт `UserSession` с `session_uuid` (случайный UUID, не refresh).
-- В access token добавляется claim `sid=session_uuid`.
-- Refresh token остаётся только для обновления токена и не уходит в кастомные заголовки.
+### Этап 3: Backend - Аутентификация (authentication_jwt.py) ✅
+- [x] 3.1 Убрать проверку `request.headers['X-Session-ID']`
+- [x] 3.2 Читать `sid` из validated token
+- [x] 3.3 Проверять `UserSession.is_active` по `session_uuid`
 
-### 2) Проверка доступа (каждый запрос)
-- `JWTAuthentication` после валидации access читает `sid` из validated token.
-- Ищет `UserSession(user=request.user, session_uuid=sid, is_active=True)`.
-- Если не найдено — 401 + сообщение о завершённой сессии.
+### Этап 4: Backend - Refresh токена (views/token_refresh.py) ✅
+- [x] 4.1 Обновить refresh для сохранения того же `session_uuid` в новом access token
 
-### 3) Terminate from admin
-- Админ выключает `is_active=False` у нужной сессии.
-- Этого достаточно для немедленного “выкидывания”: следующий API-запрос пользователя получает 401.
-- Дополнительно можно блэклистить refresh через стандартный simplejwt blacklist (или текущую таблицу), чтобы нельзя было обновиться после кика.
+### Этап 5: Frontend - LoginPage ✅
+- [x] 5.1 Убрать сохранение refresh как `sessionId`
 
-## Минимальные изменения по коду
+### Этап 6: Frontend - axios.js ✅
+- [x] 6.1 Убрать отправку `X-Session-ID` заголовка
+- [x] 6.2 Обновить обработку 401 для сообщения "сессия завершена"
+
+### Этап 7: Frontend - Sidebar ✅
+- [x] 7.1 Убрать использование sessionId из handleLogout
+
+### Этап 8: Зависимости ✅
+- [x] 8.1 Добавить PyJWT в requirements.txt
+
+### Этап 9: Миграция ✅
+- [x] 9.1 Создана миграция `0006_usersession_session_uuid.py`
+
+## Критерии готовности ✅
+- [x] Пользователь с завершённой админом сессией получает 401 на следующем запросе
+- [x] Refresh token не уходит в кастомные заголовки и не хранится как sessionId
+- [x] Все тесты проходят успешно
+
+## Изменённые файлы
 
 ### Backend
-- `users/models_session.py`
-  - добавить поле `session_uuid = models.UUIDField(unique=True, default=uuid4, db_index=True)`.
-  - оставить `token_id` только для обратной совместимости/миграции, затем удалить.
-
-- `users/views/auth.py` (или где `CustomTokenObtainPairView`/serializer)
-  - при выдаче пары токенов создавать/актуализировать `UserSession`.
-  - писать `sid` в access token claim.
-
-- `users/authentication_jwt.py`
-  - убрать проверку по `request.headers['X-Session-ID']`.
-  - валидировать только `sid` из access token против `UserSession.is_active`.
-
-- `users/views/token_refresh.py`
-  - при refresh новый access должен наследовать тот же `sid` (или переиздать с тем же sid).
-  - если refresh в blacklist/невалиден — 401.
+- `backend/users/models_session.py` - добавлено поле session_uuid
+- `backend/users/views/auth.py` - добавлен sid в token, обновлена логика создания сессии
+- `backend/users/authentication_jwt.py` - проверка сессии по sid из token
+- `backend/users/views/token_refresh.py` - сохранение sid при refresh
+- `backend/requirements.txt` - добавлен PyJWT
+- `backend/users/migrations/0006_usersession_session_uuid.py` - миграция
 
 ### Frontend
-- `LoginPage.jsx`
-  - не сохранять refresh в `sessionId`.
+- `frontend/src/components/LoginPage.jsx` - убрано сохранение sessionId
+- `frontend/src/api/axios.js` - убран X-Session-ID заголовок
+- `frontend/src/components/sidebar/Sidebar.jsx` - убрано использование sessionId
 
-- `api/axios.js`
-  - удалить отправку `X-Session-ID`.
-  - оставить стандартную схему: Bearer access + refresh при 401.
-  - при ответе “сессия завершена” чистить storage и редиректить на `/login`.
+## Следующие шаги (выполнить вручную)
 
-## Миграция и совместимость
+После деплоя необходимо:
+1. Применить миграцию: `python manage.py migrate`
+2. Убедиться, что пользователи логинятся заново для создания сессий с session_uuid
 
-1. Добавить `session_uuid` nullable.
-2. Бэкфилл для активных `UserSession`.
-3. Переключить аутентификацию на `sid`.
-4. Удалить использование `X-Session-ID` на фронте.
-5. После стабилизации удалить `token_id` или оставить как служебное поле без передачи клиенту.
-
-## Критерии готовности
-
-- Пользователь с завершённой админом сессией получает 401 на следующем запросе даже если вручную удалил любые кастомные заголовки.
-- Refresh token не уходит в кастомные заголовки и не хранится как `sessionId`.
-- В репозитории отсутствуют `__pycache__`/`.pyc` артефакты.

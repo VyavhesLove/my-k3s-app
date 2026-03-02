@@ -28,8 +28,7 @@ const LoginPage = ({ setToken, isDarkMode }) => {
       localStorage.setItem('accessToken', access);
       localStorage.setItem('refreshToken', refresh);
       
-      // Сохраняем sessionId (refresh token) для проверки сессий на бэкенде
-      localStorage.setItem('sessionId', refresh);
+      // НЕ сохраняем sessionId - он больше не используется для проверки сессий
       
       // ✅ Получаем и сохраняем информацию о пользователе
       const userResponse = await api.get('/users/me/');

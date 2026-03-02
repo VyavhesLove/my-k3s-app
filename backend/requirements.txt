@@ -7,3 +7,4 @@ drf-spectacular
 gunicorn
 whitenoise
 djangorestframework-simplejwt
+PyJWT

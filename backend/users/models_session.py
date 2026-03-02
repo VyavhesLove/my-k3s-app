@@ -2,6 +2,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from uuid import uuid4
 
 
 class UserSession(models.Model):
@@ -16,7 +17,15 @@ class UserSession(models.Model):
         verbose_name="Пользователь"
     )
     
-    # Идентификатор токена (полный refresh токен)
+    # UUID сессии - уникальный идентификатор для валидации через access token
+    session_uuid = models.UUIDField(
+        unique=True,
+        default=uuid4,
+        db_index=True,
+        verbose_name="UUID сессии"
+    )
+    
+    # Идентификатор токена (полный refresh токен) - для обратной совместимости
     token_id = models.CharField(
         max_length=512,
         unique=True,
@@ -69,7 +78,7 @@ class UserSession(models.Model):
         ordering = ['-last_activity']
 
     def __str__(self):
-        return f"{self.user.username} - {self.description or self.token_id[:8]}"
+        return f"{self.user.username} - {self.description or str(self.session_uuid)[:8]}"
 
     @property
     def is_current(self):

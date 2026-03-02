@@ -130,7 +130,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, isDarkMode, setIsDarkMode }) => 
     // 1. Точечное удаление ТОЛЬКО пользовательских данных
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
-    localStorage.removeItem('sessionId');
+    // sessionId больше не используется
     localStorage.removeItem('user');
     localStorage.removeItem('userRole');
     localStorage.removeItem('permissions');

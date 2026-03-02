@@ -49,16 +49,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('accessToken');
-        const sessionId = localStorage.getItem('sessionId');
         
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
         
-        // Добавляем ID сессии для проверки на бэкенде
-        if (sessionId) {
-            config.headers['X-Session-ID'] = sessionId;
-        }
+        // X-Session-ID больше не используется - сессия проверяется через sid в access token
         
         return config;
     },
@@ -85,13 +81,12 @@ api.interceptors.response.use(
                 return Promise.reject(error);
             }
             
-            // Проверяем, не завершена ли сессия (токен в blacklist)
+            // Проверяем, не завершена ли сессия (токен в blacklist или сессия деактивирована)
             const errorMessage = error.response?.data?.detail || '';
-            if (errorMessage.includes('отозван') || errorMessage.includes('завершена')) {
+            if (errorMessage.includes('отозван') || errorMessage.includes('завершена') || errorMessage.includes('Сессия')) {
                 // Сессия завершена - удаляем все данные и редиректим на логин
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
-                localStorage.removeItem('sessionId');
                 localStorage.removeItem('user');
                 localStorage.removeItem('userRole');
                 window.location.href = '/login';
@@ -110,8 +105,7 @@ api.interceptors.response.use(
 
                 if (res.status === 200) {
                     localStorage.setItem('accessToken', res.data.access);
-                    // Обновляем sessionId при refresh (новый access = та же сессия)
-                    // sessionId остается прежним (refresh token не меняется)
+                    // sid сохраняется в новом access token на бэкенде
                     
                     // Обновляем заголовок в изначальном запросе и повторяем его
                     originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
@@ -121,7 +115,6 @@ api.interceptors.response.use(
                 // Если даже рефреш-токен сдох — выкидываем на логин
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
-                localStorage.removeItem('sessionId');
                 window.location.href = '/login';
                 return Promise.reject(refreshError);
             }

@@ -1,4 +1,5 @@
 """Аутентификация и работа с токенами."""
+import uuid
 from rest_framework import serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -34,7 +35,23 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     Проверяет, что пользователь активен (active).
     Возвращает корректное сообщение "Пользователь заблокирован" вместо стандартного
     "Invalid username or password" если пользователь неактивен.
+    Также добавляет sid (session_uuid) в access token.
     """
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        
+        # Создаём session_uuid для нового токена
+        session_uuid = uuid.uuid4()
+        
+        # Добавляем sid в access token
+        token['sid'] = str(session_uuid)
+        
+        # Сохраняем session_uuid для использования при создании UserSession
+        token._session_uuid = session_uuid
+        
+        return token
+    
     def validate(self, attrs):
         User = get_user_model()
         username = attrs.get('username')
@@ -56,7 +73,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return super().validate(attrs)
 
 
-def create_user_session(user, token_id, request):
+def create_user_session(user, token_id, request, session_uuid=None):
     """
     Создаёт запись о сессии пользователя.
     Вызывается при успешной аутентификации.
@@ -84,17 +101,20 @@ def create_user_session(user, token_id, request):
     # Делаем все предыдущие сессии неактивными при новом входе
     UserSession.objects.filter(user=user, is_active=True).update(is_active=False)
     
-    # Используем update_or_create для избежания ошибки уникальности
-    # Если сессия с таким token_id уже существует (но была неактивна) - обновляем её
-    session, created = UserSession.objects.update_or_create(
+    # Используем session_uuid из параметра или создаём новый
+    if session_uuid is None:
+        import uuid as uuid_module
+        session_uuid = uuid_module.uuid4()
+    
+    # Создаём новую сессию с session_uuid
+    session = UserSession.objects.create(
         user=user,
+        session_uuid=session_uuid,
         token_id=token_id,
-        defaults={
-            'user_agent': user_agent,
-            'ip_address': ip_address,
-            'description': description,
-            'is_active': True,
-        }
+        user_agent=user_agent,
+        ip_address=ip_address,
+        description=description,
+        is_active=True,
     )
 
 
@@ -107,30 +127,35 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        # Получаем стандартный ответ
-        response = super().post(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
         
-        # Если аутентификация успешна - создаём сессию
-        if response.status_code == 200:
-            User = get_user_model()
-            username = request.data.get('username')
+        if serializer.is_valid():
+            # Получаем токен из сериализатора, чтобы извлечь session_uuid
+            user = serializer.user
+            token = serializer.token
             
-            if username:
-                try:
-                    user = User.objects.get(username=username)
-                    
-                    # Получаем refresh токен из ответа
-                    refresh_token = response.data.get('refresh')
-                    
-                    if refresh_token:
-                        # Используем полный refresh токен как token_id
-                        token_id = refresh_token
-                        create_user_session(user, token_id, request)
-                        
-                except User.DoesNotExist:
-                    pass
+            # Получаем session_uuid из токена
+            session_uuid = getattr(token, '_session_uuid', None)
+            
+            # Выполняем стандартный метод для получения ответа
+            response = super().post(request, *args, **kwargs)
+            
+            # Если аутентификация успешна - создаём сессию
+            if response.status_code == 200:
+                # Получаем refresh токен из ответа
+                refresh_token = response.data.get('refresh')
+                
+                if refresh_token and session_uuid:
+                    # Используем полный refresh токен как token_id
+                    token_id = refresh_token
+                    create_user_session(user, token_id, request, session_uuid)
+            
+            return response
         
-        return response
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 class SwaggerTokenView(APIView):
@@ -205,11 +230,18 @@ class SwaggerTokenView(APIView):
         })
         
         if serializer.is_valid():
+            # Получаем токен из сериализатора
+            user = serializer.user
+            token = serializer.token
+            
+            # Получаем session_uuid из токена
+            session_uuid = getattr(token, '_session_uuid', None)
+            
             # Создаём сессию при успешной аутентификации
             refresh_token = serializer.validated_data.get('refresh')
-            if refresh_token:
+            if refresh_token and session_uuid:
                 token_id = str(refresh_token)
-                create_user_session(user, token_id, request)
+                create_user_session(user, token_id, request, session_uuid)
             
             # Форматируем ответ для Swagger UI (ожидает access_token, а не access)
             return Response({

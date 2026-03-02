@@ -10,6 +10,7 @@ class BlacklistJWTAuthentication(JWTAuthentication):
     """
     Кастомный JWT аутентификатор, который проверяет активность сессии пользователя.
     Если сессия пользователя завершена (is_active=False), аутентификация не пройдёт.
+    Проверяет session_uuid из access token против UserSession.
     """
     
     def authenticate(self, request):
@@ -23,21 +24,28 @@ class BlacklistJWTAuthentication(JWTAuthentication):
         
         user, validated_token = result
         
-        # Получаем token_id из заголовка X-Session-ID
-        token_id = request.headers.get('X-Session-ID')
+        # Получаем sid (session_uuid) из access token
+        sid = validated_token.get('sid')
         
-        if token_id:
+        if sid:
             try:
                 from users.models_session import UserSession
+                from uuid import UUID
                 
-                # Проверяем, есть ли активная сессия с этим token_id
-                session_exists = UserSession.objects.filter(
+                # Конвертируем sid в UUID для запроса
+                try:
+                    session_uuid = UUID(sid)
+                except (ValueError, TypeError):
+                    raise InvalidToken(_('Неверный формат идентификатора сессии'))
+                
+                # Проверяем, есть ли активная сессия с этим session_uuid
+                session = UserSession.objects.filter(
                     user=user,
-                    token_id=token_id,
+                    session_uuid=session_uuid,
                     is_active=True
-                ).exists()
+                ).first()
                 
-                if not session_exists:
+                if not session:
                     # Сессия неактивна или не существует - отклоняем аутентификацию
                     raise InvalidToken(_('Сессия завершена. Войдите в систему заново.'))
                     
