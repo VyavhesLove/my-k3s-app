@@ -8,7 +8,7 @@
 venv/
 env/
 .venv/
-my-k3s-app/backend/venv/
+backend/venv/
 
 # Dependencies
 Pipfile.lock
