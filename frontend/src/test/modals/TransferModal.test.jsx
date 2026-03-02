@@ -128,7 +128,7 @@ describe('TransferModal', () => {
       );
 
       await waitFor(() => {
-        expect(api.get).toHaveBeenCalledWith('/locations');
+        expect(api.get).toHaveBeenCalledWith('/items/locations/');
       });
     });
 

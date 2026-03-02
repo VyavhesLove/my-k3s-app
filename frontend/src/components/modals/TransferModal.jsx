@@ -20,7 +20,7 @@ export const TransferModal = ({ isOpen, onClose, item, isDarkMode }) => {
   const fetchLocations = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await api.get('/locations');
+      const response = await api.get('/items/locations/');
       // Бэкенд возвращает { success: true, data: { locations: [...] } }
       const locationsData = response.data.data?.locations || response.data.locations || [];
       setLocations(locationsData);
