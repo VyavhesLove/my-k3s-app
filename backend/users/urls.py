@@ -6,7 +6,8 @@ from .views import (
     user_list, create_user, toggle_user_block, reset_user_password,
     get_current_user, update_profile, change_password,
     get_user_history, get_active_sessions, terminate_session, create_session,
-    get_user_sessions, terminate_all_user_sessions, terminate_user_session
+    get_user_sessions, terminate_all_user_sessions, terminate_user_session,
+    get_system_stats
 )
 
 app_name = 'users'
@@ -47,5 +48,8 @@ urlpatterns = [
     path('<int:user_id>/sessions/', get_user_sessions, name='user_sessions'),
     path('<int:user_id>/sessions/terminate-all/', terminate_all_user_sessions, name='terminate_all_user_sessions'),
     path('<int:user_id>/sessions/<int:session_id>/terminate/', terminate_user_session, name='terminate_user_session'),
+    
+    # System stats (для админ-панели)
+    path('stats/', get_system_stats, name='system_stats'),
 ]
 

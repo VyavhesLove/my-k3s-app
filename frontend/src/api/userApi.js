@@ -1,5 +1,15 @@
 import api from './axios';
 
+// Функция для получения системной статистики (для админ-панели)
+export const getSystemStats = async () => {
+  try {
+    const response = await api.get('users/stats/');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 // Функция для получения сессий пользователя (для админа)
 export const getUserSessions = async (userId) => {
   try {

@@ -15,9 +15,9 @@ class UserSession(models.Model):
         verbose_name="Пользователь"
     )
     
-    # Идентификатор токена (первые 8 символов refresh токена)
+    # Идентификатор токена (полный refresh токен)
     token_id = models.CharField(
-        max_length=64,
+        max_length=512,
         unique=True,
         verbose_name="ID токена"
     )

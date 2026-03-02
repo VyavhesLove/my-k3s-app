@@ -123,8 +123,8 @@ class CustomTokenObtainPairView(TokenObtainPairView):
                     refresh_token = response.data.get('refresh')
                     
                     if refresh_token:
-                        # Используем первые 8 символов refresh токена как token_id
-                        token_id = refresh_token[:8]
+                        # Используем полный refresh токен как token_id
+                        token_id = refresh_token
                         create_user_session(user, token_id, request)
                         
                 except User.DoesNotExist:
@@ -208,7 +208,7 @@ class SwaggerTokenView(APIView):
             # Создаём сессию при успешной аутентификации
             refresh_token = serializer.validated_data.get('refresh')
             if refresh_token:
-                token_id = str(refresh_token)[:8]
+                token_id = str(refresh_token)
                 create_user_session(user, token_id, request)
             
             # Форматируем ответ для Swagger UI (ожидает access_token, а не access)

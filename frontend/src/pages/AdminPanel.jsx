@@ -1,9 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings, Users, Database, Shield, BookOpen, Key } from 'lucide-react';
+import { getSystemStats } from '@/api/userApi';
 
 export const AdminPanel = ({ isDarkMode }) => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setStatsLoading(true);
+      try {
+        const data = await getSystemStats();
+        setStats(data);
+      } catch (error) {
+        console.error('Failed to fetch system stats:', error);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -129,6 +148,18 @@ export const AdminPanel = ({ isDarkMode }) => {
             <span className="text-green-500 flex items-center gap-2">
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               Подключено
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="opacity-60">Активные пользователи</span>
+            <span className="font-semibold">
+              {statsLoading ? '...' : stats?.active_users_count ?? '-'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="opacity-60">Активные сессии</span>
+            <span className="font-semibold">
+              {statsLoading ? '...' : stats?.active_sessions_count ?? '-'}
             </span>
           </div>
         </div>
