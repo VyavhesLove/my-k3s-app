@@ -16,13 +16,14 @@ class BlacklistTokenRefreshView(TokenRefreshView):
     
     def post(self, request, *args, **kwargs):
         # Получаем refresh токен из запроса
-        refresh_token = request.data.get('refresh')
+        refresh_token_str = request.data.get('refresh')
         
-        if refresh_token:
+        if refresh_token_str:
+            # Проверяем blacklist
             try:
                 from users.models_session import TokenBlacklist
                 
-                if TokenBlacklist.is_blacklisted(refresh_token):
+                if TokenBlacklist.is_blacklisted(refresh_token_str):
                     return Response(
                         {'detail': _('Токен был отозван')},
                         status=status.HTTP_401_UNAUTHORIZED
@@ -30,64 +31,43 @@ class BlacklistTokenRefreshView(TokenRefreshView):
             except Exception:
                 # Продолжаем стандартную обработку при ошибке
                 pass
-        
-        # Получаем текущий access token для извлечения sid
-        auth_header = request.headers.get('Authorization', '')
-        old_access_token = None
-        
-        if auth_header.startswith('Bearer '):
-            old_access_token = auth_header[7:]
+            
+            # Пробуем извлечь sid из refresh token
+            saved_sid = None
+            try:
+                from rest_framework_simplejwt.tokens import RefreshToken
+                refresh = RefreshToken(refresh_token_str)
+                saved_sid = refresh.get('sid')
+            except Exception:
+                pass
         
         # Выполняем стандартный refresh
         response = super().post(request, *args, **kwargs)
         
-        # Если refresh успешен, нужно сохранить sid в новом access token
-        if response.status_code == 200 and old_access_token:
+        # Если refresh успешен и есть sid - создаём новый access token с тем же sid
+        if response.status_code == 200 and saved_sid:
             try:
-                from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
                 from rest_framework_simplejwt.tokens import RefreshToken
                 from django.contrib.auth import get_user_model
-                import jwt
-                from django.conf import settings
                 
-                # Декодируем старый access token для получения sid
-                try:
-                    old_payload = jwt.decode(
-                        old_access_token,
-                        settings.SECRET_KEY,
-                        algorithms=['HS256']
-                    )
-                    old_sid = old_payload.get('sid')
+                # Получаем user из refresh token
+                refresh = RefreshToken(refresh_token_str)
+                user_id = refresh.get('user_id')
+                
+                if user_id:
+                    User = get_user_model()
+                    user = User.objects.get(id=user_id)
                     
-                    if old_sid:
-                        # Получаем user из refresh token
-                        refresh = RefreshToken(refresh_token)
-                        user_id = refresh.get('user_id')
-                        
-                        if user_id:
-                            User = get_user_model()
-                            try:
-                                user = User.objects.get(id=user_id)
-                                
-                                # Создаём новый access token с тем же sid
-                                from users.views.auth import CustomTokenObtainPairSerializer
-                                serializer = CustomTokenObtainPairSerializer()
-                                token = serializer.get_token(user)
-                                
-                                # Устанавливаем тот же sid
-                                token['sid'] = old_sid
-                                
-                                # Заменяем access token в ответе
-                                response.data['access'] = str(token.access_token)
-                                
-                            except User.DoesNotExist:
-                                pass
-                except jwt.InvalidTokenError:
-                    # Если не удалось декодировать, оставляем стандартный ответ
-                    pass
+                    # Создаём новый access token с сохранённым sid
+                    from users.views.auth import CustomTokenObtainPairSerializer
+                    new_token = CustomTokenObtainPairSerializer.get_token(user)
+                    new_token['sid'] = saved_sid
+                    
+                    # Заменяем access token в ответе
+                    response.data['access'] = str(new_token.access_token)
                     
             except Exception as e:
-                # Логируем ошибку, но не ломаем refresh
+                # Логируем ошибку, но не ломаем refresh (fail-safe)
                 import logging
                 logger = logging.getLogger(__name__)
                 logger.warning(f"Error preserving sid on refresh: {e}")

@@ -130,27 +130,30 @@ class CustomTokenObtainPairView(TokenObtainPairView):
         serializer = self.get_serializer(data=request.data)
         
         if serializer.is_valid():
-            # Получаем токен из сериализатора, чтобы извлечь session_uuid
             user = serializer.user
-            token = serializer.token
             
-            # Получаем session_uuid из токена
+            # Создаём токены вручную из user (это правильный способ в simplejwt)
+            token = CustomTokenObtainPairSerializer.get_token(user)
             session_uuid = getattr(token, '_session_uuid', None)
             
-            # Выполняем стандартный метод для получения ответа
-            response = super().post(request, *args, **kwargs)
+            # Генерируем refresh token из того же user
+            refresh = RefreshToken.for_user(user)
             
-            # Если аутентификация успешна - создаём сессию
-            if response.status_code == 200:
-                # Получаем refresh токен из ответа
-                refresh_token = response.data.get('refresh')
-                
-                if refresh_token and session_uuid:
-                    # Используем полный refresh токен как token_id
-                    token_id = refresh_token
-                    create_user_session(user, token_id, request, session_uuid)
+            # Копируем sid в refresh token тоже
+            if session_uuid:
+                refresh['sid'] = str(session_uuid)
             
-            return response
+            # Формируем ответ
+            response_data = {
+                'access': str(token.access_token),
+                'refresh': str(refresh),
+            }
+            
+            # Создаём сессию с правильным sid
+            if session_uuid:
+                create_user_session(user, str(refresh), request, session_uuid)
+            
+            return Response(response_data, status=status.HTTP_200_OK)
         
         return Response(
             serializer.errors,
@@ -230,15 +233,15 @@ class SwaggerTokenView(APIView):
         })
         
         if serializer.is_valid():
-            # Получаем токен из сериализатора
+            # Создаём токены вручную из user (это правильный способ в simplejwt)
             user = serializer.user
-            token = serializer.token
-            
-            # Получаем session_uuid из токена
+            token = CustomTokenObtainPairSerializer.get_token(user)
             session_uuid = getattr(token, '_session_uuid', None)
             
-            # Создаём сессию при успешной аутентификации
+            # Получаем refresh token из validated_data
             refresh_token = serializer.validated_data.get('refresh')
+            
+            # Создаём сессию при успешной аутентификации
             if refresh_token and session_uuid:
                 token_id = str(refresh_token)
                 create_user_session(user, token_id, request, session_uuid)
