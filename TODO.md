@@ -1,10 +1,13 @@
-# TODO: Добавление статистики пользователей в админ-панель
+# TODO: Вывод миграций в админ-панель
 
-## Backend
-- [x] 1. Создать view `get_system_stats` в `backend/users/views/`
-- [x] 2. Добавить URL `/users/stats/` в `backend/users/urls.py`
+## Шаги выполнения:
 
-## Frontend  
-- [x] 3. Добавить функцию `getSystemStats()` в `frontend/src/api/userApi.js`
-- [x] 4. Обновить `frontend/src/pages/AdminPanel.jsx` - добавить state, useEffect и отображение
+- [x] 1. Добавить вьюху `get_migrations_status` в `backend/users/views/stats.py`
+- [x] 2. Добавить URL для миграций в `backend/users/urls.py`
+- [x] 3. Экспортировать функцию из `backend/users/views/__init__.py`
+- [x] 4. Добавить API функцию в `frontend/src/api/userApi.js`
+- [x] 5. Обновить `frontend/src/pages/AdminPanel.jsx` для отображения миграций
+
+## Статус: ВЫПОЛНЕНО ✓
+
 

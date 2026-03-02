@@ -6,7 +6,7 @@ from .history import (
     get_user_history, get_active_sessions, terminate_session, create_session,
     get_user_sessions, terminate_all_user_sessions, terminate_user_session
 )
-from .stats import get_system_stats
+from .stats import get_system_stats, get_migrations_status
 
 __all__ = [
     'CustomTokenObtainPairView',
@@ -15,6 +15,6 @@ __all__ = [
     'create_user', 'user_list', 'toggle_user_block', 'reset_user_password',
     'get_user_history', 'get_active_sessions', 'terminate_session', 'create_session',
     'get_user_sessions', 'terminate_all_user_sessions', 'terminate_user_session',
-    'get_system_stats'
+    'get_system_stats', 'get_migrations_status'
 ]
 

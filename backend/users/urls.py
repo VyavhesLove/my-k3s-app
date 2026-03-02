@@ -7,7 +7,7 @@ from .views import (
     get_current_user, update_profile, change_password,
     get_user_history, get_active_sessions, terminate_session, create_session,
     get_user_sessions, terminate_all_user_sessions, terminate_user_session,
-    get_system_stats
+    get_system_stats, get_migrations_status
 )
 
 app_name = 'users'
@@ -51,5 +51,6 @@ urlpatterns = [
     
     # System stats (для админ-панели)
     path('stats/', get_system_stats, name='system_stats'),
+    path('migrations/', get_migrations_status, name='migrations_status'),
 ]
 

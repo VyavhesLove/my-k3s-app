@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Users, Database, Shield, BookOpen, Key } from 'lucide-react';
-import { getSystemStats } from '@/api/userApi';
+import { Settings, Users, Database, Shield, BookOpen, Key, GitBranch } from 'lucide-react';
+import { getSystemStats, getMigrationsStatus } from '@/api/userApi';
 
 export const AdminPanel = ({ isDarkMode }) => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [migrations, setMigrations] = useState(null);
+  const [migrationsLoading, setMigrationsLoading] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -21,7 +23,20 @@ export const AdminPanel = ({ isDarkMode }) => {
       }
     };
 
+    const fetchMigrations = async () => {
+      setMigrationsLoading(true);
+      try {
+        const data = await getMigrationsStatus();
+        setMigrations(data);
+      } catch (error) {
+        console.error('Failed to fetch migrations:', error);
+      } finally {
+        setMigrationsLoading(false);
+      }
+    };
+
     fetchStats();
+    fetchMigrations();
   }, []);
 
   return (
@@ -163,6 +178,67 @@ export const AdminPanel = ({ isDarkMode }) => {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Миграции базы данных */}
+      <div className={`p-6 rounded-2xl border ${
+        isDarkMode 
+          ? 'bg-slate-800 border-slate-700' 
+          : 'bg-white border-gray-200'
+      }`}>
+        <div className="flex items-center gap-3 mb-4">
+          <GitBranch className="w-5 h-5 text-purple-500" />
+          <h3 className="font-semibold">Миграции базы данных</h3>
+        </div>
+        
+        {migrationsLoading ? (
+          <div className="text-center py-4 opacity-60">Загрузка...</div>
+        ) : migrations ? (
+          <div className="space-y-4">
+            {/* Сводка */}
+            <div className="flex gap-4">
+              <div className={`px-3 py-1 rounded-full text-sm ${
+                migrations.all_applied 
+                  ? 'bg-green-500/20 text-green-500' 
+                  : 'bg-yellow-500/20 text-yellow-500'
+              }`}>
+                {migrations.all_applied ? 'Все применены' : 'Есть неприменённые'}
+              </div>
+              <div className="text-sm opacity-60">
+                Применено: {migrations.applied_count} | Не применено: {migrations.unapplied_count}
+              </div>
+            </div>
+
+            {/* Список миграций */}
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {migrations.migrations?.map((migration, index) => (
+                <div 
+                  key={index}
+                  className={`flex items-center gap-2 text-sm ${
+                    migration.type === 'schema' 
+                      ? 'font-semibold text-blue-400' 
+                      : migration.applied 
+                        ? 'opacity-80' 
+                        : 'text-yellow-500'
+                  }`}
+                >
+                  {migration.type === 'schema' ? (
+                    <span className="text-blue-400">▸</span>
+                  ) : migration.applied ? (
+                    <span className="text-green-500">✓</span>
+                  ) : (
+                    <span className="text-yellow-500">○</span>
+                  )}
+                  <span className={migration.type === 'schema' ? 'font-semibold' : 'font-mono text-xs'}>
+                    {migration.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-4 opacity-60">Нет данных</div>
+        )}
       </div>
     </div>
   );

@@ -10,6 +10,16 @@ export const getSystemStats = async () => {
   }
 };
 
+// Функция для получения статуса миграций (для админ-панели)
+export const getMigrationsStatus = async () => {
+  try {
+    const response = await api.get('users/migrations/');
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || error;
+  }
+};
+
 // Функция для получения сессий пользователя (для админа)
 export const getUserSessions = async (userId) => {
   try {
