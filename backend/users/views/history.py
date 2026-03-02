@@ -198,6 +198,12 @@ def terminate_all_user_sessions(request, user_id):
         sessions = sessions.exclude(token_id=current_token_id)
     
     count = sessions.count()
+    
+    # Добавляем все токены в blacklist для инвалидации
+    from users.models_session import TokenBlacklist
+    for session in sessions:
+        TokenBlacklist.add_to_blacklist(target_user, session.token_id, reason='admin_terminated_all')
+    
     sessions.update(is_active=False)
     
     return Response({
@@ -229,6 +235,11 @@ def terminate_user_session(request, user_id, session_id):
             is_active=True
         )
         
+        # Добавляем токен в blacklist для инвалидации
+        from users.models_session import TokenBlacklist
+        TokenBlacklist.add_to_blacklist(target_user, session.token_id, reason='admin_terminated')
+        
+        # Делаем сессию неактивной
         session.is_active = False
         session.save()
         

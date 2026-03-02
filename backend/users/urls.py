@@ -9,13 +9,14 @@ from .views import (
     get_user_sessions, terminate_all_user_sessions, terminate_user_session,
     get_system_stats, get_migrations_status
 )
+from .views.token_refresh import BlacklistTokenRefreshView
 
 app_name = 'users'
 
 urlpatterns = [
     # Auth endpoints (обратная совместимость с фронтендом)
     path('token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/refresh/', BlacklistTokenRefreshView.as_view(), name='token_refresh'),
     
     # Swagger token endpoint (для авторизации в Swagger UI)
     path('swagger-token/', SwaggerTokenView.as_view(), name='swagger_token'),
