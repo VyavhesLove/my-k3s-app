@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -187,7 +188,56 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             )
         
         serializer = self.get_serializer(data=request.data)
-        
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except AuthenticationFailed:
+            attempts = LoginLockService.increment_attempts(username, client_ip)
+
+            if attempts >= LoginLockService.MAX_ATTEMPTS:
+                log_login(request, username, success=False, error_status=LoginErrorStatus.BANNED)
+                remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+                minutes = remaining // 60
+                seconds = remaining % 60
+                return Response(
+                    {
+                        'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
+            log_login(request, username, success=False, error_status=LoginErrorStatus.INVALID_PASSWORD)
+            return Response(
+                {'detail': 'No active account found with the given credentials'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        except ValidationError as exc:
+            # Ошибки валидации (например, пользователь заблокирован).
+            attempts = LoginLockService.increment_attempts(username, client_ip)
+            error_status = LoginErrorStatus.UNKNOWN
+
+            if 'non_field_errors' in exc.detail:
+                error_messages = str(exc.detail['non_field_errors'])
+                if 'заблокирован' in error_messages.lower():
+                    error_status = LoginErrorStatus.USER_BLOCKED
+                elif 'неверный' in error_messages.lower() or 'invalid' in error_messages.lower():
+                    error_status = LoginErrorStatus.INVALID_PASSWORD
+
+            if attempts >= LoginLockService.MAX_ATTEMPTS:
+                log_login(request, username, success=False, error_status=LoginErrorStatus.BANNED)
+                remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+                minutes = remaining // 60
+                seconds = remaining % 60
+                return Response(
+                    {
+                        'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+
+            log_login(request, username, success=False, error_status=error_status)
+            return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+
         if serializer.is_valid():
             user = serializer.user
             
@@ -220,41 +270,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             
             return Response(response_data, status=status.HTTP_200_OK)
         
-        # Логируем неудачную попытку входа
-        # Пытаемся определить причину ошибки
-        errors = serializer.errors
-        error_status = LoginErrorStatus.UNKNOWN
-        
-        if 'non_field_errors' in errors:
-            error_messages = str(errors['non_field_errors'])
-            if 'заблокирован' in error_messages.lower():
-                error_status = LoginErrorStatus.USER_BLOCKED
-            elif 'неверный' in error_messages.lower() or 'invalid' in error_messages.lower():
-                error_status = LoginErrorStatus.INVALID_PASSWORD
-        
-        # Инкрементируем счётчик попыток при неудаче
-        attempts = LoginLockService.increment_attempts(username, client_ip)
-        
-        # Если после инкремента достигли лимита - логируем как бан
-        if attempts >= LoginLockService.MAX_ATTEMPTS:
-            error_status = LoginErrorStatus.BANNED
-            log_login(request, username, success=False, error_status=error_status)
-            remaining = LoginLockService.get_remaining_seconds(username, client_ip)
-            minutes = remaining // 60
-            seconds = remaining % 60
-            return Response(
-                {
-                    'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
-                },
-                status=status.HTTP_429_TOO_MANY_REQUESTS
-            )
-        
-        log_login(request, username, success=False, error_status=error_status)
-        
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({'error': 'Ошибка аутентификации'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class SwaggerTokenView(APIView):
@@ -475,4 +491,3 @@ class SwaggerTokenView(APIView):
             {'error': 'Неверные учетные данные'},
             status=status.HTTP_401_UNAUTHORIZED
         )
-
