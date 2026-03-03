@@ -1,0 +1,12 @@
+# Манифест для редактирования сервиса Traefik
+# Применение: kubectl apply -f traefik-service.yaml
+# Или: kubectl patch svc traefik -n kube-system --type merge -p '{"spec":{"externalTrafficPolicy":"Local"}}'
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: traefik
+  namespace: kube-system
+spec:
+  externalTrafficPolicy: Local
+

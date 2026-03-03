@@ -81,6 +81,17 @@ const LoginPage = ({ setToken, isDarkMode }) => {
       // Для отладки - выводим сообщение
       // console.log('Extracted error message:', errorMessage);
       
+      // Проверяем статус ошибки
+      const status = err.response?.status;
+      
+      // Обработка 429 Too Many Requests
+      if (status === 429) {
+        toast.error(errorMessage || 'Превышено количество попыток входа');
+        setError(errorMessage || 'Превышено количество попыток входа. Попробуйте позже.');
+        navigate('/429');
+        return;
+      }
+      
       if (errorMessage && errorMessage.includes('заблокирован')) {
         toast.error('Пользователь заблокирован');
         setError('Пользователь заблокирован');

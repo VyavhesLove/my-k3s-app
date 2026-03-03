@@ -2,6 +2,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: my-k3s-ingress
+  annotations:
+    # Включаем использование заголовков X-Forwarded-For
+    nginx.ingress.kubernetes.io/use-forwarded-headers: "true"
+    nginx.ingress.kubernetes.io/forwarded-for-header: "X-Forwarded-For"
 spec:
   rules:
   - host: k8s.local

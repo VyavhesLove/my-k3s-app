@@ -13,6 +13,40 @@ from drf_spectacular.utils import extend_schema
 
 # Импорт модели UserSession для создания сессий при логине
 from users.models_session import UserSession
+# Импорт модели LoginLog для логирования входов
+from users.models import LoginLog, LoginErrorStatus
+# Импорт сервиса блокировки при неверном пароле
+from users.services import LoginLockService
+
+
+def get_client_ip(request):
+    """
+    Получает IP адрес клиента из запроса.
+    Использует X-Forwarded-For (список IP, первый - оригинальный).
+    """
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        return x_forwarded_for.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR')
+
+
+def get_user_agent(request):
+    """Получает User-Agent из запроса."""
+    return request.META.get('HTTP_USER_AGENT', '')[:255]
+
+
+def log_login(request, username, success, error_status=None, user=None):
+    """Логирует попытку входа."""
+    client_ip = get_client_ip(request)
+    
+    LoginLog.objects.create(
+        username=username,
+        user=user,
+        success=success,
+        error_status=error_status,
+        ip_address=client_ip,
+        user_agent=get_user_agent(request)
+    )
 
 
 class SwaggerTokenRequestSerializer(serializers.Serializer):
@@ -123,10 +157,35 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     Кастомное представление для получения токена.
     Проверяет active перед выдачей токена.
     Создаёт запись о сессии при успешной аутентификации.
+    Блокирует пользователя при 3+ неудачных попытках входа.
     """
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
+        username = request.data.get('username', '')
+        client_ip = get_client_ip(request)
+        
+        # Проверяем, не забанен ли пользователь по IP
+        if LoginLockService.is_banned(username, client_ip):
+            remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+            minutes = remaining // 60
+            seconds = remaining % 60
+            
+            # Логируем попытку входа при бане
+            log_login(
+                request, 
+                username, 
+                success=False, 
+                error_status=LoginErrorStatus.BANNED
+            )
+            
+            return Response(
+                {
+                    'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
         serializer = self.get_serializer(data=request.data)
         
         if serializer.is_valid():
@@ -153,7 +212,44 @@ class CustomTokenObtainPairView(TokenObtainPairView):
             if session_uuid:
                 create_user_session(user, str(refresh), request, session_uuid)
             
+            # Очищаем счётчик попыток при успешном входе
+            LoginLockService.clear_attempts(username, client_ip)
+            
+            # Логируем успешный вход
+            log_login(request, username, success=True, user=user)
+            
             return Response(response_data, status=status.HTTP_200_OK)
+        
+        # Логируем неудачную попытку входа
+        # Пытаемся определить причину ошибки
+        errors = serializer.errors
+        error_status = LoginErrorStatus.UNKNOWN
+        
+        if 'non_field_errors' in errors:
+            error_messages = str(errors['non_field_errors'])
+            if 'заблокирован' in error_messages.lower():
+                error_status = LoginErrorStatus.USER_BLOCKED
+            elif 'неверный' in error_messages.lower() or 'invalid' in error_messages.lower():
+                error_status = LoginErrorStatus.INVALID_PASSWORD
+        
+        # Инкрементируем счётчик попыток при неудаче
+        attempts = LoginLockService.increment_attempts(username, client_ip)
+        
+        # Если после инкремента достигли лимита - логируем как бан
+        if attempts >= LoginLockService.MAX_ATTEMPTS:
+            error_status = LoginErrorStatus.BANNED
+            log_login(request, username, success=False, error_status=error_status)
+            remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+            minutes = remaining // 60
+            seconds = remaining % 60
+            return Response(
+                {
+                    'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
+        log_login(request, username, success=False, error_status=error_status)
         
         return Response(
             serializer.errors,
@@ -166,6 +262,7 @@ class SwaggerTokenView(APIView):
     Endpoint для получения JWT токена по username/password.
     Используется для авторизации в Swagger UI.
     Требует, чтобы пользователь имел is_staff=True.
+    Блокирует пользователя при 3+ неудачных попытках входа.
     """
     authentication_classes = []  # Без аутентификации
     permission_classes = []  # Без разрешений
@@ -181,6 +278,7 @@ class SwaggerTokenView(APIView):
             400: {'description': 'Требуются username и password'},
             401: {'description': 'Неверные учетные данные'},
             403: {'description': 'Доступ только для staff пользователей или пользователь заблокирован'},
+            429: {'description': 'Превышено количество попыток входа'},
         },
         tags=['Auth'],
     )
@@ -188,6 +286,7 @@ class SwaggerTokenView(APIView):
         User = get_user_model()
         username = request.data.get('username')
         password = request.data.get('password')
+        client_ip = get_client_ip(request)
         
         if not username or not password:
             return Response(
@@ -195,10 +294,49 @@ class SwaggerTokenView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
+        # Проверяем, не забанен ли пользователь по IP
+        if LoginLockService.is_banned(username, client_ip):
+            remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+            minutes = remaining // 60
+            seconds = remaining % 60
+            
+            # Логируем попытку входа при бане
+            log_login(
+                request, 
+                username, 
+                success=False, 
+                error_status=LoginErrorStatus.BANNED
+            )
+            
+            return Response(
+                {
+                    'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
         # Проверяем пользователя
         try:
             user = User.objects.get(username=username)
         except User.DoesNotExist:
+            # Логируем неудачную попытку - неверный логин
+            # Инкрементируем счётчик попыток
+            attempts = LoginLockService.increment_attempts(username, client_ip)
+            
+            # Если после инкремента достигли лимита
+            if attempts >= LoginLockService.MAX_ATTEMPTS:
+                log_login(request, username, success=False, error_status=LoginErrorStatus.BANNED)
+                remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+                minutes = remaining // 60
+                seconds = remaining % 60
+                return Response(
+                    {
+                        'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            
+            log_login(request, username, success=False, error_status=LoginErrorStatus.INVALID_USERNAME)
             return Response(
                 {'error': 'Неверные учетные данные'},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -206,6 +344,24 @@ class SwaggerTokenView(APIView):
         
         # Проверяем is_staff
         if not user.is_staff:
+            # Логируем неудачную попытку - недостаточно прав
+            # Инкрементируем счётчик попыток
+            attempts = LoginLockService.increment_attempts(username, client_ip)
+            
+            # Если после инкремента достигли лимита
+            if attempts >= LoginLockService.MAX_ATTEMPTS:
+                log_login(request, username, success=False, error_status=LoginErrorStatus.BANNED)
+                remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+                minutes = remaining // 60
+                seconds = remaining % 60
+                return Response(
+                    {
+                        'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            
+            log_login(request, username, success=False, error_status=LoginErrorStatus.UNKNOWN)
             return Response(
                 {'error': 'Доступ только для staff пользователей'},
                 status=status.HTTP_403_FORBIDDEN
@@ -213,6 +369,24 @@ class SwaggerTokenView(APIView):
         
         # Проверяем active
         if not user.active:
+            # Логируем неудачную попытку - пользователь заблокирован
+            # Инкрементируем счётчик попыток
+            attempts = LoginLockService.increment_attempts(username, client_ip)
+            
+            # Если после инкремента достигли лимита
+            if attempts >= LoginLockService.MAX_ATTEMPTS:
+                log_login(request, username, success=False, error_status=LoginErrorStatus.BANNED, user=user)
+                remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+                minutes = remaining // 60
+                seconds = remaining % 60
+                return Response(
+                    {
+                        'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            
+            log_login(request, username, success=False, error_status=LoginErrorStatus.USER_BLOCKED, user=user)
             return Response(
                 {'error': 'Пользователь заблокирован'},
                 status=status.HTTP_403_FORBIDDEN
@@ -220,6 +394,24 @@ class SwaggerTokenView(APIView):
         
         # Проверяем пароль
         if not user.check_password(password):
+            # Логируем неудачную попытку - неверный пароль
+            # Инкрементируем счётчик попыток
+            attempts = LoginLockService.increment_attempts(username, client_ip)
+            
+            # Если после инкремента достигли лимита
+            if attempts >= LoginLockService.MAX_ATTEMPTS:
+                log_login(request, username, success=False, error_status=LoginErrorStatus.BANNED, user=user)
+                remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+                minutes = remaining // 60
+                seconds = remaining % 60
+                return Response(
+                    {
+                        'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                    },
+                    status=status.HTTP_429_TOO_MANY_REQUESTS
+                )
+            
+            log_login(request, username, success=False, error_status=LoginErrorStatus.INVALID_PASSWORD, user=user)
             return Response(
                 {'error': 'Неверные учетные данные'},
                 status=status.HTTP_401_UNAUTHORIZED
@@ -246,6 +438,12 @@ class SwaggerTokenView(APIView):
                 token_id = str(refresh_token)
                 create_user_session(user, token_id, request, session_uuid)
             
+            # Очищаем счётчик попыток при успешном входе
+            LoginLockService.clear_attempts(username, client_ip)
+            
+            # Логируем успешный вход
+            log_login(request, username, success=True, user=user)
+            
             # Форматируем ответ для Swagger UI (ожидает access_token, а не access)
             return Response({
                 'access_token': serializer.validated_data.get('access'),
@@ -253,6 +451,25 @@ class SwaggerTokenView(APIView):
                 'expires_in': 3600,  # 60 минут (в секундах)
                 'refresh_token': serializer.validated_data.get('refresh'),
             })
+        
+        # Логируем неудачную попытку входа (неизвестная ошибка)
+        # Инкрементируем счётчик попыток
+        attempts = LoginLockService.increment_attempts(username, client_ip)
+        
+        # Если после инкремента достигли лимита
+        if attempts >= LoginLockService.MAX_ATTEMPTS:
+            log_login(request, username, success=False, error_status=LoginErrorStatus.BANNED, user=user)
+            remaining = LoginLockService.get_remaining_seconds(username, client_ip)
+            minutes = remaining // 60
+            seconds = remaining % 60
+            return Response(
+                {
+                    'error': f'Превышено количество попыток входа. Попробуйте через {minutes} мин {seconds} сек'
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS
+            )
+        
+        log_login(request, username, success=False, error_status=LoginErrorStatus.UNKNOWN, user=user)
         
         return Response(
             {'error': 'Неверные учетные данные'},

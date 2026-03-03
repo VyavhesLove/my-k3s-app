@@ -74,6 +74,15 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        // Проверяем на ошибку 429 Too Many Requests (превышено количество попыток входа)
+        if (error.response?.status === 429) {
+            const errorMessage = error.response?.data?.error || 'Превышено количество попыток входа';
+            toast.error(errorMessage);
+            // Редиректим на страницу 429
+            window.location.href = '/429';
+            return Promise.reject(error);
+        }
+
         // Если ошибка 401 и мы еще не пробовали обновиться (_retry)
         if (error.response.status === 401 && !originalRequest._retry) {
             // Если мы на странице логина — не пытаемся обновить токен, просто пробрасываем ошибку

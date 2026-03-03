@@ -27,6 +27,8 @@ spec:
         env:
         - name: PYTHONUNBUFFERED
           value: "1"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379/0"
         volumeMounts:
         - name: sqlite-storage
           mountPath: /data

@@ -16,6 +16,7 @@ const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ defa
 const ScrapPage = lazy(() => import('@/pages/ScrapPage').then((m) => ({ default: m.ScrapPage })));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
 const ForbiddenPage = lazy(() => import('@/pages/ForbiddenPage').then((m) => ({ default: m.ForbiddenPage })));
+const TooManyRequestsPage = lazy(() => import('@/pages/TooManyRequestsPage').then((m) => ({ default: m.TooManyRequestsPage })));
 const AdminPanel = lazy(() => import('@/pages/AdminPanel').then((m) => ({ default: m.AdminPanel })));
 const UsersList_new = lazy(() => import('@/pages/UsersList/UsersList_new').then((m) => ({ default: m.default })));
 
@@ -196,6 +197,9 @@ function App() {
                         )
                       } 
                     />
+                    
+                    {/* Роут для 429 Too Many Requests */}
+                    <Route path="/429" element={<TooManyRequestsPage isDarkMode={isDarkMode} />} />
                     
                     <Route path="*" element={<NotFoundPage isDarkMode={isDarkMode} />} />
                   </Routes>

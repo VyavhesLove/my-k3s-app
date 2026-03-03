@@ -155,6 +155,19 @@ USE_TZ = True
 # часовой пояс (Екатеринбург +5)
 TIME_ZONE = 'Asia/Yekaterinburg'
 
+# Redis настройки
+REDIS_URL = os.environ.get('REDIS_URL', 'redis://redis-service:6379/0')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django.core.cache.backends.redis.RedisCache',
+        }
+    }
+}
+
 # django-auditlog настройки
 AUDITLOG_USE_TZ = True  # Использовать часовой пояс для записей аудита
 

@@ -8,3 +8,4 @@ gunicorn
 whitenoise
 djangorestframework-simplejwt
 PyJWT
+redis

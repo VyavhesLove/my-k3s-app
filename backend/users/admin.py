@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User
+from .models import User, LoginLog
 
 
 @admin.register(User)
@@ -23,4 +23,26 @@ class CustomUserAdmin(UserAdmin):
     )
     search_fields = ('username', 'email', 'first_name', 'last_name', 'surname')
     ordering = ('username',)
+
+
+@admin.register(LoginLog)
+class LoginLogAdmin(admin.ModelAdmin):
+    """Админка для логов входов."""
+    list_display = ('timestamp', 'username', 'success', 'error_status', 'ip_address')
+    list_filter = ('success', 'error_status', 'timestamp')
+    search_fields = ('username', 'ip_address')
+    readonly_fields = ('timestamp', 'username', 'success', 'error_status', 'ip_address', 'user_agent')
+    ordering = ('-timestamp',)
+    
+    def has_add_permission(self, request):
+        # Запрещаем создание записей вручную
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        # Разрешаем только просмотр
+        return True
+    
+    def has_delete_permission(self, request, obj=None):
+        # Запрещаем удаление
+        return False
 
